@@ -1,0 +1,23 @@
+{
+    "name": "FluxFramework.VR.Runtime",
+    "rootNamespace": "FluxFramework.VR",
+    "references": [
+        "GUID:8b83f5678b926564d8b319116a890644",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.xr.management",
+            "expression": "3.0.0",
+            "define": "XR_MANAGEMENT_AVAILABLE"
+        }
+    ],
+    "noEngineReferences": false
+}

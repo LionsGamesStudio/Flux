@@ -1,0 +1,21 @@
+{
+  "name": "com.fluxframework.core",
+  "version": "1.0.0",
+  "displayName": "Flux Framework",
+  "description": "An innovative Unity framework for decoupling UI from logic with reactive patterns, thread-safe operations, and enhanced developer experience",
+  "unity": "2022.3",
+  "unityRelease": "0f1",
+  "dependencies": {},
+  "keywords": [
+    "ui",
+    "reactive",
+    "framework",
+    "decoupling",
+    "thread-safe"
+  ],
+  "author": {
+    "name": "Flux Framework Team"
+  },
+  "type": "library",
+  "hideInEditor": false
+}
