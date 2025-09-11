@@ -16,6 +16,10 @@ namespace FluxFramework.UI
     /// </summary>
     public abstract class FluxUIComponent : FluxMonoBehaviour
     {
+        [Header("Theming")]
+        [Tooltip("If true, this component will attempt to apply the global UI theme on start.")]
+        [SerializeField] private bool _applyThemeOnStart = true;
+
         private readonly List<IUIBinding> _activeBindings = new List<IUIBinding>();
         private bool _isBound = false;
 
@@ -69,6 +73,13 @@ namespace FluxFramework.UI
         protected virtual void CleanupComponent() { }
 
         /// <summary>
+        /// Applies the currently active UITheme to this component.
+        /// Derived classes should override this to style their specific elements
+        /// (e.g., a FluxButton would style its background image and text).
+        /// </summary>
+        public virtual void ApplyTheme() {}
+
+        /// <summary>
         /// Helper method for derived classes to add their manually created bindings
         /// to the central tracking list for automatic cleanup.
         /// </summary>
@@ -90,6 +101,13 @@ namespace FluxFramework.UI
         {
             base.Awake();
             InitializeComponent();
+
+            // Apply the theme after initialization but before binding.
+            if (_applyThemeOnStart)
+            {
+                ApplyTheme();
+            }
+
             Bind(); // Call the public Bind method
         }
 

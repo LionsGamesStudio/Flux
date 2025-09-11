@@ -34,6 +34,38 @@ namespace FluxFramework.UI
             }
         }
 
+        protected override void ApplyTheme()
+        {
+            base.ApplyTheme();
+            
+            var theme = UIThemeManager.CurrentTheme;
+            if (theme == null) return;
+
+            // Apply colors from theme
+            if (sliderComponent != null)
+            {
+                // Background
+                if (sliderComponent.fillRect != null && theme.accentColor != null)
+                {
+                    var fillImage = sliderComponent.fillRect.GetComponent<Image>();
+                    if (fillImage != null)
+                    {
+                        fillImage.color = theme.accentColor;
+                    }
+                }
+
+                // Handle
+                if (sliderComponent.handleRect != null && theme.primaryColor != null)
+                {
+                    var handleImage = sliderComponent.handleRect.GetComponent<Image>();
+                    if (handleImage != null)
+                    {
+                        handleImage.color = theme.primaryColor;
+                    }
+                }
+            }
+        }
+
         #region Public API
         public float GetCurrentValue() => sliderComponent?.value ?? 0f;
         public void SetValueWithoutNotify(float value) { sliderComponent?.SetValueWithoutNotify(value); }

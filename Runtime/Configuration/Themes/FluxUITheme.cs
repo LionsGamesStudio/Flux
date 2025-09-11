@@ -1,6 +1,7 @@
 using UnityEngine;
 using FluxFramework.Attributes;
 using FluxFramework.Core;
+using FluxFramework.UI;
 
 namespace FluxFramework.Configuration
 {
@@ -22,9 +23,17 @@ namespace FluxFramework.Configuration
         public Color backgroundColor = Color.white;
         public Color textColor = Color.black;
 
-        [Header("Fonts")]
-        public Font primaryFont;
-        public Font secondaryFont;
+        [Header("Fonts (TextMeshPro)")]
+        [Tooltip("The primary font asset for TextMeshPro components.")]
+        public TMP_FontAsset primaryFont_TMP;
+        [Tooltip("The secondary font asset for TextMeshPro components.")]
+        public TMP_FontAsset secondaryFont_TMP;
+
+        [Header("Fonts (Legacy UI)")]
+        [Tooltip("The primary font for legacy UI Text components.")]
+        public Font primaryFont_Legacy;
+        [Tooltip("The secondary font for legacy UI Text components.")]
+        public Font secondaryFont_Legacy;
 
         [Header("Sizes")]
         [Range(8, 72)]
@@ -56,6 +65,7 @@ namespace FluxFramework.Configuration
             if (!ValidateConfiguration()) return;
 
             // Apply theme to UI components
+            UIThemeManager.SetTheme(this);
             Debug.Log("[FluxFramework] UI Theme applied successfully");
         }
     }

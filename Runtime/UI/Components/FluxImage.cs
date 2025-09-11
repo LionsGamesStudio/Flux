@@ -41,9 +41,23 @@ namespace FluxFramework.UI
             if (_spriteBindingTarget == null) _spriteBindingTarget = imageComponent;
             if (_colorBindingTarget == null) _colorBindingTarget = imageComponent;
         }
+
+        protected override void ApplyTheme()
+        {
+            base.ApplyTheme();
+            
+            var theme = UIThemeManager.CurrentTheme;
+            if (theme == null) return;
+
+            // Apply background color from theme
+            if (imageComponent != null)
+            {
+                imageComponent.color = theme.backgroundColor;
+            }
+        }
         
         #region Public API
-        
+
         public Sprite GetCurrentSprite() => imageComponent?.sprite;
         public Color GetCurrentColor() => imageComponent?.color ?? Color.white;
         

@@ -39,8 +39,46 @@ namespace FluxFramework.UI
             }
         }
         
-        #region Public API
+        /// <summary>
+        /// Applies the global theme's font and color to this text component.
+        /// </summary>
+        public override void ApplyTheme()
+        {
+            base.ApplyTheme();
+            
+            var theme = UIThemeManager.CurrentTheme;
+            if (theme == null) return;
+
+            // Apply to TextMeshPro component if it exists
+            if (textComponent != null)
+            {
+                // Apply font if one is assigned in the theme
+                if (theme.primaryFont_TMP != null)
+                {
+                    textComponent.font = theme.primaryFont_TMP;
+                }
+                // Apply font size
+                textComponent.fontSize = theme.defaultFontSize;
+                // Apply color
+                textComponent.color = theme.textColor;
+            }
+            // Apply to legacy Text component if it exists
+            else if (legacyTextComponent != null)
+            {
+                // Apply font if one is assigned in the theme
+                if (theme.primaryFont_Legacy != null)
+                {
+                    legacyTextComponent.font = theme.primaryFont_Legacy;
+                }
+                // Apply font size
+                legacyTextComponent.fontSize = theme.defaultFontSize;
+                // Apply color
+                legacyTextComponent.color = theme.textColor;
+            }
+        }
         
+        #region Public API
+
         public string GetCurrentText()
         {
             if (textComponent != null) return textComponent.text;

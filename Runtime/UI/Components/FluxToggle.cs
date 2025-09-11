@@ -33,6 +33,30 @@ namespace FluxFramework.UI
                 _valueBindingTarget = toggleComponent;
             }
         }
+
+        protected override void ApplyTheme()
+        {
+            base.ApplyTheme();
+            
+            var theme = UIThemeManager.CurrentTheme;
+            if (theme == null) return;
+
+            // Apply colors from theme
+            if (toggleComponent != null)
+            {
+                // Background
+                if (toggleComponent.targetGraphic != null && theme.backgroundColor != null)
+                {
+                    toggleComponent.targetGraphic.color = theme.backgroundColor;
+                }
+
+                // Checkmark
+                if (toggleComponent.graphic != null && theme.accentColor != null)
+                {
+                    toggleComponent.graphic.color = theme.accentColor;
+                }
+            }
+        }
         
         #region Public API
         public bool GetCurrentValue() => toggleComponent?.isOn ?? false;
