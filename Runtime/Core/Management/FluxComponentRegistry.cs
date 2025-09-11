@@ -401,7 +401,7 @@ namespace FluxFramework.Core
         /// <summary>
         /// Editor-only method to refresh component discovery during development
         /// </summary>
-        [UnityEditor.MenuItem("Flux/Refresh Component Registry")]
+        [UnityEditor.MenuItem("Flux/Tools/Refresh Component Registry")]
         public static void EditorRefreshRegistry()
         {
             ClearCache();

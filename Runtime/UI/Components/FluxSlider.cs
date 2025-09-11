@@ -34,7 +34,7 @@ namespace FluxFramework.UI
             }
         }
 
-        protected override void ApplyTheme()
+        public override void ApplyTheme()
         {
             base.ApplyTheme();
             

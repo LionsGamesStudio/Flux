@@ -2,6 +2,7 @@ using UnityEngine;
 using FluxFramework.Attributes;
 using FluxFramework.Core;
 using FluxFramework.UI;
+using TMPro;
 
 namespace FluxFramework.Configuration
 {

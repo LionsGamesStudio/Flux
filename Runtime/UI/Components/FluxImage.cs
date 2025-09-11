@@ -42,7 +42,7 @@ namespace FluxFramework.UI
             if (_colorBindingTarget == null) _colorBindingTarget = imageComponent;
         }
 
-        protected override void ApplyTheme()
+        public override void ApplyTheme()
         {
             base.ApplyTheme();
             

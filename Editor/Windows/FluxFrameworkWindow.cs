@@ -111,14 +111,13 @@ namespace FluxFramework.Editor
             
             if (Application.isPlaying && isInitialized)
             {
-                // --- MISE À JOUR : Utiliser les nouvelles méthodes ---
                 EditorGUILayout.LabelField($"Registered Properties:", $"{FluxManager.Instance.Properties.PropertyCount}");
                 EditorGUILayout.LabelField($"Event Subscriptions:", $"{EventBus.GetTotalSubscriberCount()}");
                 EditorGUILayout.LabelField($"Active UI Bindings:", $"{ReactiveBindingSystem.GetActiveBindingCount()}");
             }
             else
             {
-                 EditorGUILayout.HelpBox("Enter Play Mode to see live statistics.", MessageType.Info);
+                EditorGUILayout.HelpBox("Enter Play Mode to see live statistics.", MessageType.Info);
             }
             
             EditorGUILayout.EndVertical();

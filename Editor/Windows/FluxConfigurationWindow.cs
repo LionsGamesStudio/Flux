@@ -16,7 +16,7 @@ namespace FluxFramework.Editor
         private Vector2 _scrollPosition;
         private Dictionary<string, bool> _categoryFoldouts = new Dictionary<string, bool>();
 
-        [MenuItem("Flux/Configuration Manager")]
+        [MenuItem("Flux/Configuration/Configuration Manager")]
         public static void ShowWindow()
         {
             GetWindow<FluxConfigurationWindow>("Flux Configurations");

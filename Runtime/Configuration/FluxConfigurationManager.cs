@@ -350,7 +350,7 @@ namespace FluxFramework.Configuration
         /// <summary>
         /// Editor-only method to refresh configurations during development
         /// </summary>
-        [UnityEditor.MenuItem("Flux/Clear Configuration Cache")]
+        [UnityEditor.MenuItem("Flux/Configuration/Clear Configuration Cache")]
         public static void EditorClearCache()
         {
             ClearCache();

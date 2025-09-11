@@ -30,7 +30,7 @@ namespace FluxFramework.VisualScripting.Editor
         /// <summary>
         /// Opens the Visual Scripting Editor window from the Unity menu.
         /// </summary>
-        [MenuItem("Flux/Visual Scripting Editor")]
+        [MenuItem("Flux/Visual Scripting/Visual Scripting Editor")]
         public static void ShowWindow()
         {
             var window = GetWindow<FluxVisualScriptingWindow>("Flux Visual Scripting");

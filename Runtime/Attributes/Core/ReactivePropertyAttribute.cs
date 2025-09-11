@@ -30,6 +30,17 @@ namespace FluxFramework.Attributes
         public string Description { get; set; } = "";
 
         /// <summary>
+        /// An optional category for organizing properties.
+        /// The scanner tool can use this to add the property to a specific definitions asset.
+        /// </summary>
+        public string Category { get; set; } = "General";
+
+        /// <summary>
+        /// If true, this property will be ignored by the "Scan Project" discovery tool.
+        /// </summary>
+        public bool ExcludeFromDiscovery { get; set; } = false;
+
+        /// <summary>
         /// Whether to save this property value between sessions
         /// </summary>
         public bool Persistent { get; set; } = false;
