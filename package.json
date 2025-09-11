@@ -5,7 +5,12 @@
   "description": "An innovative Unity framework for decoupling UI from logic with reactive patterns, thread-safe operations, and enhanced developer experience",
   "unity": "2022.3",
   "unityRelease": "0f1",
-  "dependencies": {},
+  "dependencies": {
+    "com.unity.nuget.newtonsoft-json": "3.2.1",
+    "com.unity.ugui": "1.0.0",
+    "com.unity.textmeshpro": "3.0.6",
+    "com.unity.xr.management": "4.2.0"
+  },
   "keywords": [
     "ui",
     "reactive",

@@ -1,3 +1,4 @@
+#if FLUX_VR_SUPPORT
 using UnityEngine;
 using UnityEngine.UI;
 using FluxFramework.UI;
@@ -197,3 +198,4 @@ namespace FluxFramework.VR.UI
         public VRButtonClickedEvent(GameObject button) : base("VRUIButton") { Button = button; }
     }
 }
+#endif

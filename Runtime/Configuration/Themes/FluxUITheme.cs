@@ -1,5 +1,6 @@
 using UnityEngine;
 using FluxFramework.Attributes;
+using FluxFramework.Core;
 
 namespace FluxFramework.Configuration
 {
@@ -50,7 +51,7 @@ namespace FluxFramework.Configuration
             return true;
         }
 
-        public override void ApplyConfiguration()
+        public override void ApplyConfiguration(FluxManager manager)
         {
             if (!ValidateConfiguration()) return;
 

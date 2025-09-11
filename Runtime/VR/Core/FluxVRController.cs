@@ -1,3 +1,4 @@
+#if FLUX_VR_SUPPORT
 using UnityEngine;
 using UnityEngine.XR;
 using FluxFramework.Core;
@@ -200,3 +201,4 @@ namespace FluxFramework.VR
         Grip
     }
 }
+#endif
