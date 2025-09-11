@@ -124,7 +124,7 @@ namespace FluxFramework.VisualScripting.Editor
             
             toolbar.Add(new ToolbarSpacer { flex = true });
 
-            var helpButton = new Button(() => Application.OpenURL("https://fluxframework.dev/docs/visual-scripting"))
+            var helpButton = new Button(() => Application.OpenURL("https://github.com/LionsGamesStudio/Flux/blob/main/VISUAL_SCRIPTING_README.md"))
             {
                 text = "Help"
             };

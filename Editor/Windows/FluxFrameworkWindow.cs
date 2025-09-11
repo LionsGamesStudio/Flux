@@ -70,7 +70,7 @@ namespace FluxFramework.Editor
             
             if (GUILayout.Button("Documentation", GUILayout.Width(100)))
             {
-                Application.OpenURL("https://fluxframework.dev/docs");
+                Application.OpenURL("https://github.com/LionsGamesStudio/Flux/blob/main/README.md");
             }
             
             if (GUILayout.Button("Visual Scripting", GUILayout.Width(120)))

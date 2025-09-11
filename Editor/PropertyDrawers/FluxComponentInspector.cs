@@ -80,7 +80,7 @@ namespace FluxFramework.Editor
             
             if (GUILayout.Button("Documentation"))
             {
-                Application.OpenURL("https://fluxframework.dev/docs");
+                Application.OpenURL("https://github.com/LionsGamesStudio/Flux/blob/main/README.md");
             }
             
             EditorGUILayout.EndHorizontal();

@@ -26,7 +26,7 @@ namespace FluxFramework.Editor
         [MenuItem(MENU_ROOT + "Documentation", priority = PRIORITY_BASE + 1)]
         public static void OpenDocumentation()
         {
-            Application.OpenURL("https://fluxframework.dev/docs");
+            Application.OpenURL("https://github.com/LionsGamesStudio/Flux/blob/main/README.md");
         }
 
         [MenuItem(MENU_ROOT + "Settings", priority = PRIORITY_BASE + 2)]
