@@ -97,9 +97,9 @@ namespace FluxFramework.UI
         /// <summary>
         /// The Awake method is sealed and controls the lifecycle.
         /// </summary>
-        protected sealed override void Awake()
+        protected sealed override void OnFluxAwake()
         {
-            base.Awake();
+            base.OnFluxAwake();
             InitializeComponent();
 
             // Apply the theme after initialization but before binding.
@@ -114,11 +114,11 @@ namespace FluxFramework.UI
         /// <summary>
         /// The OnDestroy method is sealed and guarantees cleanup.
         /// </summary>
-        protected sealed override void OnDestroy()
+        protected sealed override void OnFluxDestroy()
         {
             Unbind(); // Call the public Unbind method
             CleanupComponent();
-            base.OnDestroy();
+            base.OnFluxDestroy();
         }
 
         private void RegisterAllBindingsByAttribute()

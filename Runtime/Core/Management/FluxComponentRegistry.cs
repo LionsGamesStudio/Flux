@@ -127,8 +127,6 @@ namespace FluxFramework.Core
             _registeredTypes.Add(type);
             _registeredInstances.Add(component);
 
-            Debug.Log($"[FluxFramework] Registered FluxComponent instance: {type.Name} on GameObject '{component.gameObject.name}'.", component);
-
             CallRegistrationMethods(component, attribute);
 
             RegisterReactiveProperties(component);
@@ -257,8 +255,6 @@ namespace FluxFramework.Core
                 {
                     FluxPersistenceManager.RegisterPersistentProperty(propertyKey, property);
                 }
-
-                Debug.Log($"[FluxFramework] Registered {(validators.Count > 0 ? "Validated" : "")}ReactiveProperty '{propertyKey}' for {component.GetType().Name}.{field.Name}", component);
             }
             catch (Exception ex)
             {
