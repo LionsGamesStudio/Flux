@@ -37,23 +37,21 @@ namespace FluxFramework.UI
                 sliderComponent = GetComponent<Slider>();
             }
         }
-        
+
         /// <summary>
         /// Manually creates the binding for the slider based on the inspector configuration.
         /// </summary>
         protected override void RegisterCustomBindings()
         {
             if (string.IsNullOrEmpty(_propertyKey) || sliderComponent == null) return;
-            
-            bool isTwoWay = _bindingMode == BindingMode.TwoWay || _bindingMode == BindingMode.OneWayToSource;
-            
+
             // We create the specific SliderBinding instance.
-            _binding = new SliderBinding(_propertyKey, sliderComponent, isTwoWay);
-            
+            _binding = new SliderBinding(_propertyKey, sliderComponent);
+
             // Register it with the central system with default options.
             // A more advanced version could expose BindingOptions in the inspector.
             ReactiveBindingSystem.Bind(_propertyKey, _binding, new BindingOptions { Mode = _bindingMode });
-            
+
             // Track the binding for automatic cleanup.
             TrackBinding(_binding);
         }

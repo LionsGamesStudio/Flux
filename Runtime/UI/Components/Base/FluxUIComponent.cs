@@ -156,8 +156,8 @@ namespace FluxFramework.UI
 
             if (uiComponent is TextMeshProUGUI tmpText) return new TextBinding(bindingAttr.PropertyKey, tmpText);
             if (uiComponent is Text legacyText) return new LegacyTextBinding(bindingAttr.PropertyKey, legacyText);
-            if (uiComponent is Slider slider) return new SliderBinding(bindingAttr.PropertyKey, slider, isTwoWay);
-            if (uiComponent is Toggle toggle) return new ToggleBinding(bindingAttr.PropertyKey, toggle, isTwoWay);
+            if (uiComponent is Slider slider) return new SliderBinding(bindingAttr.PropertyKey, slider);
+            if (uiComponent is Toggle toggle) return new ToggleBinding(bindingAttr.PropertyKey, toggle);
             if (uiComponent is Image image)
             {
                 return bindingAttr.PropertyKey.ToLower().Contains("sprite") 

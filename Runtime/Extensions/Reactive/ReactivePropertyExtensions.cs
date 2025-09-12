@@ -4,6 +4,7 @@ using UnityEngine;
 using FluxFramework.Core;
 using FluxFramework.Validation;
 using FluxFramework.Binding;
+using FluxFramework.Attributes;
 
 namespace FluxFramework.Extensions
 {
@@ -60,6 +61,61 @@ namespace FluxFramework.Extensions
 
             // This requires a small addition to the ReactiveProperty class.
             target.AddDependentSubscription(subscription);
+            
+            return target;
+        }
+
+        /// <summary>
+        /// Creates a new reactive property by applying a non-generic IValueConverter.
+        /// This is the core of the automatic conversion in the binding system.
+        /// This version now supports TwoWay binding.
+        /// </summary>
+        public static ReactiveProperty<TTarget> Transform<TTarget>(
+            this IReactiveProperty source, 
+            IValueConverter converter,
+            BindingOptions options) // <-- Pass options to know the binding mode
+        {
+            TTarget initialValue;
+            try { initialValue = (TTarget)converter.Convert(source.GetValue()); }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[FluxFramework] ValueConverter '{converter.GetType().Name}' failed during initial conversion: {ex.Message}");
+                initialValue = default;
+            }
+
+            var target = new ReactiveProperty<TTarget>(initialValue);
+            bool isUpdating = false; // Re-entrancy guard to prevent infinite loops
+
+            // --- FORWARD BINDING (Source -> Target) ---
+            var sub1 = source.Subscribe(value =>
+            {
+                if (isUpdating) return;
+                try
+                {
+                    isUpdating = true;
+                    target.Value = (TTarget)converter.Convert(value);
+                }
+                catch (Exception ex) { Debug.LogError($"[FluxFramework] ValueConverter '{converter.GetType().Name}' failed during update: {ex.Message}"); }
+                finally { isUpdating = false; }
+            });
+            target.AddDependentSubscription(sub1);
+
+            // --- BACKWARD BINDING (Target -> Source) for TwoWay mode ---
+            if (options.Mode == BindingMode.TwoWay)
+            {
+                var sub2 = target.Subscribe((TTarget value) =>
+                {
+                    if (isUpdating) return;
+                    try
+                    {
+                        isUpdating = true;
+                        source.SetValue(converter.ConvertBack(value));
+                    }
+                    catch (Exception ex) { Debug.LogError($"[FluxFramework] ValueConverter '{converter.GetType().Name}' failed during ConvertBack: {ex.Message}"); }
+                    finally { isUpdating = false; }
+                });
+                target.AddDependentSubscription(sub2);
+            }
             
             return target;
         }

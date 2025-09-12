@@ -85,9 +85,7 @@ namespace FluxFramework.Binding
                         try
                         {
                             var converterInstance = (IValueConverter)Activator.CreateInstance(converterType);
-                            // We need a non-generic Transform method on ReactivePropertyExtensions for this to work cleanly.
-                            // Let's assume we add it.
-                            var transformedProp = property.Transform<T>(converterInstance);
+                            var transformedProp = property.Transform<T>(converterInstance, options);
                             BindToProperty(transformedProp, binding, options);
                         }
                         catch (Exception ex)
@@ -218,7 +216,7 @@ namespace FluxFramework.Binding
             // The .Sum() extension method requires 'using System.Linq;'
             return _bindings.Values.Sum(list => list.Count);
         }
-        
+
         /// <summary>
         /// A private helper that contains the actual subscription logic.
         /// It is only ever called with a strongly-typed, validated property.
@@ -230,7 +228,7 @@ namespace FluxFramework.Binding
                 _subscriptions[binding]?.Dispose();
                 _subscriptions.Remove(binding);
             }
-            
+
             if (options.ImmediateUpdate)
             {
                 Action<T> updateAction = value =>
@@ -253,10 +251,12 @@ namespace FluxFramework.Binding
                         Debug.LogError($"[FluxFramework] Error updating UI for binding '{binding.PropertyKey}': {ex.Message}", binding.Component);
                     }
                 };
-                
+
                 IDisposable subscription = property.Subscribe(updateAction, fireOnSubscribe: true);
                 _subscriptions[binding] = subscription;
             }
+            
+            binding.Activate(property);
         }
 
         /// <summary>

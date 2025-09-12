@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using FluxFramework.Core;
 
 namespace FluxFramework.Binding
 {
@@ -51,6 +52,12 @@ namespace FluxFramework.Binding
         /// </summary>
         /// <returns>Current UI value</returns>
         T GetUIValue();
+
+        /// <summary>
+        /// Called by the ReactiveBindingSystem when the binding is connected to a specific ReactiveProperty instance.
+        /// </summary>
+        /// <param name="property"></param>
+        void Activate(ReactiveProperty<T> property);
     }
 
     /// <summary>

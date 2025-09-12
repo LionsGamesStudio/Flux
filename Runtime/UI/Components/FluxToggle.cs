@@ -45,10 +45,9 @@ namespace FluxFramework.UI
         {
             if (string.IsNullOrEmpty(_propertyKey) || toggleComponent == null) return;
             
-            bool isTwoWay = _bindingMode == BindingMode.TwoWay || _bindingMode == BindingMode.OneWayToSource;
+            _binding = new ToggleBinding(_propertyKey, toggleComponent);
             
-            _binding = new ToggleBinding(_propertyKey, toggleComponent, isTwoWay);
-            
+            // The binding options are passed to the system, which will then configure the binding.
             ReactiveBindingSystem.Bind(_propertyKey, _binding, new BindingOptions { Mode = _bindingMode });
             
             TrackBinding(_binding);

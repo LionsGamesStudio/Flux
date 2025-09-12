@@ -5,15 +5,25 @@ using FluxFramework.Core;
 namespace FluxFramework.Binding
 {
     /// <summary>
-    /// Binding for Image color
+    /// Binding for Image color.
     /// </summary>
     public class ColorBinding : UIBinding<Color>
     {
         private readonly Image _imageComponent;
+        private IReactiveProperty<Color> _property;
 
         public ColorBinding(string propertyKey, Image imageComponent) : base(propertyKey, imageComponent)
         {
             _imageComponent = imageComponent;
+        }
+
+        /// <summary>
+        /// Activates the binding by receiving the definitive property instance.
+        /// </summary>
+        public override void Activate(ReactiveProperty<Color> property)
+        {
+            _property = property;
+            // For a OneWay binding, there are no listeners to attach, but the pattern is respected.
         }
 
         public override void UpdateUI(Color value)

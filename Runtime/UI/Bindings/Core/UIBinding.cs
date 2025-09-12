@@ -55,6 +55,12 @@ namespace FluxFramework.Binding
         }
 
         /// <summary>
+        /// Called by the ReactiveBindingSystem when the binding is connected to a specific ReactiveProperty instance.
+        /// </summary>
+        /// <param name="property"></param>
+        public virtual void Activate(ReactiveProperty<T> property) { }
+
+        /// <summary>
         /// Sets the binding options after construction.
         /// This is called by the ReactiveBindingSystem during the Bind process.
         /// </summary>
