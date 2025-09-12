@@ -11,6 +11,7 @@ namespace FluxFramework.UI
     /// The property key and binding mode are configured directly in the inspector.
     /// </summary>
     [RequireComponent(typeof(Slider))]
+    [AddComponentMenu("Flux/UI/Flux Slider")]
     public class FluxSlider : FluxUIComponent
     {
         [Header("Component Reference")]
@@ -20,7 +21,7 @@ namespace FluxFramework.UI
         [Header("Binding Configuration")]
         [Tooltip("The Reactive Property Key to bind this slider's value to.")]
         [SerializeField] private string _propertyKey;
-        
+
         [Tooltip("Defines the data flow direction. 'TwoWay' allows the slider to update the property.")]
         [SerializeField] private BindingMode _bindingMode = BindingMode.OneWay;
 
@@ -55,14 +56,14 @@ namespace FluxFramework.UI
             // Track the binding for automatic cleanup.
             TrackBinding(_binding);
         }
-        
+
         /// <summary>
         /// Applies the global theme to the different parts of the slider.
         /// </summary>
         public override void ApplyTheme()
         {
             base.ApplyTheme();
-            
+
             var theme = UIThemeManager.CurrentTheme;
             if (theme == null || sliderComponent == null) return;
 
@@ -75,7 +76,7 @@ namespace FluxFramework.UI
                     fillImage.color = theme.accentColor;
                 }
             }
-            
+
             if (sliderComponent.handleRect != null)
             {
                 var handleImage = sliderComponent.handleRect.GetComponent<Image>();
@@ -87,12 +88,12 @@ namespace FluxFramework.UI
         }
 
         #region Public API
-        
+
         public float GetCurrentValue() => sliderComponent?.value ?? 0f;
         public void SetValueWithoutNotify(float value) { sliderComponent?.SetValueWithoutNotify(value); }
         public void SetRange(float min, float max) { if (sliderComponent != null) { sliderComponent.minValue = min; sliderComponent.maxValue = max; } }
         public Vector2 GetRange() => sliderComponent != null ? new Vector2(sliderComponent.minValue, sliderComponent.maxValue) : Vector2.zero;
-        
+
         #endregion
     }
 }

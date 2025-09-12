@@ -3,317 +3,131 @@ using UnityEditor;
 using FluxFramework.Core;
 using FluxFramework.Binding;
 using FluxFramework.Configuration;
+using FluxFramework.VisualScripting.Editor;
 
 namespace FluxFramework.Editor
 {
     /// <summary>
-    /// Main editor window for the Flux Framework
+    /// The main control panel for the Flux Framework.
+    /// Provides access to all tools, debuggers, and configuration assets.
     /// </summary>
     public class FluxFrameworkWindow : EditorWindow
     {
-        private Vector2 scrollPosition;
-        private bool showProperties = true;
-        private bool showEvents = true;
-        private bool showBindings = true;
-        private bool showConfiguration = true;
-
-        [MenuItem("Flux/Framework Dashboard")]
+        [MenuItem("Flux/Control Panel...", false, 0)]
         public static void ShowWindow()
         {
-            var window = GetWindow<FluxFrameworkWindow>("Flux Framework");
-            window.minSize = new Vector2(400, 300);
+            GetWindow<FluxFrameworkWindow>("Flux Control Panel");
         }
         
-        private void OnEnable()
-        {
-            // Subscribe to the editor update loop to keep the window's data fresh
-            EditorApplication.update += Repaint;
-        }
-
-        private void OnDisable()
-        {
-            EditorApplication.update -= Repaint;
-        }
+        private void OnEnable() => EditorApplication.update += Repaint;
+        private void OnDisable() => EditorApplication.update -= Repaint;
 
         private void OnGUI()
         {
             DrawHeader();
-
-            scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
-
             DrawFrameworkStatus();
-            DrawPropertySection();
-            DrawEventSection();
-            DrawBindingSection();
-            DrawConfigurationSection();
-
-            EditorGUILayout.EndScrollView();
-
+            EditorGUILayout.Space();
+            DrawToolbox();
             DrawFooter();
         }
 
         private void DrawHeader()
         {
-            EditorGUILayout.Space();
-            
-            var headerStyle = new GUIStyle(EditorStyles.boldLabel)
-            {
-                fontSize = 20,
-                alignment = TextAnchor.MiddleCenter
-            };
-            
-            EditorGUILayout.LabelField("Flux Framework Dashboard", headerStyle);
-            EditorGUILayout.Space();
-            
-            EditorGUILayout.BeginHorizontal();
-            GUILayout.FlexibleSpace();
-            
-            if (GUILayout.Button("Documentation", GUILayout.Width(100)))
-            {
-                Application.OpenURL("https://github.com/LionsGamesStudio/Flux/blob/main/README.md");
-            }
-            
-            if (GUILayout.Button("Visual Scripting", GUILayout.Width(120)))
-            {
-                FluxFramework.VisualScripting.Editor.FluxVisualScriptingWindow.ShowWindow();
-            }
-            
-            if (GUILayout.Button("Settings", GUILayout.Width(100)))
-            {
-                OpenFrameworkSettings();
-            }
-            
-            GUILayout.FlexibleSpace();
-            EditorGUILayout.EndHorizontal();
-            
-            EditorGUILayout.Space();
+            var headerStyle = new GUIStyle(EditorStyles.boldLabel) { fontSize = 20, alignment = TextAnchor.MiddleCenter };
+            EditorGUILayout.LabelField("Flux Control Panel", headerStyle);
+            EditorGUILayout.HelpBox("This is the central hub for all Flux Framework tools and settings.", MessageType.Info);
         }
 
         private void DrawFrameworkStatus()
         {
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-            EditorGUILayout.LabelField("Framework Status", EditorStyles.boldLabel);
-            
-            bool isInitialized = Application.isPlaying && Flux.Manager != null;
-            
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Status:", GUILayout.Width(150)); // Give it a fixed width for alignment
-            
-            var statusColor = isInitialized ? new Color(0.5f, 1f, 0.5f) : new Color(1f, 0.5f, 0.5f);
-            var statusText = isInitialized ? "Initialized (Runtime)" : "Not Initialized (Editor)";
-            
-            var originalColor = GUI.backgroundColor;
-            GUI.backgroundColor = statusColor;
-            EditorGUILayout.LabelField(statusText, EditorStyles.helpBox); // Use a helpBox for a nice background
-            GUI.backgroundColor = originalColor;
-            
-            EditorGUILayout.EndHorizontal();
-            
-            if (Application.isPlaying && isInitialized)
+            EditorGUILayout.LabelField("Live Status (Play Mode)", EditorStyles.boldLabel);
+
+            bool isInitialized = Application.isPlaying && Flux.Manager != null && Flux.Manager.IsInitialized;
+            if (isInitialized)
             {
-                EditorGUILayout.LabelField($"Registered Properties:", $"{Flux.Manager.Properties.PropertyCount}");
-                EditorGUILayout.LabelField($"Event Subscriptions:", $"{EventBus.GetTotalSubscriberCount()}");
-                EditorGUILayout.LabelField($"Active UI Bindings:", $"{ReactiveBindingSystem.GetActiveBindingCount()}");
+                EditorGUILayout.LabelField("Registered Properties:", $"{Flux.Manager.Properties.PropertyCount}");
+                EditorGUILayout.LabelField("Event Subscriptions:", $"{EventBus.GetTotalSubscriberCount()}");
+                EditorGUILayout.LabelField("Active UI Bindings:", $"{ReactiveBindingSystem.GetActiveBindingCount()}");
             }
             else
             {
-                EditorGUILayout.HelpBox("Enter Play Mode to see live statistics.", MessageType.Info);
+                EditorGUILayout.LabelField("Enter Play Mode to see live statistics.", EditorStyles.centeredGreyMiniLabel);
             }
-            
             EditorGUILayout.EndVertical();
-            EditorGUILayout.Space();
         }
 
-        private void DrawPropertySection()
+        private void DrawToolbox()
         {
-            showProperties = EditorGUILayout.Foldout(showProperties, "Reactive Properties", true);
-            
-            if (showProperties)
-            {
-                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-                
-                if (Application.isPlaying && Flux.Manager != null)
-                {
-                    // Show runtime properties
-                    EditorGUILayout.LabelField("Runtime Properties:", EditorStyles.boldLabel);
-                    EditorGUILayout.HelpBox("Property monitoring available during play mode", MessageType.Info);
-                }
-                else
-                {
-                    EditorGUILayout.HelpBox("Enter play mode to see runtime properties", MessageType.Info);
-                }
-                
-                EditorGUILayout.BeginHorizontal();
-                if (GUILayout.Button("Create Property Definition"))
-                {
-                    CreatePropertyDefinition();
-                }
-                if (GUILayout.Button("Refresh Properties"))
-                {
-                    Repaint();
-                }
-                EditorGUILayout.EndHorizontal();
-                
-                EditorGUILayout.EndVertical();
-            }
-        }
+            EditorGUILayout.LabelField("Framework Toolbox", EditorStyles.boldLabel);
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
 
-        private void DrawEventSection()
-        {
-            showEvents = EditorGUILayout.Foldout(showEvents, "Event System", true);
-            
-            if (showEvents)
+            // Row 1: Main Tools
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button(new GUIContent("Health Check", "Scans the project for broken bindings and other issues."), GUILayout.Height(30)))
             {
-                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-                
-                if (Application.isPlaying)
-                {
-                    EditorGUILayout.LabelField("Event Statistics:", EditorStyles.boldLabel);
-                    EditorGUILayout.HelpBox("Event monitoring available during play mode", MessageType.Info);
-                }
-                else
-                {
-                    EditorGUILayout.HelpBox("Enter play mode to see event statistics", MessageType.Info);
-                }
-                
-                EditorGUILayout.BeginHorizontal();
-                if (GUILayout.Button("Create Event Definition"))
-                {
-                    CreateEventDefinition();
-                }
-                if (GUILayout.Button("Clear Event Bus"))
-                {
-                    if (Application.isPlaying)
-                    {
-                        EventBus.Clear();
-                    }
-                }
-                EditorGUILayout.EndHorizontal();
-                
-                EditorGUILayout.EndVertical();
+                FluxHealthCheckWindow.ShowWindow();
             }
-        }
+            if (GUILayout.Button(new GUIContent("Keys Generator", "Generates the static 'FluxKeys' class for type-safe bindings."), GUILayout.Height(30)))
+            {
+                FluxKeysGeneratorWindow.ShowWindow();
+            }
+            EditorGUILayout.EndHorizontal();
 
-        private void DrawBindingSection()
-        {
-            showBindings = EditorGUILayout.Foldout(showBindings, "UI Bindings", true);
-            
-            if (showBindings)
+            // Row 2: Debug Windows
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button(new GUIContent("Properties Inspector", "View and edit all reactive properties at runtime."), GUILayout.Height(30)))
             {
-                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-                
-                EditorGUILayout.LabelField("Binding Tools:", EditorStyles.boldLabel);
-                
-                EditorGUILayout.BeginHorizontal();
-                if (GUILayout.Button("Scan Scene for Components"))
-                {
-                    ScanSceneForFluxComponents();
-                }
-                if (GUILayout.Button("Validate Bindings"))
-                {
-                    ValidateBindings();
-                }
-                EditorGUILayout.EndHorizontal();
-                
-                EditorGUILayout.EndVertical();
+                ReactivePropertyInspectorWindow.ShowWindow();
             }
-        }
+            if (GUILayout.Button(new GUIContent("Event Bus Monitor", "Watch all events flow through the system at runtime."), GUILayout.Height(30)))
+            {
+                EventBusMonitorWindow.ShowWindow();
+            }
+            EditorGUILayout.EndHorizontal();
+            
+            // Row 3: Visual Scripting & Configuration
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button(new GUIContent("Visual Scripting Editor", "Open the graph editor for visual scripting."), GUILayout.Height(30)))
+            {
+                FluxVisualScriptingWindow.ShowWindow();
+            }
+            if (GUILayout.Button(new GUIContent("Configuration Manager", "Manage all configuration assets like settings, themes, and definitions."), GUILayout.Height(30)))
+            {
+                // We keep this window as it has specialized logic, but launch it from here.
+                FluxConfigurationWindow.ShowWindow(); 
+            }
+            EditorGUILayout.EndHorizontal();
 
-        private void DrawConfigurationSection()
-        {
-            showConfiguration = EditorGUILayout.Foldout(showConfiguration, "Configuration", true);
-            
-            if (showConfiguration)
-            {
-                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-                
-                EditorGUILayout.LabelField("Configuration Assets:", EditorStyles.boldLabel);
-                
-                EditorGUILayout.BeginHorizontal();
-                if (GUILayout.Button("Framework Settings"))
-                {
-                    OpenFrameworkSettings();
-                }
-                if (GUILayout.Button("UI Theme"))
-                {
-                    CreateUITheme();
-                }
-                EditorGUILayout.EndHorizontal();
-                
-                EditorGUILayout.BeginHorizontal();
-                if (GUILayout.Button("Property Definitions"))
-                {
-                    CreatePropertyDefinition();
-                }
-                if (GUILayout.Button("Event Definitions"))
-                {
-                    CreateEventDefinition();
-                }
-                EditorGUILayout.EndHorizontal();
-                
-                EditorGUILayout.EndVertical();
-            }
+            EditorGUILayout.EndVertical();
         }
 
         private void DrawFooter()
         {
             EditorGUILayout.Space();
             EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Documentation", EditorStyles.miniButtonLeft)) Application.OpenURL("https://github.com/LionsGamesStudio/Flux/blob/main/README.md");
+            if (GUILayout.Button("Settings Asset", EditorStyles.miniButtonRight)) Selection.activeObject = FindOrCreateSettingsAsset();
             GUILayout.FlexibleSpace();
-            EditorGUILayout.LabelField("Flux Framework v1.0.0", EditorStyles.miniLabel);
+            EditorGUILayout.LabelField("Flux Framework v2.0", EditorStyles.miniLabel);
             EditorGUILayout.EndHorizontal();
         }
-
-        // Helper methods
-        private void CreatePropertyDefinition()
+        
+        private FluxFrameworkSettings FindOrCreateSettingsAsset()
         {
-            var asset = CreateInstance<FluxPropertyDefinitions>();
-            ProjectWindowUtil.CreateAsset(asset, "FluxPropertyDefinitions.asset");
-        }
-
-        private void CreateEventDefinition()
-        {
-            var asset = CreateInstance<FluxEventDefinitions>();
-            ProjectWindowUtil.CreateAsset(asset, "FluxEventDefinitions.asset");
-        }
-
-        private void CreateUITheme()
-        {
-            var asset = CreateInstance<FluxUITheme>();
-            ProjectWindowUtil.CreateAsset(asset, "FluxUITheme.asset");
-        }
-
-        private void OpenFrameworkSettings()
-        {
-            var settings = Resources.Load<FluxFrameworkSettings>("FluxFrameworkSettings");
-            if (settings == null)
+            // Simplified logic to find or create the main settings asset
+            string[] guids = AssetDatabase.FindAssets($"t:{nameof(FluxFrameworkSettings)}");
+            if (guids.Length > 0)
             {
-                settings = CreateInstance<FluxFrameworkSettings>();
-                AssetDatabase.CreateAsset(settings, "Assets/Resources/FluxFrameworkSettings.asset");
-                AssetDatabase.SaveAssets();
+                return AssetDatabase.LoadAssetAtPath<FluxFrameworkSettings>(AssetDatabase.GUIDToAssetPath(guids[0]));
             }
-            Selection.activeObject = settings;
-        }
 
-        private void ScanSceneForFluxComponents()
-        {
-            var fluxComponents = FindObjectsOfType<MonoBehaviour>();
-            int count = 0;
-            
-            foreach (var component in fluxComponents)
-            {
-                if (component.GetType().Namespace?.StartsWith("FluxFramework") == true)
-                {
-                    count++;
-                }
-            }
-            
-            EditorUtility.DisplayDialog("Scan Results", $"Found {count} Flux components in the scene.", "OK");
-        }
-
-        private void ValidateBindings()
-        {
-            EditorUtility.DisplayDialog("Validation", "Binding validation completed successfully.", "OK");
+            // If not found, create it in a default location
+            var settings = CreateInstance<FluxFrameworkSettings>();
+            if (!AssetDatabase.IsValidFolder("Assets/Resources")) AssetDatabase.CreateFolder("Assets", "Resources");
+            AssetDatabase.CreateAsset(settings, $"Assets/Resources/{nameof(FluxFrameworkSettings)}.asset");
+            AssetDatabase.SaveAssets();
+            return settings;
         }
     }
 }

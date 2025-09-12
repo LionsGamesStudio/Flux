@@ -1,3 +1,6 @@
+using System;
+using UnityEngine;
+
 namespace FluxFramework.Core
 {
     /// <summary>
@@ -17,7 +20,7 @@ namespace FluxFramework.Core
         /// Components should subscribe to this to perform setup logic safely.
         /// </summary>
         public static event Action OnFrameworkInitialized;
-        
+
         /// <summary>
         /// Internal method for the FluxManager to invoke the initialization event.
         /// This ensures only the framework itself can trigger this global event.
