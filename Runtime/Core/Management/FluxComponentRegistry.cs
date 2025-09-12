@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using UnityEngine;
 using FluxFramework.Attributes;
+using FluxFramework.UI;
 using FluxFramework.Core;
 using FluxFramework.Validation;
 using FluxFramework.Extensions;
@@ -133,6 +134,11 @@ namespace FluxFramework.Core
             RegisterEventHandlers(component);
             RegisterPropertyChangeHandlers(component);
 
+            if (component is FluxUIComponent uiComponent)
+            {
+                uiComponent.Bind();
+            }
+
             OnComponentInstanceRegistered?.Invoke(component, attribute);
         }
 
@@ -256,7 +262,7 @@ namespace FluxFramework.Core
                 // CRITICAL: Subscribe back to the property to keep the user's private field in sync.
                 property.Subscribe(newValue => field.SetValue(component, newValue));
 
-                FluxManager.Instance.RegisterProperty(propertyKey, property);
+                FluxManager.Instance.RegisterProperty(propertyKey, property, attribute.Persistent);
                 if (attribute.Persistent) FluxPersistenceManager.RegisterPersistentProperty(propertyKey, property);
             }
             catch (Exception ex)
@@ -303,7 +309,7 @@ namespace FluxFramework.Core
                 }
 
                 field.SetValue(component, finalProperty);
-                FluxManager.Instance.RegisterProperty(propertyKey, finalProperty);
+                FluxManager.Instance.RegisterProperty(propertyKey, finalProperty, attribute.Persistent);
                 if (attribute.Persistent) FluxPersistenceManager.RegisterPersistentProperty(propertyKey, finalProperty);
             }
             catch (Exception ex)
@@ -519,14 +525,25 @@ namespace FluxFramework.Core
         }
         
         /// <summary>
+        /// Clears the cache of registered component instances.
+        /// This MUST be called on scene load to prevent memory leaks and ensure
+        /// components from the new scene are correctly re-registered.
+        /// </summary>
+        public static void ClearInstanceCache()
+        {
+            _registeredInstances.Clear();
+            // We also clear registered types for good measure, though it's less critical.
+            _registeredTypes.Clear(); 
+        }
+
+        /// <summary>
         /// Clear all cached data and force reinitialization (Editor only)
         /// </summary>
         public static void ClearCache()
         {
             _discoveredComponents.Clear();
             _componentsByCategory.Clear();
-            _registeredTypes.Clear();
-            _registeredInstances.Clear();
+            ClearInstanceCache(); // Use the new method here too
             _isDiscovered = false;
             _isInitialized = false;
         }

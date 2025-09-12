@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.Reflection;
+using System;
 using FluxFramework.Attributes;
 
 namespace FluxFramework.Core
@@ -102,36 +103,27 @@ namespace FluxFramework.Core
             var propertyKey = attribute.Key;
             var fieldValue = field.GetValue(this);
             
-            // Create reactive property based on field type
-            if (field.FieldType == typeof(int))
-            {
-                var reactiveProperty = new ReactiveProperty<int>((int)fieldValue);
-                FluxManager.Instance.RegisterProperty(propertyKey, reactiveProperty);
-                
-                // Subscribe to changes to keep field in sync
-                reactiveProperty.Subscribe((int newValue) => field.SetValue(this, newValue));
-            }
-            else if (field.FieldType == typeof(float))
-            {
-                var reactiveProperty = new ReactiveProperty<float>((float)fieldValue);
-                FluxManager.Instance.RegisterProperty(propertyKey, reactiveProperty);
-                reactiveProperty.Subscribe((float newValue) => field.SetValue(this, newValue));
-            }
-            else if (field.FieldType == typeof(bool))
-            {
-                var reactiveProperty = new ReactiveProperty<bool>((bool)fieldValue);
-                FluxManager.Instance.RegisterProperty(propertyKey, reactiveProperty);
-                reactiveProperty.Subscribe((bool newValue) => field.SetValue(this, newValue));
-            }
-            else if (field.FieldType == typeof(string))
-            {
-                var reactiveProperty = new ReactiveProperty<string>((string)fieldValue);
-                FluxManager.Instance.RegisterProperty(propertyKey, reactiveProperty);
-                reactiveProperty.Subscribe((string newValue) => field.SetValue(this, newValue));
-            }
-            // Add more types as needed
+            IReactiveProperty reactiveProperty = null;
             
-            _registeredProperties.Add(propertyKey);
+            try
+            {
+                var propertyType = typeof(ReactiveProperty<>).MakeGenericType(field.FieldType);
+                reactiveProperty = (IReactiveProperty)Activator.CreateInstance(propertyType, fieldValue);
+
+                reactiveProperty.Subscribe(newValue => field.SetValue(this, newValue));
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[FluxFramework] Could not create reactive property for field '{field.Name}' in '{this.name}': {ex.Message}", this);
+                return;
+            }
+
+            if (reactiveProperty != null)
+            {
+                // Persistent flag is now handled
+                FluxManager.Instance.RegisterProperty(propertyKey, reactiveProperty, attribute.Persistent);
+                _registeredProperties.Add(propertyKey);
+            }
         }
 
         /// <summary>

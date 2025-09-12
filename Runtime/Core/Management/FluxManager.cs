@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using FluxFramework.Configuration;
 using FluxFramework.Binding;
 
@@ -107,6 +108,8 @@ namespace FluxFramework.Core
             FluxFramework.Binding.ReactiveBindingSystem.Initialize();
             EventBus.Initialize();
 
+            SceneManager.sceneLoaded += OnSceneLoaded;
+
             _isInitialized = true;
 
             Debug.Log("[FluxFramework] Framework initialized successfully");
@@ -131,13 +134,21 @@ namespace FluxFramework.Core
         }
 
         /// <summary>
+        /// Registers a reactive property with the framework, specifying if it should persist across scenes.
+        /// </summary>
+        public void RegisterProperty(string key, IReactiveProperty property, bool isPersistent)
+        {
+            _propertyManager.RegisterProperty(key, property, isPersistent);
+        }
+
+        /// <summary>
         /// Registers a reactive property with the framework
         /// </summary>
         /// <param name="key">Unique key for the property</param>
         /// <param name="property">Reactive property instance</param>
         public void RegisterProperty(string key, IReactiveProperty property)
         {
-            _propertyManager.RegisterProperty(key, property);
+            _propertyManager.RegisterProperty(key, property, false);
         }
 
         /// <summary>
@@ -204,6 +215,8 @@ namespace FluxFramework.Core
 
         private void OnDestroy()
         {
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+
             _propertyManager.Clear();
             _isInitialized = false;
 
@@ -211,6 +224,23 @@ namespace FluxFramework.Core
             FluxPersistenceManager.SaveAll();
             // Unsubscribe all persistence listeners to avoid memory leaks
             FluxPersistenceManager.Shutdown();
+        }
+
+        /// <summary>
+        /// This method is called by Unity's SceneManager every time a scene finishes loading.
+        /// </summary>
+        private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            // We only clear properties if it's a single scene load, not additive.
+            if (mode == LoadSceneMode.Single)
+            {
+                ReactiveBindingSystem.ClearAll();
+                _propertyManager.ClearNonPersistentProperties();
+                FluxComponentRegistry.ClearInstanceCache();
+            }
+
+            // After cleaning, re-register any components that are in the newly loaded scene.
+            FluxComponentRegistry.RegisterAllComponentsInScene();
         }
         
         private void OnApplicationPause(bool pauseStatus)

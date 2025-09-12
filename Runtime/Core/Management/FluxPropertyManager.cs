@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace FluxFramework.Core
@@ -10,7 +11,12 @@ namespace FluxFramework.Core
     /// </summary>
     public class FluxPropertyManager
     {
-        private readonly ConcurrentDictionary<string, IReactiveProperty> _properties = new();
+        private class PropertyRegistration
+        {
+            public IReactiveProperty Property;
+            public bool IsPersistent;
+        }
+        private readonly ConcurrentDictionary<string, PropertyRegistration> _properties = new();
 
         /// <summary>
         /// An event that is invoked whenever a new reactive property is registered with the manager.
@@ -22,12 +28,17 @@ namespace FluxFramework.Core
         /// </summary>
         /// <param name="key">Unique key for the property</param>
         /// <param name="property">Reactive property instance</param>
-        public void RegisterProperty(string key, IReactiveProperty property)
+        /// <param name="isPersistent">Whether the property should persist across scene loads</param>
+        public void RegisterProperty(string key, IReactiveProperty property, bool isPersistent)
         {
-            if (_properties.TryAdd(key, property))
+            var registration = new PropertyRegistration { Property = property, IsPersistent = isPersistent };
+            if (_properties.TryAdd(key, registration))
             {
-                // If the addition was successful, notify listeners.
                 OnPropertyRegistered?.Invoke(key, property);
+            }
+            else
+            {
+                _properties[key] = registration;
             }
         }
 
@@ -39,7 +50,7 @@ namespace FluxFramework.Core
         /// <returns>Reactive property or null if not found</returns>
         public ReactiveProperty<T> GetProperty<T>(string key)
         {
-            return _properties.TryGetValue(key, out var property) ? property as ReactiveProperty<T> : null;
+            return _properties.TryGetValue(key, out var registration) ? registration.Property as ReactiveProperty<T> : null;
         }
 
         /// <summary>
@@ -51,13 +62,20 @@ namespace FluxFramework.Core
         /// <returns>Reactive property</returns>
         public ReactiveProperty<T> GetOrCreateProperty<T>(string key, T defaultValue = default)
         {
-            if (_properties.TryGetValue(key, out var existing) && existing is ReactiveProperty<T> typedProperty)
+            // We first check if a 'registration' exists.
+            if (_properties.TryGetValue(key, out var registration) && registration.Property is ReactiveProperty<T> typedProperty)
             {
+                // If the registration exists AND its 'Property' is of the correct type, return it.
                 return typedProperty;
             }
 
+            // If not found, create a new property.
             var newProperty = new ReactiveProperty<T>(defaultValue);
-            RegisterProperty(key, newProperty);
+            
+            // Register it as NON-PERSISTENT by default. This is a safe assumption for a property
+            // that is being created on-the-fly.
+            RegisterProperty(key, newProperty, false); 
+            
             return newProperty;
         }
 
@@ -88,8 +106,8 @@ namespace FluxFramework.Core
         /// <returns>Reactive property or null if not found</returns>
         public IReactiveProperty GetProperty(string key)
         {
-            _properties.TryGetValue(key, out var property);
-            return property;
+            _properties.TryGetValue(key, out var registration);
+            return registration?.Property;
         }
 
         /// <summary>
@@ -118,30 +136,29 @@ namespace FluxFramework.Core
         /// <returns>An IDisposable that can be used to cancel the deferred subscription.</returns>
         public IDisposable SubscribeDeferred(string key, Action<IReactiveProperty> onSubscribe)
         {
-            // Case 1: The property already exists. Subscribe immediately.
-            if (_properties.TryGetValue(key, out var existingProperty))
+            // Case 1: The property already exists. We get the 'registration' object.
+            if (_properties.TryGetValue(key, out var registration))
             {
-                onSubscribe(existingProperty);
+                // We then invoke the callback with the 'Property' member of the registration.
+                onSubscribe(registration.Property);
                 return new NoOpDisposable(); // The subscription is live, nothing to cancel here.
             }
 
             // Case 2: The property does not exist yet. Listen for its future creation.
+            // This logic does not need to change, because the 'OnPropertyRegistered' event
+            // still provides the IReactiveProperty directly, so the handler works as-is.
             Action<string, IReactiveProperty> registrationHandler = null;
             registrationHandler = (registeredKey, registeredProperty) =>
             {
                 if (registeredKey == key)
                 {
-                    // The property has been created! Call the handler.
                     onSubscribe(registeredProperty);
-
-                    // We only want to fire once, so immediately unsubscribe this listener.
                     OnPropertyRegistered -= registrationHandler;
                 }
             };
 
             OnPropertyRegistered += registrationHandler;
 
-            // Return an IDisposable that allows the caller to cancel this "waiting" subscription.
             return new ActionDisposable(() => { OnPropertyRegistered -= registrationHandler; });
         }
 
@@ -149,12 +166,42 @@ namespace FluxFramework.Core
         /// Gets the number of registered properties
         /// </summary>
         public int PropertyCount => _properties.Count;
+        
+        /// <summary>
+        /// Clears all non-persistent properties (to be called on scene load)
+        /// </summary>
+        public void ClearNonPersistentProperties()
+        {
+            var keysToRemove = _properties
+                .Where(kvp => !kvp.Value.IsPersistent)
+                .Select(kvp => kvp.Key)
+                .ToList();
+
+            int clearedCount = 0;
+            foreach (var key in keysToRemove)
+            {
+                if (_properties.TryRemove(key, out var registration))
+                {
+                    registration.Property.Dispose();
+                    clearedCount++;
+                }
+            }
+            
+            if (clearedCount > 0)
+            {
+                Debug.Log($"[FluxFramework] Cleared {clearedCount} non-persistent properties on scene load.");
+            }
+        }
 
         /// <summary>
         /// Clears all properties
         /// </summary>
         public void Clear()
         {
+            foreach (var registration in _properties.Values)
+            {
+                registration.Property.Dispose();
+            }
             _properties.Clear();
         }
 

@@ -107,8 +107,6 @@ namespace FluxFramework.UI
             {
                 ApplyTheme();
             }
-
-            Bind(); // Call the public Bind method
         }
 
         /// <summary>
