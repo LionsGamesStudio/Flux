@@ -1,20 +1,16 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
 using FluxFramework.Attributes;
 using FluxFramework.UI;
-using FluxFramework.Core;
-using FluxFramework.Validation;
-using FluxFramework.Extensions;
 
 namespace FluxFramework.Core
 {
     /// <summary>
-    /// Registry for automatic discovery and registration of classes marked with [FluxComponent].
-    /// It handles the lifecycle and automatic setup of reactive properties and event handlers.
+    /// Discovers and registers MonoBehaviours marked with the [FluxComponent] attribute.
+    /// It orchestrates the initialization of properties, event handlers, and UI bindings for each component.
     /// </summary>
     public static class FluxComponentRegistry
     {
@@ -41,20 +37,17 @@ namespace FluxFramework.Core
         public static void Initialize()
         {
             if (_isInitialized) return;
-
             DiscoverComponentTypes();
             _isInitialized = true;
-
             Debug.Log($"[FluxFramework] Component Registry initialized with {_discoveredComponents.Count} component types.");
         }
 
         /// <summary>
-        /// Scans all assemblies for types marked with the [FluxComponent] attribute.
+        /// Scans all loaded assemblies for types marked with the [FluxComponent] attribute.
         /// </summary>
         private static void DiscoverComponentTypes()
         {
             if (_isDiscovered) return;
-
             _discoveredComponents.Clear();
             _componentsByCategory.Clear();
 
@@ -62,78 +55,63 @@ namespace FluxFramework.Core
             {
                 try
                 {
-                    if (IsSystemAssembly(assembly.FullName))
-                        continue;
-
-                    var types = assembly.GetTypes()
-                        .Where(t => typeof(MonoBehaviour).IsAssignableFrom(t) && !t.IsAbstract);
-
+                    if (IsSystemAssembly(assembly.FullName)) continue;
+                    var types = assembly.GetTypes().Where(t => typeof(MonoBehaviour).IsAssignableFrom(t) && !t.IsAbstract);
                     foreach (var type in types)
                     {
                         var attribute = type.GetCustomAttribute<FluxComponentAttribute>();
                         if (attribute != null)
                         {
                             _discoveredComponents[type] = attribute;
-
                             if (!_componentsByCategory.ContainsKey(attribute.Category))
                             {
                                 _componentsByCategory[attribute.Category] = new List<Type>();
                             }
                             _componentsByCategory[attribute.Category].Add(type);
-
-                            // This log can be noisy but is useful for debugging discovery issues.
-                            // Debug.Log($"[FluxFramework] Discovered FluxComponent: {type.Name}");
                         }
                     }
-                }
-                catch (ReflectionTypeLoadException ex)
-                {
-                    Debug.LogWarning($"[FluxFramework] Could not load types from assembly {assembly.FullName}: {ex.Message}");
                 }
                 catch (Exception ex)
                 {
                     Debug.LogWarning($"[FluxFramework] An error occurred while scanning assembly {assembly.FullName}: {ex.Message}");
                 }
             }
-
             _isDiscovered = true;
-            Debug.Log($"[FluxFramework] Discovered {_discoveredComponents.Count} FluxComponent types in {_componentsByCategory.Count} categories.");
         }
 
         /// <summary>
         /// Registers a specific instance of a MonoBehaviour with the framework.
+        /// This is the master controller for component initialization.
         /// </summary>
         public static void RegisterComponentInstance(MonoBehaviour component)
         {
-            if (component == null || _registeredInstances.Contains(component))
-            {
-                return; // Null or already registered.
-            }
+            if (component == null || _registeredInstances.Contains(component)) return;
 
             var type = component.GetType();
-
             if (!_discoveredComponents.TryGetValue(type, out var attribute))
             {
-                // This component might not have been discovered at startup. Check for the attribute now.
                 attribute = type.GetCustomAttribute<FluxComponentAttribute>();
-                if (attribute == null) return; // Not a FluxComponent.
+                if (attribute == null) return;
                 _discoveredComponents[type] = attribute;
             }
 
-            if (!attribute.AutoRegister)
-            {
-                return; // This component is configured to be registered manually.
-            }
+            if (!attribute.AutoRegister) return;
 
-            _registeredTypes.Add(type);
             _registeredInstances.Add(component);
+            _registeredTypes.Add(type);
 
+            // --- REGISTRATION PIPELINE ---
             CallRegistrationMethods(component, attribute);
 
-            RegisterReactiveProperties(component);
+            // 1. Delegate all reactive property creation to the central factory.
+            FluxPropertyFactory.RegisterPropertiesFor(component);
+
+            // 2. Register event and property change handlers.
             RegisterEventHandlers(component);
             RegisterPropertyChangeHandlers(component);
 
+            // 3. For UI components, trigger the binding process.
+            // This is called last to ensure all data properties are available for binding.
             if (component is FluxUIComponent uiComponent)
             {
                 uiComponent.Bind();
@@ -150,19 +128,11 @@ namespace FluxFramework.Core
             var methods = component.GetType().GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
                 .Where(m => m.GetCustomAttribute<FluxOnRegisterAttribute>() != null)
                 .OrderByDescending(m => m.GetCustomAttribute<FluxOnRegisterAttribute>().Priority);
-
             foreach (var method in methods)
             {
                 try
                 {
-                    if (method.GetParameters().Length == 0)
-                    {
-                        method.Invoke(component, null);
-                    }
-                    else
-                    {
-                        Debug.LogWarning($"[FluxFramework] Registration method {method.Name} on {component.GetType().Name} has parameters and cannot be auto-called.", component);
-                    }
+                    if (method.GetParameters().Length == 0) method.Invoke(component, null);
                 }
                 catch (Exception ex)
                 {
@@ -172,50 +142,17 @@ namespace FluxFramework.Core
         }
 
         /// <summary>
-        /// Scans the component for fields marked with [ReactiveProperty] and registers them.
-        /// </summary>
-        private static void RegisterReactiveProperties(MonoBehaviour component)
-        {
-            var fields = component.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-
-            foreach (var field in fields)
-            {
-                var reactiveAttr = field.GetCustomAttribute<ReactivePropertyAttribute>();
-                if (reactiveAttr == null) continue;
-
-                // --- DISPATCHER LOGIC ---
-                if (typeof(IReactiveProperty).IsAssignableFrom(field.FieldType))
-                {
-                    // PATTERN B: The field is a ReactiveProperty<T> itself.
-                    RegisterAndConfigureExplicitProperty(component, field, reactiveAttr);
-                }
-                else
-                {
-                    // PATTERN A: The field is a primitive type (int, float, etc.).
-                    RegisterImplicitProperty(component, field, reactiveAttr);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Scans the component for methods marked with [FluxPropertyChangeHandler]
-        /// and subscribes them to the corresponding ReactiveProperty.
+        /// Scans the component for methods marked with [FluxPropertyChangeHandler] and subscribes them.
         /// </summary>
         private static void RegisterPropertyChangeHandlers(MonoBehaviour component)
         {
             var methods = component.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-
             foreach (var method in methods)
             {
                 var handlerAttr = method.GetCustomAttribute<FluxPropertyChangeHandlerAttribute>();
                 if (handlerAttr != null)
                 {
-                    var subscriptionManager = component.GetComponent<ComponentSubscriptionManager>();
-                    if (subscriptionManager == null)
-                    {
-                        subscriptionManager = component.gameObject.AddComponent<ComponentSubscriptionManager>();
-                    }
-
+                    var subscriptionManager = component.GetComponent<ComponentSubscriptionManager>() ?? component.gameObject.AddComponent<ComponentSubscriptionManager>();
                     IDisposable subscription = SubscribeHandlerToProperty(component, method, handlerAttr);
                     if (subscription != null)
                     {
@@ -226,113 +163,8 @@ namespace FluxFramework.Core
         }
 
         /// <summary>
-        /// Handles PATTERN A: Registers a property for a field with a primitive type (int, float, etc.).
-        /// It creates a property in the manager and keeps the local field synchronized.
+        /// A helper to create a deferred subscription for a property change handler.
         /// </summary>
-        private static void RegisterImplicitProperty(MonoBehaviour component, FieldInfo field, ReactivePropertyAttribute attribute)
-        {
-            var propertyKey = attribute.Key;
-            try
-            {
-                object initialValue = field.GetValue(component);
-                var fieldType = field.FieldType;
-                var validators = GetValidatorsForField(field);
-
-                IReactiveProperty property;
-
-                if (validators.Count > 0)
-                {
-                    // Create a ValidatedReactiveProperty
-                    var propertyType = typeof(ValidatedReactiveProperty<>).MakeGenericType(fieldType);
-                    var genericValidatorInterfaceType = typeof(IValidator<>).MakeGenericType(fieldType);
-                    var validatorList = (System.Collections.IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(genericValidatorInterfaceType));
-                    foreach (var v in validators)
-                    {
-                        if (genericValidatorInterfaceType.IsInstanceOfType(v)) validatorList.Add(v);
-                    }
-                    property = (IReactiveProperty)Activator.CreateInstance(propertyType, initialValue, validatorList);
-                }
-                else
-                {
-                    // Create a standard ReactiveProperty
-                    var propertyType = typeof(ReactiveProperty<>).MakeGenericType(fieldType);
-                    property = (IReactiveProperty)Activator.CreateInstance(propertyType, initialValue);
-                }
-
-                // CRITICAL: Subscribe back to the property to keep the user's private field in sync.
-                property.Subscribe(newValue => field.SetValue(component, newValue));
-
-                FluxManager.Instance.RegisterProperty(propertyKey, property, attribute.Persistent);
-                if (attribute.Persistent) FluxPersistenceManager.RegisterPersistentProperty(propertyKey, property);
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"[FluxFramework] Error registering implicit ReactiveProperty '{propertyKey}' on '{component.name}': {ex.Message}", component);
-            }
-        }
-
-        /// <summary>
-        /// Handles PATTERN B: Configures and registers a field that is explicitly of type ReactiveProperty<T>.
-        /// It may replace the user's instance with a ValidatedReactiveProperty.
-        /// </summary>
-        private static void RegisterAndConfigureExplicitProperty(MonoBehaviour component, FieldInfo field, ReactivePropertyAttribute attribute)
-        {
-            var propertyKey = attribute.Key;
-            try
-            {
-                var initialProperty = (IReactiveProperty)field.GetValue(component);
-                if (initialProperty == null)
-                {
-                    var fieldGenericType = field.FieldType.GetGenericArguments()[0];
-                    initialProperty = (IReactiveProperty)Activator.CreateInstance(typeof(ReactiveProperty<>).MakeGenericType(fieldGenericType));
-                    Debug.LogWarning($"[FluxFramework] ReactiveProperty '{field.Name}' on '{component.name}' was not initialized. Created with default value.", component);
-                }
-                object initialValue = initialProperty.GetValue();
-                var valueType = initialProperty.ValueType;
-                var validators = GetValidatorsForField(field);
-
-                IReactiveProperty finalProperty;
-                if (validators.Count > 0)
-                {
-                    var propertyType = typeof(ValidatedReactiveProperty<>).MakeGenericType(valueType);
-                    var genericValidatorInterfaceType = typeof(IValidator<>).MakeGenericType(valueType);
-                    var validatorList = (System.Collections.IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(genericValidatorInterfaceType));
-                    foreach (var v in validators)
-                    {
-                        if (genericValidatorInterfaceType.IsInstanceOfType(v)) validatorList.Add(v);
-                    }
-                    finalProperty = (IReactiveProperty)Activator.CreateInstance(propertyType, initialValue, validatorList);
-                }
-                else
-                {
-                    finalProperty = initialProperty;
-                }
-
-                field.SetValue(component, finalProperty);
-                FluxManager.Instance.RegisterProperty(propertyKey, finalProperty, attribute.Persistent);
-                if (attribute.Persistent) FluxPersistenceManager.RegisterPersistentProperty(propertyKey, finalProperty);
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"[FluxFramework] Error registering explicit ReactiveProperty '{propertyKey}' on '{component.name}': {ex.Message}", component);
-            }
-        }
-
-        /// <summary>
-        /// A unified helper to get validators for a field, regardless of the pattern used.
-        /// </summary>
-        private static List<IValidator> GetValidatorsForField(FieldInfo field)
-        {
-            var validators = new List<IValidator>();
-            var validationAttributes = field.GetCustomAttributes<FluxValidationAttribute>(true);
-            foreach (var attr in validationAttributes)
-            {
-                var validator = attr.CreateValidator(field);
-                if (validator != null) validators.Add(validator);
-            }
-            return validators;
-        }
-
         private static IDisposable SubscribeHandlerToProperty(MonoBehaviour component, MethodInfo method, FluxPropertyChangeHandlerAttribute attribute)
         {
             try
@@ -396,14 +228,13 @@ namespace FluxFramework.Core
                 return null;
             }
         }
-
+        
         /// <summary>
         /// Scans the component for methods marked with [FluxEventHandler] and subscribes them to the EventBus.
         /// </summary>
         private static void RegisterEventHandlers(MonoBehaviour component)
         {
             var methods = component.GetType().GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-
             foreach (var method in methods)
             {
                 var eventAttr = method.GetCustomAttribute<FluxEventHandlerAttribute>();
@@ -485,18 +316,13 @@ namespace FluxFramework.Core
         }
 
         /// <summary>
-        /// Registers all MonoBehaviours in the scene that have the [FluxComponent] attribute.
+        /// Registers all qualifying MonoBehaviours in the currently active scene.
         /// </summary>
         public static void RegisterAllComponentsInScene()
         {
-            if (!_isInitialized)
-            {
-                Initialize();
-            }
-
+            if (!_isInitialized) Initialize();
             var allComponents = UnityEngine.Object.FindObjectsOfType<MonoBehaviour>();
             int registeredCount = 0;
-
             foreach (var component in allComponents)
             {
                 var type = component.GetType();
@@ -506,58 +332,50 @@ namespace FluxFramework.Core
                     registeredCount++;
                 }
             }
-
             if (registeredCount > 0)
             {
                 Debug.Log($"[FluxFramework] Auto-registered {registeredCount} new FluxComponent instances in scene.");
             }
         }
 
+        /// <summary>
+        /// A filter to avoid scanning system and Unity assemblies.
+        /// </summary>
         private static bool IsSystemAssembly(string assemblyName)
         {
-            return assemblyName.StartsWith("System.") ||
-                   assemblyName.StartsWith("Microsoft.") ||
-                   assemblyName.StartsWith("Unity.") ||
-                   assemblyName.StartsWith("UnityEngine") ||
-                   assemblyName.StartsWith("UnityEditor") ||
-                   assemblyName.StartsWith("mscorlib") ||
-                   assemblyName.StartsWith("netstandard");
+            return assemblyName.StartsWith("System.") || assemblyName.StartsWith("Microsoft.") || assemblyName.StartsWith("Unity.") || 
+                   assemblyName.StartsWith("UnityEngine") || assemblyName.StartsWith("UnityEditor") || 
+                   assemblyName.StartsWith("mscorlib") || assemblyName.StartsWith("netstandard");
         }
         
         /// <summary>
         /// Clears the cache of registered component instances.
-        /// This MUST be called on scene load to prevent memory leaks and ensure
-        /// components from the new scene are correctly re-registered.
+        /// This MUST be called on scene load to prevent memory leaks.
         /// </summary>
         public static void ClearInstanceCache()
         {
             _registeredInstances.Clear();
-            // We also clear registered types for good measure, though it's less critical.
             _registeredTypes.Clear(); 
         }
 
         /// <summary>
-        /// Clear all cached data and force reinitialization (Editor only)
+        /// Clears all cached data and forces reinitialization. (For Editor use)
         /// </summary>
         public static void ClearCache()
         {
             _discoveredComponents.Clear();
             _componentsByCategory.Clear();
-            ClearInstanceCache(); // Use the new method here too
+            ClearInstanceCache();
             _isDiscovered = false;
             _isInitialized = false;
         }
 
 #if UNITY_EDITOR
-        /// <summary>
-        /// Editor-only method to refresh component discovery during development
-        /// </summary>
         [UnityEditor.MenuItem("Flux/Tools/Refresh Component Registry")]
         public static void EditorRefreshRegistry()
         {
             ClearCache();
             Initialize();
-            Debug.Log("[FluxFramework] Component Registry refreshed from editor");
         }
 #endif
     }

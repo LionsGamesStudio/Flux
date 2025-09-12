@@ -7,141 +7,104 @@ using FluxFramework.Attributes;
 namespace FluxFramework.Core
 {
     /// <summary>
-    /// Base class for ScriptableObjects that integrate with the Flux Framework
-    /// Automatically handles reactive property registration and cleanup
+    /// Base class for ScriptableObjects that integrate with the Flux Framework.
+    /// It automatically handles reactive property registration and cleanup.
     /// </summary>
     public abstract class FluxScriptableObject : ScriptableObject, IFluxReactiveObject
     {
-        [System.NonSerialized]
+        [NonSerialized]
         private List<string> _registeredProperties = new List<string>();
         
-        [System.NonSerialized]
+        [NonSerialized]
         private bool _isInitialized = false;
 
         /// <summary>
-        /// Called when the ScriptableObject is enabled
+        /// Called when the ScriptableObject is enabled by Unity.
         /// </summary>
         private void OnEnable()
         {
+            // Only run initialization logic when the application is actually playing.
             if (Application.isPlaying && !_isInitialized)
             {
                 InitializeReactiveProperties();
                 _isInitialized = true;
                 
-                // Call the overridable method for child classes
+                // Call the overridable hook for child classes.
                 OnFluxEnabled();
             }
         }
         
         /// <summary>
-        /// Override this method instead of OnEnable() for your initialization logic
+        /// Override this method instead of OnEnable() for your initialization logic.
         /// </summary>
-        protected virtual void OnFluxEnabled()
-        {
-            // Child classes can override this
-        }
+        protected virtual void OnFluxEnabled() { }
 
         /// <summary>
-        /// Called when the ScriptableObject is being destroyed
+        /// Called when the ScriptableObject is about to be destroyed.
         /// </summary>
         private void OnDestroy()
         {
             if (Application.isPlaying)
             {
-                // Call the overridable method first
                 OnFluxDestroy();
-                
-                // Then ensure cleanup happens
                 CleanupReactiveProperties();
             }
         }
         
         /// <summary>
-        /// Override this method instead of OnDestroy() for your cleanup logic
+        /// Override this method instead of OnDestroy() for your cleanup logic.
         /// </summary>
-        protected virtual void OnFluxDestroy()
-        {
-            // Child classes can override this
-        }
+        protected virtual void OnFluxDestroy() { }
 
         /// <summary>
-        /// Automatically discovers and registers all reactive properties using reflection
+        /// Automatically discovers and registers all reactive properties using the central factory.
         /// </summary>
         public void InitializeReactiveProperties()
         {
+            // CALL FACTORY TO REGISTER PROPERTIES
+            FluxPropertyFactory.RegisterPropertiesFor(this);
+
+            // We must now manually collect the keys of the registered properties for cleanup.
+            CacheRegisteredPropertyKeys();
+
+            // Call custom initialization hooks for child classes.
+            OnReactivePropertiesInitialized();
+            OnFluxPropertiesInitialized();
+        }
+
+        /// <summary>
+        // Caches the keys of all properties registered for this object, so they can be cleaned up OnDestroy.
+        /// </summary>
+        private void CacheRegisteredPropertyKeys()
+        {
+            _registeredProperties.Clear();
             var fields = GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-            
             foreach (var field in fields)
             {
                 var reactiveAttr = field.GetCustomAttribute<ReactivePropertyAttribute>();
                 if (reactiveAttr != null)
                 {
-                    RegisterReactiveField(field, reactiveAttr);
+                    _registeredProperties.Add(reactiveAttr.Key);
                 }
             }
-            
-            // Call custom initialization
-            OnReactivePropertiesInitialized();
-            
-            // Call the overridable method for child classes
-            OnFluxPropertiesInitialized();
-        }
-        
-        /// <summary>
-        /// Override this method for custom initialization logic after reactive properties are set up
-        /// </summary>
-        protected virtual void OnFluxPropertiesInitialized()
-        {
-            // Child classes can override this
         }
 
         /// <summary>
-        /// Registers a single field as a reactive property
-        /// </summary>
-        private void RegisterReactiveField(FieldInfo field, ReactivePropertyAttribute attribute)
-        {
-            var propertyKey = attribute.Key;
-            var fieldValue = field.GetValue(this);
-            
-            IReactiveProperty reactiveProperty = null;
-            
-            try
-            {
-                var propertyType = typeof(ReactiveProperty<>).MakeGenericType(field.FieldType);
-                reactiveProperty = (IReactiveProperty)Activator.CreateInstance(propertyType, fieldValue);
-
-                reactiveProperty.Subscribe(newValue => field.SetValue(this, newValue));
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"[FluxFramework] Could not create reactive property for field '{field.Name}' in '{this.name}': {ex.Message}", this);
-                return;
-            }
-
-            if (reactiveProperty != null)
-            {
-                // Persistent flag is now handled
-                FluxManager.Instance.RegisterProperty(propertyKey, reactiveProperty, attribute.Persistent);
-                _registeredProperties.Add(propertyKey);
-            }
-        }
-
-        /// <summary>
-        /// Cleanup all registered reactive properties
+        /// Unregisters all reactive properties associated with this ScriptableObject from the central manager.
         /// </summary>
         private void CleanupReactiveProperties()
         {
             foreach (var propertyKey in _registeredProperties)
             {
+                // We only unregister. The property manager handles the actual disposal/cleanup.
                 FluxManager.Instance.UnregisterProperty(propertyKey);
             }
             _registeredProperties.Clear();
-            
             OnReactivePropertiesCleanup();
         }
 
         /// <summary>
-        /// Updates a reactive property value and synchronizes with the field
+        /// Helper method to update a reactive property's value.
         /// </summary>
         protected void UpdateReactiveProperty<T>(string propertyKey, T newValue)
         {
@@ -153,7 +116,7 @@ namespace FluxFramework.Core
         }
 
         /// <summary>
-        /// Gets the current value of a reactive property
+        /// Helper method to get a reactive property's current value.
         /// </summary>
         protected T GetReactivePropertyValue<T>(string propertyKey)
         {
@@ -162,26 +125,22 @@ namespace FluxFramework.Core
         }
 
         /// <summary>
-        /// Subscribe to changes of a reactive property
+        /// Helper method to subscribe to changes of a reactive property.
         /// </summary>
-        protected void SubscribeToProperty<T>(string propertyKey, System.Action<T> onChanged)
+        protected IDisposable SubscribeToProperty<T>(string propertyKey, Action<T> onChanged)
         {
             var property = FluxManager.Instance.GetProperty<T>(propertyKey);
-            property?.Subscribe(onChanged);
+            return property?.Subscribe(onChanged);
         }
-
-        /// <summary>
-        /// Override this method to perform custom initialization after reactive properties are set up
-        /// </summary>
+        
+        #region Lifecycle Hooks & Editor Tools
+        
+        protected virtual void OnFluxPropertiesInitialized() { }
         protected virtual void OnReactivePropertiesInitialized() { }
-
-        /// <summary>
-        /// Override this method to perform custom cleanup when reactive properties are being destroyed
-        /// </summary>
         protected virtual void OnReactivePropertiesCleanup() { }
 
         /// <summary>
-        /// Force initialization of reactive properties (useful for testing or manual setup)
+        /// Editor-only method to force initialization of reactive properties.
         /// </summary>
         [ContextMenu("Initialize Reactive Properties")]
         public void ForceInitializeReactiveProperties()
@@ -194,51 +153,36 @@ namespace FluxFramework.Core
         }
 
         /// <summary>
-        /// Reset all reactive properties to their default values
+        /// Editor-only method to reset all reactive properties to their default values as defined in their attributes.
         /// </summary>
         [ContextMenu("Reset Reactive Properties")]
         public virtual void ResetReactiveProperties()
         {
             var fields = GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-            
             foreach (var field in fields)
             {
                 var reactiveAttr = field.GetCustomAttribute<ReactivePropertyAttribute>();
                 if (reactiveAttr != null)
                 {
                     var propertyKey = reactiveAttr.Key;
-                    
-                    // Get default value from attribute or field
                     var defaultValue = reactiveAttr.DefaultValue ?? GetDefaultValue(field.FieldType);
                     field.SetValue(this, defaultValue);
-                    
-                    // Update reactive property
                     var property = FluxManager.Instance.GetProperty(propertyKey);
-                    if (property != null)
-                    {
-                        // Use reflection to set the value
-                        var valueProperty = property.GetType().GetProperty("Value");
-                        valueProperty?.SetValue(property, defaultValue);
-                    }
+                    property?.SetValue(defaultValue);
                 }
             }
         }
-
-        /// <summary>
-        /// Get default value for a type
-        /// </summary>
-        private object GetDefaultValue(System.Type type)
+        
+        private object GetDefaultValue(Type type)
         {
-            if (type.IsValueType)
-            {
-                return System.Activator.CreateInstance(type);
-            }
-            return null;
+            return type.IsValueType ? Activator.CreateInstance(type) : null;
         }
+
+        #endregion
     }
 
     /// <summary>
-    /// Interface for objects that have reactive properties
+    /// Interface for objects that have reactive properties that can be initialized by the framework.
     /// </summary>
     public interface IFluxReactiveObject
     {
