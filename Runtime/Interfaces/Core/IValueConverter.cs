@@ -1,24 +1,34 @@
 namespace FluxFramework.Core
 {
     /// <summary>
-    /// Interface for value converters used in bindings
+    /// The non-generic base interface for all value converters.
+    /// It defines the contract for converting values using the base 'object' type.
     /// </summary>
-    /// <typeparam name="TSource">Source type</typeparam>
-    /// <typeparam name="TTarget">Target type</typeparam>
-    public interface IValueConverter<TSource, TTarget>
+    public interface IValueConverter 
     {
         /// <summary>
-        /// Converts from source to target type
+        /// Converts a value from a source type to a target type.
         /// </summary>
-        /// <param name="value">Source value</param>
-        /// <returns>Converted target value</returns>
-        TTarget Convert(TSource value);
+        /// <param name="value">The source value.</param>
+        /// <returns>The converted value as an object.</returns>
+        object Convert(object value);
 
         /// <summary>
-        /// Converts from target back to source type
+        /// Converts a value from the target type back to the source type.
         /// </summary>
-        /// <param name="value">Target value</param>
-        /// <returns>Converted source value</returns>
+        /// <param name="value">The target value.</param>
+        /// <returns>The converted source value as an object.</returns>
+        object ConvertBack(object value);
+    }
+
+    /// <summary>
+    /// Interface for strongly-typed value converters used in bindings.
+    /// </summary>
+    /// <typeparam name="TSource">The source type.</typeparam>
+    /// <typeparam name="TTarget">The target type.</typeparam>
+    public interface IValueConverter<TSource, TTarget> : IValueConverter
+    {
+        TTarget Convert(TSource value);
         TSource ConvertBack(TTarget value);
     }
 }

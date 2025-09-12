@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEditor;
 using FluxFramework.Configuration;
 using FluxFramework.Attributes;
+using FluxFramework.Core;
 
 namespace FluxFramework.Editor
 {
@@ -15,7 +16,7 @@ namespace FluxFramework.Editor
         private Vector2 _scrollPosition;
         private Dictionary<string, bool> _categoryFoldouts = new Dictionary<string, bool>();
 
-        [MenuItem("Flux/Configuration Manager")]
+        [MenuItem("Flux/Configuration/Configuration Manager")]
         public static void ShowWindow()
         {
             GetWindow<FluxConfigurationWindow>("Flux Configurations");
@@ -137,11 +138,21 @@ namespace FluxFramework.Editor
                         "OK");
                 }
 
-                if (GUILayout.Button("Apply", GUILayout.Width(100)))
+                GUI.enabled = Application.isPlaying;
+                if (GUILayout.Button("Apply (Play Mode)"))
                 {
-                    loadedConfig.ApplyConfiguration();
-                    EditorUtility.DisplayDialog("Applied", "Configuration applied successfully", "OK");
+                    var manager = FluxManager.Instance;
+                    if (manager != null)
+                    {
+                        loadedConfig.ApplyConfiguration(manager);
+                        EditorUtility.DisplayDialog("Applied", "Configuration applied successfully.", "OK");
+                    }
+                    else
+                    {
+                        EditorUtility.DisplayDialog("Error", "Could not apply configuration because FluxManager is not active in the scene.", "OK");
+                    }
                 }
+                GUI.enabled = true;
             }
             else
             {
@@ -175,6 +186,7 @@ namespace FluxFramework.Editor
                 EditorGUIUtility.PingObject(asset);
 
                 FluxConfigurationManager.RegisterConfiguration(asset as FluxConfigurationAsset);
+                FluxConfigurationManager.Initialize(); // Re-initialize to load the new asset
             }
         }
     }

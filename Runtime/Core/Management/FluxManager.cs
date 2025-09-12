@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Threading;
 using UnityEngine;
 using FluxFramework.Configuration;
+using FluxFramework.Binding;
 
 namespace FluxFramework.Core
 {
@@ -93,6 +94,9 @@ namespace FluxFramework.Core
             // Initialize configuration system first
             FluxConfigurationManager.Initialize();
             FluxConfigurationManager.ApplyAllConfigurations();
+
+            // Initialize all converters in the registry
+            ValueConverterRegistry.Initialize();
 
             // Initialize component registry and discover all FluxComponent types
             FluxComponentRegistry.Initialize();

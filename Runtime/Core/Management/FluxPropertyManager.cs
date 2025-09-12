@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace FluxFramework.Core
 {
@@ -12,13 +13,22 @@ namespace FluxFramework.Core
         private readonly ConcurrentDictionary<string, IReactiveProperty> _properties = new();
 
         /// <summary>
+        /// An event that is invoked whenever a new reactive property is registered with the manager.
+        /// </summary>
+        public event Action<string, IReactiveProperty> OnPropertyRegistered;
+
+        /// <summary>
         /// Registers a reactive property with the framework
         /// </summary>
         /// <param name="key">Unique key for the property</param>
         /// <param name="property">Reactive property instance</param>
         public void RegisterProperty(string key, IReactiveProperty property)
         {
-            _properties.TryAdd(key, property);
+            if (_properties.TryAdd(key, property))
+            {
+                // If the addition was successful, notify listeners.
+                OnPropertyRegistered?.Invoke(key, property);
+            }
         }
 
         /// <summary>
@@ -102,6 +112,40 @@ namespace FluxFramework.Core
         }
 
         /// <summary>
+        /// Subscribes a handler to a property, either immediately if it exists,
+        /// or later when it gets registered.
+        /// </summary>
+        /// <returns>An IDisposable that can be used to cancel the deferred subscription.</returns>
+        public IDisposable SubscribeDeferred(string key, Action<IReactiveProperty> onSubscribe)
+        {
+            // Case 1: The property already exists. Subscribe immediately.
+            if (_properties.TryGetValue(key, out var existingProperty))
+            {
+                onSubscribe(existingProperty);
+                return new NoOpDisposable(); // The subscription is live, nothing to cancel here.
+            }
+
+            // Case 2: The property does not exist yet. Listen for its future creation.
+            Action<string, IReactiveProperty> registrationHandler = null;
+            registrationHandler = (registeredKey, registeredProperty) =>
+            {
+                if (registeredKey == key)
+                {
+                    // The property has been created! Call the handler.
+                    onSubscribe(registeredProperty);
+
+                    // We only want to fire once, so immediately unsubscribe this listener.
+                    OnPropertyRegistered -= registrationHandler;
+                }
+            };
+
+            OnPropertyRegistered += registrationHandler;
+
+            // Return an IDisposable that allows the caller to cancel this "waiting" subscription.
+            return new ActionDisposable(() => { OnPropertyRegistered -= registrationHandler; });
+        }
+
+        /// <summary>
         /// Gets the number of registered properties
         /// </summary>
         public int PropertyCount => _properties.Count;
@@ -123,6 +167,14 @@ namespace FluxFramework.Core
             var keys = new string[_properties.Count];
             _properties.Keys.CopyTo(keys, 0);
             return keys;
+        }
+        
+        private class NoOpDisposable : IDisposable { public void Dispose() { } }
+        private class ActionDisposable : IDisposable
+        {
+            private Action _onDispose;
+            public ActionDisposable(Action onDispose) { _onDispose = onDispose; }
+            public void Dispose() { _onDispose?.Invoke(); _onDispose = null; }
         }
     }
 }

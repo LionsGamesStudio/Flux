@@ -1,3 +1,4 @@
+#if FLUX_VR_SUPPORT
 using UnityEngine;
 using FluxFramework.Core;
 using FluxFramework.Attributes;
@@ -71,3 +72,4 @@ namespace FluxFramework.VR
         }
     }
 }
+#endif

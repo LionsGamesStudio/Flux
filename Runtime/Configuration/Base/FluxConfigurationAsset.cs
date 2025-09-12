@@ -1,21 +1,23 @@
 using UnityEngine;
+using FluxFramework.Core;
 
 namespace FluxFramework.Configuration
 {
     /// <summary>
-    /// Base class for Flux configuration assets
+    /// The abstract base class for all configuration assets in the Flux Framework.
     /// </summary>
     public abstract class FluxConfigurationAsset : ScriptableObject
     {
         /// <summary>
-        /// Validates the configuration settings
+        /// Validates the settings within this configuration asset.
         /// </summary>
-        /// <returns>True if configuration is valid</returns>
+        /// <returns>True if the configuration is valid and can be applied.</returns>
         public abstract bool ValidateConfiguration();
 
         /// <summary>
-        /// Applies the configuration to the framework
+        /// Applies the settings from this asset to the live framework systems.
         /// </summary>
-        public abstract void ApplyConfiguration();
+        /// <param name="manager">The core FluxManager instance to configure.</param>
+        public abstract void ApplyConfiguration(FluxManager manager);
     }
 }

@@ -1,3 +1,4 @@
+#if FLUX_VR_SUPPORT
 using UnityEngine;
 using TMPro;
 using FluxFramework.UI;
@@ -126,3 +127,4 @@ namespace FluxFramework.VR.UI
         }
     }
 }
+#endif

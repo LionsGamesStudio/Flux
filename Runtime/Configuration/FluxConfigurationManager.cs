@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using UnityEngine;
 using FluxFramework.Attributes;
+using FluxFramework.Core;
 
 namespace FluxFramework.Configuration
 {
@@ -110,7 +111,15 @@ namespace FluxFramework.Configuration
                 Initialize();
             }
 
-            // Sort by load priority
+            // Ensure we have a valid FluxManager instance to pass down.
+            var manager = FluxManager.Instance;
+            if (manager == null)
+            {
+                Debug.LogError("[FluxFramework] Cannot apply configurations because FluxManager.Instance is null.");
+                return;
+            }
+
+            // Sort by load priority (higher priority first)
             var sortedConfigs = _loadedConfigurations.Values
                 .OrderByDescending(config => GetLoadPriority(config.GetType()))
                 .ToList();
@@ -119,7 +128,7 @@ namespace FluxFramework.Configuration
             {
                 try
                 {
-                    config.ApplyConfiguration();
+                    config.ApplyConfiguration(manager);
                 }
                 catch (Exception ex)
                 {
@@ -341,7 +350,7 @@ namespace FluxFramework.Configuration
         /// <summary>
         /// Editor-only method to refresh configurations during development
         /// </summary>
-        [UnityEditor.MenuItem("Flux/Clear Configuration Cache")]
+        [UnityEditor.MenuItem("Flux/Configuration/Clear Configuration Cache")]
         public static void EditorClearCache()
         {
             ClearCache();

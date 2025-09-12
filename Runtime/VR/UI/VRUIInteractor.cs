@@ -1,3 +1,4 @@
+#if FLUX_VR_SUPPORT
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.XR;
@@ -194,3 +195,4 @@ namespace FluxFramework.VR.UI
         public bool IsInteractingOnCanvas(FluxVRCanvas canvas) => _isInteractingProp.Value && _pointerEventData.pointerCurrentRaycast.gameObject?.GetComponentInParent<Canvas>() == canvas.GetComponent<Canvas>();
     }
 }
+#endif

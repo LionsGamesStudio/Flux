@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using FluxFramework.Binding;
+using FluxFramework.Core;
 
 namespace FluxFramework.Attributes
 {
@@ -38,6 +39,25 @@ namespace FluxFramework.Attributes
         public FluxBindingAttribute(string propertyKey)
         {
             PropertyKey = propertyKey;
+        }
+
+        public FluxBindingAttribute(string propertyKey, BindingMode mode)
+        {
+            PropertyKey = propertyKey;
+            Mode = mode;
+        }
+
+        public FluxBindingAttribute(string propertyKey, Type converterType)
+        {
+            PropertyKey = propertyKey;
+            ConverterType = converterType;
+        }
+
+        public FluxBindingAttribute(string propertyKey, BindingMode mode, Type converterType = null)
+        {
+            PropertyKey = propertyKey;
+            Mode = mode;
+            ConverterType = converterType;
         }
 
         /// <summary>

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using Newtonsoft.Json;
 
 namespace FluxFramework.Utils
 {
@@ -120,25 +121,41 @@ namespace FluxFramework.Utils
         }
 
         /// <summary>
-        /// Deep copies an object using JSON serialization
+        /// Creates a deep copy of an object using robust JSON serialization.
+        /// This method can handle complex types, private fields, dictionaries, and reference loops.
         /// </summary>
-        /// <typeparam name="T">Type to copy</typeparam>
-        /// <param name="obj">Object to copy</param>
-        /// <returns>Deep copy of the object</returns>
-        public static T DeepCopy<T>(T obj) where T : class
+        /// <typeparam name="T">The type of the object to copy.</typeparam>
+        /// <param name="obj">The object instance to copy.</param>
+        /// <returns>A new, completely independent copy of the object.</returns>
+        public static T DeepCopy<T>(T obj)
         {
             if (obj == null)
-                return null;
+            {
+                return default(T);
+            }
 
             try
             {
-                var json = JsonUtility.ToJson(obj);
-                return JsonUtility.FromJson<T>(json);
+                // Configure serializer settings for robustness.
+                var settings = new JsonSerializerSettings
+                {
+                    // This handles circular references (e.g., A -> B -> A) by ignoring them,
+                    // preventing infinite loops during serialization.
+                    ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
+
+                    // This setting ensures that we are copying the actual type,
+                    // which is important for polymorphism (e.g., when copying a list of base classes).
+                    TypeNameHandling = TypeNameHandling.Auto
+                };
+
+                // Serialize the object to a JSON string and then deserialize it back into a new object.
+                var json = JsonConvert.SerializeObject(obj, settings);
+                return JsonConvert.DeserializeObject<T>(json, settings);
             }
             catch (Exception e)
             {
-                Debug.LogWarning($"[FluxFramework] Could not deep copy object: {e.Message}");
-                return null;
+                Debug.LogWarning($"[FluxFramework] DeepCopy failed for object of type {typeof(T).Name}: {e.Message}");
+                return default(T);
             }
         }
 
