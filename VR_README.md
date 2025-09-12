@@ -39,34 +39,35 @@ This extension builds on the core principles of FluxFramework, exposing VR hardw
 
 ## 🎯 Quick Usage Examples
 
-The core principle is to **read** from the reactive properties provided by the VR system and **listen** to VR events.
+The core principle is to **react** to the state changes and events provided by the VR system.
 
-### 1. Reacting to Controller Input
+### 1. Reacting to Controller Input (Property Subscription)
 
 Your game logic doesn't need to know about XR devices. It just subscribes to a property.
 
 ```csharp
 // In a WeaponController.cs script
+using System; // Required for IDisposable
+using FluxFramework.Core;
+using FluxFramework.Attributes;
+
 public class WeaponController : FluxMonoBehaviour
 {
-    private IDisposable _triggerSub;
-    private IReactiveProperty<float> _leftTriggerProp;
+    private IDisposable _triggerSubscription;
 
-    protected override void Awake()
+    // Use OnFluxAwake for safe initialization and subscriptions.
+    protected override void OnFluxAwake()
     {
-        base.Awake();
+        var leftTriggerProp = FluxManager.Instance.GetOrCreateProperty<float>("vr.controller.left.trigger");
         
-        // Get the property for the left controller's trigger.
-        _leftTriggerProp = FluxManager.Instance.GetOrCreateProperty<float>("vr.controller.left.trigger");
-        
-        // Subscribe to its changes.
-        _triggerSub = _leftTriggerProp.Subscribe(OnTriggerChanged);
+        // Subscribe to changes and store the IDisposable handle.
+        _triggerSubscription = leftTriggerProp.Subscribe(OnTriggerChanged);
     }
     
-    protected override void OnDestroy()
+    // Use OnFluxDestroy to clean up the subscription.
+    protected override void OnFluxDestroy()
     {
-        _triggerSub?.Dispose(); // Clean up the subscription.
-        base.OnDestroy();
+        _triggerSubscription?.Dispose();
     }
     
     private void OnTriggerChanged(float value)
@@ -76,23 +77,27 @@ public class WeaponController : FluxMonoBehaviour
             FireWeapon();
         }
     }
+
+    private void FireWeapon() { /* ... */ }
 }
 ```
 
-### 2. Listening to VR Interaction Events
+### 2. Listening to VR Interaction Events (Event Handling)
 
-Use the `[FluxEventHandler]` attribute to react to high-level VR events.
+Use the `[FluxEventHandler]` attribute for a code-free way to react to high-level VR events.
 
 ```csharp
-public class InteractionHandler : FluxMonoBehaviour
+public class InteractionFeedback : FluxMonoBehaviour
 {
     // This method is automatically subscribed to the VRObjectGrabbedEvent.
+    // The framework handles the cleanup automatically.
     [FluxEventHandler]
     private void OnObjectGrabbed(VRObjectGrabbedEvent evt)
     {
         Debug.Log($"Player grabbed {evt.GrabbedObject.name} with their {evt.ControllerNode}!");
         
-        // Find the VR Manager to get the controller and trigger haptics
+        // Find the VR Manager to get the controller and trigger haptics.
+        // Note: In a larger project, a dedicated service or manager would be better than FindObjectOfType.
         var vrManager = FindObjectOfType<FluxVRManager>();
         var controller = vrManager?.GetController(evt.ControllerNode);
         controller?.TriggerHapticFeedback(0.7f, 0.1f);
@@ -100,16 +105,20 @@ public class InteractionHandler : FluxMonoBehaviour
 }
 ```
 
-### 3. Binding VR UI to Player Data
+### 3. Binding VR UI to Player Data (UI Binding)
 
-Binding a VR UI is identical to binding a 2D UI. The components are fully compatible.
+Binding a VR UI is identical to binding a 2D UI. The components are fully compatible and the UI will update automatically.
 
 ```csharp
+using UnityEngine;
+using FluxFramework.UI;
+using FluxFramework.Attributes;
+
 // On your FluxVRCanvas, you might have a PlayerStatusPanel.cs
 public class PlayerStatusPanel : FluxUIComponent
 {
     // This declarative attribute is all you need.
-    // When "player.health" changes, this VR text will update automatically.
+    // When the "player.health" property changes, this VR text component will update automatically.
     [FluxBinding("player.health")]
     [SerializeField] private FluxVRText _healthText;
 }
@@ -118,29 +127,29 @@ public class PlayerStatusPanel : FluxUIComponent
 ## 🎨 Available VR Components
 
 ### Core VR
--   `FluxVRManager` - The central hub for the VR rig.
--   `FluxVRController` - Represents a physical controller.
--   `FluxVRLocomotion` - Handles player movement.
--   `FluxVRPlayer` - The "brain" that coordinates systems and handles world interaction.
--   `FluxVRPlayerPrefab` - A factory for building a complete VR rig.
+-   `FluxVRManager`: The central hub for the VR rig.
+-   `FluxVRController`: Represents a physical controller, providing reactive inputs.
+-   `FluxVRLocomotion`: Handles player movement (Teleport/Smooth).
+-   `FluxVRPlayer`: The "brain" that coordinates systems and handles world interaction.
+-   `FluxVRPlayerPrefab`: A factory for building a complete VR rig.
 
-### VR Interaction
--   `VRInteractableObject` - An example of a simple grabbable object.
--   `VRInteractiveButton` - An example of a physically pressable button.
--   `IVRInteractable` - An interface for creating your own interactable objects.
+### VR Interaction Examples
+-   `VRInteractableObject`: An example of a simple grabbable object.
+-   `VRInteractiveButton`: An example of a physically pressable button.
+-   `IVRInteractable`: An interface for creating your own interactable objects.
 
 ### VR UI
--   `FluxVRCanvas` - The container for a world-space UI.
--   `VRUIInteractor` - The laser pointer component attached to controllers.
--   `FluxVRButton` - A UI button with enhanced visual feedback for VR.
--   `FluxVRText` - A UI text component with VR-specific features like billboarding.
+-   `FluxVRCanvas`: The container for a world-space UI.
+-   `VRUIInteractor`: The laser pointer component attached to controllers.
+-   `FluxVRButton`: A UI button with enhanced visual feedback for VR.
+-   `FluxVRText`: A UI text component with VR-specific features like billboarding.
 
 ## 🔗 Integration with Core Framework
 
 The VR extension is a perfect example of building on top of the core framework:
 
--   ✅ **Reactive Properties:** All hardware states (tracking, input) are exposed as standard reactive properties, making them accessible to any system, including the Visual Scripting editor.
+-   ✅ **Reactive Properties:** All hardware states (tracking, input) are exposed as standard reactive properties, accessible by any system.
 -   ✅ **Event Bus:** All high-level actions (teleporting, grabbing, UI clicks) are published as standard `FluxEvent`s, allowing any system to listen and react without direct dependencies.
--   ✅ **UI Binding:** VR UI components (`FluxVRText`, etc.) are `FluxUIComponent`s, meaning they work seamlessly with the `[FluxBinding]` system.
+-   ✅ **UI Binding:** VR UI components are `FluxUIComponent`s, meaning they work seamlessly with the automatic `[FluxBinding]` system.
 
 This creates a powerful, unified development experience, whether you are building for 2D, 3D, or VR.

@@ -132,84 +132,91 @@ namespace FluxFramework.Editor
         }
 
         #region Template Generators
-
+        
         private static string GenerateFluxDataContainerTemplate(string className)
         {
             return $@"using UnityEngine;
 using FluxFramework.Core;
 using FluxFramework.Attributes;
 
-// You can change this to your project's namespace
-namespace MyGame
+// TODO: Change this to your project's namespace
+namespace MyGame.Data
 {{
     /// <summary>
     /// Data container for managing reactive game data.
-    /// Inherits from FluxDataContainer which provides automatic property registration and validation features.
     /// </summary>
     [CreateAssetMenu(fileName = ""{className}"", menuName = ""Flux/Data/{className}"")]
     public class {className} : FluxDataContainer
     {{
-        // [Header(""{className} Properties"")]
-        
-        // Add your reactive properties here using the [ReactiveProperty] attribute.
-        // The framework will automatically register these with the FluxManager.
+        // Add your reactive properties here.
         // [ReactiveProperty(""my.data.value"")]
-        // [SerializeField] private int _myValue;
+        // public int MyValue;
     }}
 }}";
         }
-
+        
         private static string GenerateFluxMonoBehaviourTemplate(string className)
         {
+            // --- UPDATED TEMPLATE ---
             return $@"using UnityEngine;
 using FluxFramework.Core;
+using FluxFramework.Attributes;
+using System; // Required for IDisposable
 
-// You can change this to your project's namespace
-namespace MyGame
+// TODO: Change this to your project's namespace
+namespace MyGame.Logic
 {{
     /// <summary>
     /// A MonoBehaviour integrated with the FluxFramework.
-    /// Inherits from FluxMonoBehaviour to automatically get framework lifecycle integration.
+    /// Inherits from FluxMonoBehaviour to get the safe, framework-aware lifecycle.
     /// </summary>
     public class {className} : FluxMonoBehaviour
     {{
-        // Use [FluxGroup] to organize your inspector fields.
-        // Use [FluxBinding] on dummy fields to configure data binding.
-        // Use [FluxButton] on methods to create debug buttons.
+        // Use [ReactiveProperty] to declare and initialize state.
+        // [ReactiveProperty(""my.component.state"")]
+        // private bool _myState = true;
+        
+        // Store IDisposable subscriptions for cleanup.
+        // private IDisposable _mySubscription;
 
         /// <summary>
-        /// This method is guaranteed to be called after the Flux framework is initialized.
-        /// It's the safe equivalent of Awake().
+        /// This is the framework-safe equivalent of Awake().
+        /// Use it for component setup and property/event subscriptions.
         /// </summary>
-        protected override void Awake()
+        protected override void OnFluxAwake()
         {{
-            base.Awake();
-            // Your initialization logic here (e.g., GetComponent).
+            // _mySubscription = SubscribeToProperty<float>(""some.property"", OnPropertyChanged);
         }}
         
-        // Implement Update, FixedUpdate, etc. as you normally would.
+        /// <summary>
+        /// This is the framework-safe equivalent of Start().
+        /// Use it for logic that depends on other components being initialized.
+        /// </summary>
+        protected override void OnFluxStart()
+        {{
+            
+        }}
 
         /// <summary>
-        /// This method is called when the component is being destroyed.
-        /// Use it for any specific cleanup your component needs.
+        /// This is the framework-safe equivalent of OnDestroy().
+        /// Use it to clean up subscriptions and other resources.
         /// </summary>
-        protected override void OnDestroy()
+        protected override void OnFluxDestroy()
         {{
-            // Your cleanup logic here.
-            base.OnDestroy();
+            // _mySubscription?.Dispose();
         }}
     }}
 }}";
         }
-
+        
         private static string GenerateFluxScriptableObjectTemplate(string className)
         {
             return $@"using UnityEngine;
 using FluxFramework.Core;
 using FluxFramework.Attributes;
 
-// You can change this to your project's namespace
-namespace MyGame
+// TODO: Change this to your project's namespace
+namespace MyGame.Data
 {{
     /// <summary>
     /// A ScriptableObject integrated with the FluxFramework reactive system.
@@ -217,24 +224,21 @@ namespace MyGame
     [CreateAssetMenu(fileName = ""{className}"", menuName = ""Flux/ScriptableObjects/{className}"")]
     public class {className} : FluxScriptableObject
     {{
-        // [Header(""{className} Data"")]
-        
-        // Add your reactive properties here using the [ReactiveProperty] attribute.
-        // The framework will automatically register these with the FluxManager when this asset is enabled.
+        // Add your reactive properties here.
         // [ReactiveProperty(""my.asset.data"")]
         // [SerializeField] private string _myData;
     }}
 }}";
         }
-
+        
         private static string GenerateFluxSettingsTemplate(string className)
         {
             return $@"using UnityEngine;
 using FluxFramework.Core;
 using FluxFramework.Attributes;
 
-// You can change this to your project's namespace
-namespace MyGame
+// TODO: Change this to your project's namespace
+namespace MyGame.Settings
 {{
     /// <summary>
     /// A ScriptableObject for game settings with automatic persistence (saving/loading).
@@ -242,10 +246,7 @@ namespace MyGame
     [CreateAssetMenu(fileName = ""{className}"", menuName = ""Flux/Settings/{className}"")]
     public class {className} : FluxSettings
     {{
-        // [Header(""{className} Settings"")]
-        
-        // Add your settings properties here. The [ReactiveProperty] attribute is required
-        // for the automatic saving and loading to work.
+        // Add your settings properties here.
         // [ReactiveProperty(""settings.volume"")]
         // [Range(0, 1)]
         // [SerializeField] private float _musicVolume = 0.8f;
@@ -260,7 +261,7 @@ using FluxFramework.UI;
 using FluxFramework.Attributes;
 using FluxFramework.Binding;
 
-// You can change this to your project's namespace
+// TODO: Change this to your project's namespace
 namespace MyGame.UI
 {{
     /// <summary>
@@ -268,55 +269,57 @@ namespace MyGame.UI
     /// </summary>
     public class {className} : FluxUIComponent
     {{
-        // Example of a dummy field for binding configuration in the inspector.
-        // [Header(""Binding Configuration"")]
+        // For automatic binding, declare a [SerializeField] for your UI component
+        // and add the [FluxBinding] attribute to it.
+        // The base class will handle the rest.
+        //
+        // [Header(""Bindings"")]
         // [FluxBinding(""my.ui.value"", Mode = BindingMode.OneWay)]
-        // [SerializeField] private string _valueBinding;
-
-        // private MyValueBinding _binding;
+        // [SerializeField] private TMPro.TextMeshProUGUI _myTextComponent;
 
         /// <summary>
-        /// This is the safe equivalent of Awake().
-        /// Use it to get references to your UI components (e.g., Image, Text).
+        /// This method is for component-specific setup, like getting references.
+        /// It's called automatically by the base class.
         /// </summary>
-        protected override void Awake()
+        protected override void InitializeComponent()
         {{
-            base.Awake();
-            // e.g., myImageComponent = GetComponent<Image>();
+            // e.g., if(_myTextComponent == null) _myTextComponent = GetComponent<TMPro.TextMeshProUGUI>();
         }}
         
         /// <summary>
-        /// Implement this method to create and register your specific UI bindings.
-        /// This is called automatically at the correct time.
+        /// Override this method to add custom binding logic that cannot be
+        /// handled automatically by attributes.
         /// </summary>
-        protected override void RegisterBindings()
+        protected override void RegisterCustomBindings()
         {{
-            // Use reflection to read your [FluxBinding] attributes and call ReactiveBindingSystem.Bind().
-            // See existing FluxSlider or FluxText for examples.
+            // Example:
+            // var myBinding = new MyCustomBinding(""some.key"", someComponent);
+            // ReactiveBindingSystem.Bind(""some.key"", myBinding);
+            // TrackBinding(myBinding); // Important for automatic cleanup!
         }}
 
         /// <summary>
-        /// Implement this method to unregister your UI bindings.
-        /// This is crucial for preventing memory leaks.
+        /// Override this to apply styles from the global UI Theme.
         /// </summary>
-        protected override void UnregisterBindings()
+        public override void ApplyTheme()
         {{
-            // Call ReactiveBindingSystem.Unbind() for each binding you created.
+            // var theme = UIThemeManager.CurrentTheme;
+            // if (theme != null && _myTextComponent != null)
+            // {{
+            //     _myTextComponent.color = theme.textColor;
+            // }}
         }}
     }}
 }}";
         }
-
+        
         private static string GenerateFluxEventTemplate(string className)
         {
-            // Ensure the class name ends with "Event" for good practice.
-            if (!className.EndsWith("Event"))
-            {
-                className += "Event";
-            }
-
+            if (!className.EndsWith("Event")) className += "Event";
+            
             return $@"using FluxFramework.Core;
-// You can change this to your project's namespace
+
+// TODO: Change this to your project's namespace
 namespace MyGame.Events
 {{
     /// <summary>
@@ -324,15 +327,12 @@ namespace MyGame.Events
     /// </summary>
     public class {className} : FluxEventBase
     {{
-        // Add properties to carry data with the event.
-        // Make them readonly (get-only) for good practice (immutable events).
+        // Add readonly properties to carry data with the event.
         // public string SomeData {{ get; }}
-        // public int SomeValue {{ get; }}
 
-        public {className}(/* string someData, int someValue */)
+        public {className}(/* string someData */)
         {{
             // SomeData = someData;
-            // SomeValue = someValue;
         }}
     }}
 }}";
@@ -340,11 +340,7 @@ namespace MyGame.Events
         
         private static string GenerateFluxNodeTemplate(string className)
         {
-            // Ensure the class name ends with "Node" for good practice.
-            if (!className.EndsWith("Node"))
-            {
-                className += "Node";
-            }
+            if (!className.EndsWith("Node")) className += "Node";
 
             return $@"using System.Collections.Generic;
 using UnityEngine;
@@ -352,7 +348,7 @@ using FluxFramework.Core;
 using FluxFramework.VisualScripting;
 using FluxFramework.VisualScripting.Execution;
 
-// You can change this to your project's namespace
+// TODO: Change this to your project's namespace
 namespace MyGame.VisualScripting
 {{
     /// <summary>
@@ -361,48 +357,20 @@ namespace MyGame.VisualScripting
     [CreateAssetMenu(fileName = ""{className}"", menuName = ""Flux/Visual Scripting/Custom/{className}"")]
     public class {className} : FluxNodeBase
     {{
-        // Use [SerializeField] for any properties you want to configure in the node's inspector.
-        // [SerializeField] private float _mySetting = 1.0f;
-
-        // Set the default name and category for the node in the search window.
         public override string NodeName => ""My Custom Node"";
         public override string Category => ""Custom"";
 
-        /// <summary>
-        /// This method defines the input and output ports for your node.
-        /// </summary>
         protected override void InitializePorts()
         {{
-            // --- Execution Ports ---
-            // Execution ports control the flow of the graph.
             AddInputPort(""execute"", ""▶ In"", FluxPortType.Execution, ""void"", true);
             AddOutputPort(""onComplete"", ""▶ Out"", FluxPortType.Execution, ""void"", false);
-
-            // --- Data Ports ---
-            // Data ports are for passing values between nodes.
-            AddInputPort(""myInput"", ""My Input"", FluxPortType.Data, ""float"", false, 0f, ""An example float input."");
-            AddOutputPort(""myOutput"", ""My Output"", FluxPortType.Data, ""string"", false, ""An example string output."");
         }}
 
-        /// <summary>
-        /// This is the main logic of your node. It's called when the 'execute' port is triggered.
-        /// </summary>
         protected override void ExecuteInternal(FluxGraphExecutor executor, Dictionary<string, object> inputs, Dictionary<string, object> outputs)
         {{
-            // 1. Get values from your input ports.
-            float myInputValue = GetInputValue<float>(inputs, ""myInput"");
+            // Your logic here...
             
-            // 2. Perform your node's logic.
-            string result = $""The input value was {{myInputValue}}"";
-            Debug.Log(result);
-
-            // If you need the GameObject running the graph (e.g., to start a coroutine):
-            // var contextObject = executor.Runner.GetContextObject();
-            
-            // 3. Set values for your output ports.
-            SetOutputValue(outputs, ""myOutput"", result);
-
-            // 4. Trigger an output execution port to continue the graph flow.
+            // Continue the execution flow.
             SetOutputValue(outputs, ""onComplete"", null);
         }}
     }}

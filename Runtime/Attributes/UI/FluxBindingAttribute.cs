@@ -41,6 +41,25 @@ namespace FluxFramework.Attributes
             PropertyKey = propertyKey;
         }
 
+        public FluxBindingAttribute(string propertyKey, BindingMode mode)
+        {
+            PropertyKey = propertyKey;
+            Mode = mode;
+        }
+
+        public FluxBindingAttribute(string propertyKey, Type converterType)
+        {
+            PropertyKey = propertyKey;
+            ConverterType = converterType;
+        }
+
+        public FluxBindingAttribute(string propertyKey, BindingMode mode, Type converterType = null)
+        {
+            PropertyKey = propertyKey;
+            Mode = mode;
+            ConverterType = converterType;
+        }
+
         /// <summary>
         /// Creates a BindingOptions object from the attribute's properties.
         /// </summary>
