@@ -12,46 +12,66 @@ namespace FluxFramework.Editor
 {
     /// <summary>
     /// A generic PropertyDrawer that works with any attribute inheriting from FluxValidationAttribute.
-    /// It dynamically discovers and applies validators in the Unity Inspector.
+    /// It dynamically discovers and applies validators in the Unity Inspector, providing immediate visual feedback.
     /// </summary>
     [CustomPropertyDrawer(typeof(FluxValidationAttribute), true)]
     public class FluxValidationDrawer : PropertyDrawer
     {
         private static readonly Dictionary<string, string> _validationErrorCache = new Dictionary<string, string>();
 
+        /// <summary>
+        /// Renders the property field and its validation state in the Inspector.
+        /// </summary>
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
             EditorGUI.BeginProperty(position, label, property);
 
             string propertyPath = property.propertyPath;
-            bool isValid;
             string errorMessage;
 
-            if (GUI.changed || !_validationErrorCache.ContainsKey(propertyPath))
+            // Use the reliable BeginChangeCheck/EndChangeCheck pattern to detect user modifications.
+            EditorGUI.BeginChangeCheck();
+
+            // The 'position' rect includes the total height (field + help box).
+            // We need to calculate the rect for just the property field itself.
+            Rect propertyRect = new Rect(position.x, position.y, position.width, EditorGUI.GetPropertyHeight(property, label, true));
+            EditorGUI.PropertyField(propertyRect, property, label, true);
+
+            bool valueDidChange = EditorGUI.EndChangeCheck();
+
+            // If the value was just changed by the user, we must re-validate it.
+            if (valueDidChange)
             {
-                isValid = ValidateProperty(property, out errorMessage);
+                ValidateProperty(property, out errorMessage);
+                _validationErrorCache[propertyPath] = errorMessage;
+            }
+            // Otherwise, retrieve the current error state from the cache.
+            else if (!_validationErrorCache.TryGetValue(propertyPath, out string cachedError))
+            {
+                // If not in cache, validate once to establish initial state.
+                ValidateProperty(property, out errorMessage);
                 _validationErrorCache[propertyPath] = errorMessage;
             }
             else
             {
-                errorMessage = _validationErrorCache[propertyPath];
-                isValid = string.IsNullOrEmpty(errorMessage);
-            }
-            
-            var originalColor = GUI.backgroundColor;
-            if (!isValid)
-            {
-                GUI.backgroundColor = new Color(1f, 0.7f, 0.7f, 1f); // Light red for invalid
+                errorMessage = cachedError;
             }
 
-            EditorGUI.PropertyField(position, property, label, true);
+            bool isValid = string.IsNullOrEmpty(errorMessage);
 
-            GUI.backgroundColor = originalColor;
-
+            // If the property is invalid, draw the visual feedback.
             if (!isValid)
             {
-                float propertyHeight = EditorGUI.GetPropertyHeight(property, label);
-                Rect helpBoxPosition = new Rect(position.x, position.y + propertyHeight, position.width, GetHelpBoxHeight(errorMessage));
+                // Draw a light red background to indicate an error.
+                var originalColor = GUI.backgroundColor;
+                GUI.backgroundColor = new Color(1f, 0.7f, 0.7f, 1f); // Light red
+                // Redraw the property field on top with the new background color.
+                EditorGUI.PropertyField(propertyRect, property, label, true);
+                GUI.backgroundColor = originalColor;
+
+                // Draw the error message in a HelpBox directly below the field.
+                float helpBoxHeight = GetHelpBoxHeight(errorMessage);
+                Rect helpBoxPosition = new Rect(position.x, propertyRect.yMax + 2, position.width, helpBoxHeight);
                 EditorGUI.HelpBox(helpBoxPosition, errorMessage, MessageType.Error);
             }
 
@@ -59,7 +79,28 @@ namespace FluxFramework.Editor
         }
 
         /// <summary>
-        /// Validates the property using the new, decoupled architecture.
+        /// Calculates the total height required for the property, including space for an error message if invalid.
+        /// </summary>
+        public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
+        {
+            float baseHeight = EditorGUI.GetPropertyHeight(property, label, true);
+            
+            // To make the UI responsive, we must re-validate here to get the most current error state.
+            // This ensures that when the user enters an invalid value, the inspector immediately reserves space for the help box on the next repaint.
+            ValidateProperty(property, out string errorMessage);
+            _validationErrorCache[property.propertyPath] = errorMessage;
+
+            if (!string.IsNullOrEmpty(errorMessage))
+            {
+                // Add space for the help box plus some padding.
+                return baseHeight + GetHelpBoxHeight(errorMessage) + 4f; 
+            }
+
+            return baseHeight;
+        }
+
+        /// <summary>
+        /// Validates the property using the decoupled architecture by asking its attributes to create validators.
         /// </summary>
         private bool ValidateProperty(SerializedProperty property, out string errorMessage)
         {
@@ -67,11 +108,10 @@ namespace FluxFramework.Editor
             if (fieldInfo == null)
             {
                 errorMessage = "Internal Error: Could not find FieldInfo for validation.";
-                return true;
+                return true; 
             }
             
             object propertyValue = GetValueFromProperty(property);
-
             var validationAttributes = fieldInfo.GetCustomAttributes<FluxValidationAttribute>(true);
             var errorMessages = new List<string>();
 
@@ -82,6 +122,7 @@ namespace FluxFramework.Editor
                 {
                     try
                     {
+                        // Use reflection to call the generic 'Validate' method.
                         MethodInfo validateMethod = validator.GetType().GetMethod("Validate");
                         ValidationResult result = (ValidationResult)validateMethod.Invoke(validator, new[] { propertyValue });
 
@@ -107,43 +148,33 @@ namespace FluxFramework.Editor
             return true;
         }
 
-        public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
-        {
-            float baseHeight = EditorGUI.GetPropertyHeight(property, label, true);
-            
-            if (_validationErrorCache.TryGetValue(property.propertyPath, out string errorMessage) && !string.IsNullOrEmpty(errorMessage))
-            {
-                return baseHeight + GetHelpBoxHeight(errorMessage) + 2f;
-            }
-
-            return baseHeight;
-        }
-
+        /// <summary>
+        /// Calculates the height of a HelpBox based on its text content.
+        /// </summary>
         private float GetHelpBoxHeight(string message)
         {
             var content = new GUIContent(message);
-            var style = new GUIStyle(EditorStyles.helpBox);
-            // The default helpbox style might not wrap text, so ensure it does for height calculation
-            style.wordWrap = true;
-            float height = style.CalcHeight(content, EditorGUIUtility.currentViewWidth - 40); // Subtract some padding
+            var style = new GUIStyle(EditorStyles.helpBox) { wordWrap = true };
+            // Calculate height based on the current inspector width, accounting for padding.
+            float height = style.CalcHeight(content, EditorGUIUtility.currentViewWidth - 40); 
             return Mathf.Max(EditorGUIUtility.singleLineHeight * 1.5f, height);
         }
 
         #region Reflection Helpers
 
         /// <summary>
-        /// Gets the actual object value from a SerializedProperty using reflection.
-        /// Handles nested properties.
+        /// Gets the actual object value from a SerializedProperty using reflection. Handles nested properties and arrays/lists.
         /// </summary>
         private object GetValueFromProperty(SerializedProperty property)
         {
             object targetObject = property.serializedObject.targetObject;
-            
             var path = property.propertyPath.Replace(".Array.data[", "[");
             var elements = path.Split('.');
 
             foreach (var element in elements)
             {
+                if (targetObject == null) return null;
+
                 if (element.Contains("["))
                 {
                     var elementName = element.Substring(0, element.IndexOf("["));
@@ -159,23 +190,18 @@ namespace FluxFramework.Editor
         }
 
         /// <summary>
-        /// A generic reflection helper to get a value from a field or property.
+        /// A generic reflection helper to get a value from an object by its field or property name.
         /// </summary>
         private object GetValue(object source, string name)
         {
             if (source == null) return null;
             var type = source.GetType();
             var field = type.GetField(name, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
-            if (field != null)
-            {
-                return field.GetValue(source);
-            }
+            if (field != null) return field.GetValue(source);
 
-            var property = type.GetProperty(name, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-            if (property != null)
-            {
-                return property.GetValue(source, null);
-            }
+            var prop = type.GetProperty(name, BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+            if (prop != null) return prop.GetValue(source, null);
+            
             return null;
         }
 
@@ -201,19 +227,19 @@ namespace FluxFramework.Editor
             var targetType = property.serializedObject.targetObject.GetType();
             var propertyPath = property.propertyPath;
             
-            // Handle arrays/lists. e.g., "myList.Array.data[0]" should return the FieldInfo for "myList".
+            // Simplify array paths (e.g., "myList.Array.data[0]" should return the FieldInfo for "myList").
             if (propertyPath.Contains(".Array.data["))
             {
                 propertyPath = propertyPath.Substring(0, propertyPath.IndexOf(".Array.data["));
             }
 
-            // Handle nested fields. e.g., "playerStats.health"
             var pathParts = propertyPath.Split('.');
             FieldInfo fieldInfo = null;
             Type currentType = targetType;
 
             foreach (var part in pathParts)
             {
+                if (currentType == null) return null;
                 fieldInfo = currentType.GetField(part, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
                 if (fieldInfo == null) return null; // Path is invalid
                 currentType = fieldInfo.FieldType; // Traverse down for the next part of the path
