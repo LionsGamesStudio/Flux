@@ -77,18 +77,31 @@ namespace FluxFramework.Configuration
                             break;
                             
                         case PropertyType.Vector2:
-                            // JsonUtility is a simple way to parse Vector types from a string like "(0.0, 1.0)"
-                            Vector2 defaultV2 = JsonUtility.FromJson<Vector2>(propDef.defaultValue);
+                            Vector2 defaultV2 = Vector2.zero;
+                            if (!string.IsNullOrEmpty(propDef.defaultValue))
+                            {
+                                try { defaultV2 = JsonUtility.FromJson<Vector2>(propDef.defaultValue); }
+                                catch { /* Ignore malformed string, use Vector2.zero */ }
+                            }
                             manager.GetOrCreateProperty(propDef.key, defaultV2);
                             break;
                             
                         case PropertyType.Vector3:
-                            Vector3 defaultV3 = JsonUtility.FromJson<Vector3>(propDef.defaultValue);
+                            Vector3 defaultV3 = Vector3.zero;
+                            if (!string.IsNullOrEmpty(propDef.defaultValue))
+                            {
+                                try { defaultV3 = JsonUtility.FromJson<Vector3>(propDef.defaultValue); }
+                                catch { /* Ignore malformed string, use Vector3.zero */ }
+                            }
                             manager.GetOrCreateProperty(propDef.key, defaultV3);
                             break;
                             
                         case PropertyType.Color:
-                            ColorUtility.TryParseHtmlString(propDef.defaultValue, out Color defaultColor);
+                            Color defaultColor = Color.black; // Default fallback color
+                            if (!string.IsNullOrEmpty(propDef.defaultValue))
+                            {
+                                ColorUtility.TryParseHtmlString(propDef.defaultValue, out defaultColor);
+                            }
                             manager.GetOrCreateProperty(propDef.key, defaultColor);
                             break;
                         

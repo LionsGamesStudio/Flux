@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using FluxFramework.Core;
 using FluxFramework.Validation;
+using FluxFramework.Binding;
 
 namespace FluxFramework.Extensions
 {
@@ -14,39 +15,70 @@ namespace FluxFramework.Extensions
         /// <summary>
         /// Creates a reactive property that enforces a validation rule.
         /// </summary>
-        /// <typeparam name="T">The type of the property value.</typeparam>
-        /// <param name="initialValue">The initial value, which must pass the validation.</param>
-        /// <param name="validatorFunc">A function that returns true if the value is valid.</param>
-        /// <returns>A new instance of ValidatedReactiveProperty.</returns>
         public static ValidatedReactiveProperty<T> WithValidation<T>(T initialValue, Func<T, bool> validatorFunc)
         {
-            if (validatorFunc == null)
-            {
-                throw new ArgumentNullException(nameof(validatorFunc));
-            }
+            if (validatorFunc == null) throw new ArgumentNullException(nameof(validatorFunc));
             
-            // We create a wrapper validator from the provided function and pass it to the new constructor.
             var wrapperValidator = new FuncValidator<T>(validatorFunc);
             var validators = new List<IValidator<T>> { wrapperValidator };
             return new ValidatedReactiveProperty<T>(initialValue, validators);
         }
-
+        
         /// <summary>
-        /// Creates a new reactive property whose value is a transformation of the source property.
-        /// Also known as 'Select' or 'Map'.
+        /// Creates a new reactive property by applying a non-generic IValueConverter.
+        /// This is the core of the automatic conversion in the binding system.
         /// </summary>
-        public static ReactiveProperty<TTarget> Transform<TSource, TTarget>(
-            this ReactiveProperty<TSource> source, 
-            Func<TSource, TTarget> transform)
+        public static ReactiveProperty<TTarget> Transform<TTarget>(
+            this IReactiveProperty source, 
+            IValueConverter converter)
         {
-            var target = new ReactiveProperty<TTarget>(transform(source.Value));
-            // The subscription will be managed by the new property's lifetime.
-            source.Subscribe(value => target.Value = transform(value));
+            TTarget initialValue;
+            try
+            {
+                initialValue = (TTarget)converter.Convert(source.GetValue());
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[FluxFramework] ValueConverter '{converter.GetType().Name}' failed during initial conversion: {ex.Message}");
+                initialValue = default;
+            }
+
+            var target = new ReactiveProperty<TTarget>(initialValue);
+
+            // Subscribe to the source property.
+            var subscription = source.Subscribe(value =>
+            {
+                try
+                {
+                    target.Value = (TTarget)converter.Convert(value);
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogError($"[FluxFramework] ValueConverter '{converter.GetType().Name}' failed during update: {ex.Message}");
+                }
+            });
+
+            // This requires a small addition to the ReactiveProperty class.
+            target.AddDependentSubscription(subscription);
+            
             return target;
         }
 
         /// <summary>
-        /// Combines two reactive properties into a single new property using a combiner function.
+        /// Creates a new reactive property whose value is a transformation of the source property.
+        /// </summary>
+        public static ReactiveProperty<TTarget> Transform<TSource, TTarget>(
+            this ReactiveProperty<TSource> source,
+            Func<TSource, TTarget> transform)
+        {
+            var target = new ReactiveProperty<TTarget>(transform(source.Value));
+            var subscription = source.Subscribe(value => target.Value = transform(value));
+            target.AddDependentSubscription(subscription);
+            return target;
+        }
+
+        /// <summary>
+        /// Combines two reactive properties into a single new property.
         /// </summary>
         public static ReactiveProperty<TResult> CombineWith<T1, T2, TResult>(
             this ReactiveProperty<T1> prop1,
@@ -55,48 +87,30 @@ namespace FluxFramework.Extensions
         {
             var result = new ReactiveProperty<TResult>(combiner(prop1.Value, prop2.Value));
             
-            prop1.Subscribe(value => result.Value = combiner(value, prop2.Value));
-            prop2.Subscribe(value => result.Value = combiner(prop1.Value, value));
+            var sub1 = prop1.Subscribe(value => result.Value = combiner(value, prop2.Value));
+            var sub2 = prop2.Subscribe(value => result.Value = combiner(prop1.Value, value));
+
+            result.AddDependentSubscription(sub1);
+            result.AddDependentSubscription(sub2);
             
             return result;
         }
 
         /// <summary>
-        /// Creates a new reactive property that only updates its value when the source value passes a filter condition.
+        /// Creates a new reactive property that only updates when the source value passes a filter.
         /// </summary>
         public static ReactiveProperty<T> Where<T>(this ReactiveProperty<T> source, Func<T, bool> filter)
         {
             var filtered = new ReactiveProperty<T>(source.Value);
-            source.Subscribe(value =>
+            var subscription = source.Subscribe(value =>
             {
                 if (filter(value))
                 {
                     filtered.Value = value;
                 }
             });
+            filtered.AddDependentSubscription(subscription);
             return filtered;
-        }
-
-        // NOTE: The simple Debounce and Delay implementations below are kept for reference,
-        // but the more robust debouncing logic is now integrated into the ReactiveBindingSystem for UI.
-        // A full reactive library would have more advanced schedulers for these operators.
-
-        /// <summary>
-        /// Creates a distinct reactive property that only notifies subscribers when its value actually changes.
-        /// Note: The base ReactiveProperty already has this behavior, but this can be useful for chaining.
-        /// </summary>
-        public static ReactiveProperty<T> DistinctUntilChanged<T>(this ReactiveProperty<T> source)
-        {
-            // The base ReactiveProperty already includes an equality check.
-            // This operator is more useful in advanced reactive streams where events might be duplicated.
-            // We provide a simple implementation for API completeness.
-            var distinct = new ReactiveProperty<T>(source.Value);
-            source.Subscribe(value =>
-            {
-                // The base `Value` setter will handle the distinct check.
-                distinct.Value = value;
-            });
-            return distinct;
         }
 
         /// <summary>
@@ -105,22 +119,10 @@ namespace FluxFramework.Extensions
         private class FuncValidator<T> : IValidator<T>
         {
             private readonly Func<T, bool> _validationFunc;
-
-            public FuncValidator(Func<T, bool> validationFunc)
-            {
-                _validationFunc = validationFunc;
-            }
-
+            public FuncValidator(Func<T, bool> validationFunc) { _validationFunc = validationFunc; }
             public ValidationResult Validate(T value)
             {
-                if (_validationFunc(value))
-                {
-                    return ValidationResult.Success;
-                }
-                else
-                {
-                    return ValidationResult.Failure("Value did not pass the validation function.");
-                }
+                return _validationFunc(value) ? ValidationResult.Success : ValidationResult.Failure("Value did not pass the validation function.");
             }
         }
     }

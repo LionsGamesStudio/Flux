@@ -248,10 +248,10 @@ namespace FluxFramework.Core
                     var propertyType = typeof(ReactiveProperty<>).MakeGenericType(field.FieldType);
                     property = (IReactiveProperty)Activator.CreateInstance(propertyType, fieldValue);
                 }
-
+                
                 FluxManager.Instance.RegisterProperty(propertyKey, property);
 
-                property.Subscribe(newValue => field.SetValue(component, newValue));
+                property.Subscribe(newValue => field.SetValue(component, newValue), true);
 
                 if (attribute.Persistent)
                 {

@@ -18,7 +18,8 @@ namespace FluxFramework.VisualScripting
     public class FluxVisualScriptingManager : MonoBehaviour
     {
         private static FluxVisualScriptingManager _instance;
-        
+        private static bool _isShuttingDown = false;
+
         // The manager now primarily tracks the active runners, which are the context for graph execution.
         private readonly List<FluxVisualScriptComponent> _registeredComponents = new List<FluxVisualScriptComponent>();
         private readonly Dictionary<string, FluxVisualScriptComponent> _namedComponents = new Dictionary<string, FluxVisualScriptComponent>();
@@ -30,6 +31,7 @@ namespace FluxFramework.VisualScripting
         {
             get
             {
+                if (_isShuttingDown) return null;
                 if (_instance == null)
                 {
                     _instance = FindFirstObjectByType<FluxVisualScriptingManager>();
@@ -54,7 +56,7 @@ namespace FluxFramework.VisualScripting
         public event Action<FluxVisualGraph> OnGraphExecutionCompleted;
 
         private void Awake()
-        {            
+        {
             if (_instance == null)
             {
                 _instance = this;
@@ -81,7 +83,7 @@ namespace FluxFramework.VisualScripting
             if (component == null || _registeredComponents.Contains(component)) return;
 
             _registeredComponents.Add(component);
-            
+
             // If the component's GameObject has a unique name, register it for easy access.
             if (!_namedComponents.ContainsKey(component.gameObject.name))
             {
@@ -118,7 +120,7 @@ namespace FluxFramework.VisualScripting
                 OnGraphUnregistered?.Invoke(component.Graph);
             }
         }
-        
+
         /// <summary>
         /// Finds and executes the first active graph with the given name.
         /// It does so by finding the FluxVisualScriptComponent that is running the graph.
@@ -159,7 +161,7 @@ namespace FluxFramework.VisualScripting
         /// </summary>
         public List<FluxVisualGraph> FindGraphsWithNodeType<T>() where T : FluxNodeBase
         {
-            return RegisteredGraphs.Where(graph => 
+            return RegisteredGraphs.Where(graph =>
                 graph.FindNodes<T>().Any()).ToList();
         }
 
@@ -188,7 +190,7 @@ namespace FluxFramework.VisualScripting
             OnGraphExecutionCompleted?.Invoke(graph);
             if (graph != null) Debug.Log($"Graph '{graph.name}' completed execution.");
         }
-        
+
         private void OnDestroy()
         {
             // Clean up event subscriptions on all components to prevent issues on scene unload.
@@ -198,6 +200,11 @@ namespace FluxFramework.VisualScripting
             }
             _registeredComponents.Clear();
             _namedComponents.Clear();
+        }
+        
+        private void OnApplicationQuit()
+        {
+            _isShuttingDown = true;
         }
 
         #if UNITY_EDITOR
@@ -226,7 +233,7 @@ namespace FluxFramework.VisualScripting
                       $"Total Nodes (in active graphs): {stats.TotalNodes}\n" +
                       $"Total Connections (in active graphs): {stats.TotalConnections}", this);
         }
-        #endif
+#endif
     }
 
     /// <summary>

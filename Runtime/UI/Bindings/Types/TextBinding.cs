@@ -1,4 +1,5 @@
 using TMPro;
+using UnityEngine;
 
 namespace FluxFramework.Binding
 {
@@ -19,6 +20,7 @@ namespace FluxFramework.Binding
 
         public override void UpdateUI(string value)
         {
+            Debug.Log($"[TextBinding] Received new value to display: '{value}'");
             if (_textComponent != null)
             {
                 _textComponent.text = string.Format(_formatString, value ?? "");

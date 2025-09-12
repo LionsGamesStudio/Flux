@@ -19,7 +19,7 @@ namespace FluxFramework.Core
         private readonly List<Action<T>> _subscribers = new List<Action<T>>();
         private readonly List<Action<object>> _objectSubscribers = new List<Action<object>>();
         private readonly List<Action<T, T>> _subscribersWithOldValue = new List<Action<T, T>>();
-
+        private List<IDisposable> _dependentSubscriptions;
 
         public Type ValueType => typeof(T);
 
@@ -55,7 +55,7 @@ namespace FluxFramework.Core
         /// The current value of the property.
         /// Setting this value will notify all subscribers if the new value is different.
         /// </summary>
-        public T Value { get => GetValueInternal(); set => SetValueInternal(value, false); }
+        public T Value { get => GetValueInternal(); set => SetValueInternal(value, true); }
 
         /// <summary>
         /// Gets the current value in a thread-safe manner.
@@ -76,8 +76,9 @@ namespace FluxFramework.Core
         /// Subscribes to value changes.
         /// </summary>
         /// <param name="callback">The callback to invoke when the value changes.</param>
+        /// <param name="fireOnSubscribe">If true, the callback will be immediately invoked with the current value.</param>
         /// <returns>An IDisposable object that can be used to unsubscribe.</returns>
-        public IDisposable Subscribe(Action<T> callback)
+        public IDisposable Subscribe(Action<T> callback, bool fireOnSubscribe = false)
         {
             if (callback == null) throw new ArgumentNullException(nameof(callback));
 
@@ -85,36 +86,40 @@ namespace FluxFramework.Core
             {
                 _subscribers.Add(callback);
             }
+
+            if (fireOnSubscribe)
+            {
+                callback.Invoke(GetValueInternal());
+            }
+
             return new Subscription(this, callback);
         }
 
-        /// <summary>
-        /// Subscribes to value changes (non-generic version).
-        /// </summary>
-        /// <param name="callback">The callback to invoke when the value changes.</param>
-        /// <returns>An IDisposable object that can be used to unsubscribe.</returns>
-        public IDisposable Subscribe(Action<object> callback)
+        public IDisposable Subscribe(Action<object> callback, bool fireOnSubscribe = false)
         {
             if (callback == null) throw new ArgumentNullException(nameof(callback));
-
             lock (_lock)
             {
                 _objectSubscribers.Add(callback);
             }
+            if (fireOnSubscribe)
+            {
+                callback.Invoke(GetValueInternal());
+            }
             return new ObjectSubscription(this, callback);
         }
 
-        /// <summary>
-        /// Subscribes to value changes, receiving both the old and new value.
-        /// </summary>
-        /// <param name="callback">The callback to invoke with (oldValue, newValue).</param>
-        /// <returns>An IDisposable object to manage the subscription's lifecycle.</returns>
-        public IDisposable Subscribe(Action<T, T> callback)
+        public IDisposable Subscribe(Action<T, T> callback, bool fireOnSubscribe = false)
         {
             if (callback == null) throw new ArgumentNullException(nameof(callback));
             lock (_lock)
             {
                 _subscribersWithOldValue.Add(callback);
+            }
+            if (fireOnSubscribe)
+            {
+                var currentValue = GetValueInternal();
+                callback.Invoke(currentValue, currentValue); // Pass current value as old and new for the initial fire.
             }
             return new SubscriptionWithOldValue(this, callback);
         }
@@ -185,9 +190,26 @@ namespace FluxFramework.Core
                 UnityEngine.Debug.LogError($"[FluxFramework] Value '{value}' of type '{value?.GetType()}' cannot be assigned to ReactiveProperty of type '{typeof(T)}'.");
             }
         }
+        
+        /// <summary>
+        /// Registers a subscription that this property depends on. When this property
+        /// is disposed, it will also dispose of all its dependent subscriptions.
+        /// This is used by extension methods like Transform() and CombineWith().
+        /// </summary>
+        public void AddDependentSubscription(IDisposable subscription)
+        {
+            lock (_lock)
+            {
+                if (_dependentSubscriptions == null)
+                {
+                    _dependentSubscriptions = new List<IDisposable>();
+                }
+                _dependentSubscriptions.Add(subscription);
+            }
+        }
 
         /// <summary>
-        /// Disposes the reactive property and clears all subscriptions.
+        /// Disposes the reactive property and clears all direct and dependent subscriptions.
         /// </summary>
         public void Dispose()
         {
@@ -196,6 +218,15 @@ namespace FluxFramework.Core
                 _subscribers.Clear();
                 _objectSubscribers.Clear();
                 _subscribersWithOldValue.Clear();
+
+                if (_dependentSubscriptions != null)
+                {
+                    foreach (var sub in _dependentSubscriptions)
+                    {
+                        sub.Dispose();
+                    }
+                    _dependentSubscriptions.Clear();
+                }
             }
         }
 

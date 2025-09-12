@@ -38,8 +38,9 @@ namespace FluxFramework.Core
         /// Subscribes to value changes with a non-generic callback.
         /// </summary>
         /// <param name="onValueChanged">The callback to invoke when the value changes.</param>
+        /// <param name="fireOnSubscribe">If true, the callback is invoked immediately with the current value upon subscription.</param>
         /// <returns>An IDisposable object to manage the subscription's lifecycle.</returns>
-        IDisposable Subscribe(Action<object> onValueChanged);
+        IDisposable Subscribe(Action<object> onValueChanged, bool fireOnSubscribe = false);
 
         /// <summary>
         /// Disposes all subscriptions and cleans up resources
@@ -62,14 +63,16 @@ namespace FluxFramework.Core
         /// Subscribe to value changes
         /// </summary>
         /// <param name="onValueChanged">Callback for value changes</param>
+        /// <param name="fireOnSubscribe">If true, the callback is invoked immediately with the current value upon subscription.</param>
         /// <returns>Disposable subscription</returns>
-        IDisposable Subscribe(Action<T> onValueChanged);
+        IDisposable Subscribe(Action<T> onValueChanged, bool fireOnSubscribe = false);
 
         /// <summary>
         /// Subscribe to value changes with previous value
         /// </summary>
         /// <param name="onValueChanged">Callback with old and new values</param>
+        /// <param name="fireOnSubscribe">If true, the callback is invoked immediately with the current value upon subscription.</param>
         /// <returns>Disposable subscription</returns>
-        IDisposable Subscribe(Action<T, T> onValueChanged);
+        IDisposable Subscribe(Action<T, T> onValueChanged, bool fireOnSubscribe = false);
     }
 }

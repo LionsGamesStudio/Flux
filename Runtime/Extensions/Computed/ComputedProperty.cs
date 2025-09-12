@@ -83,13 +83,20 @@ namespace FluxFramework.Extensions
         /// Subscribes to value changes
         /// </summary>
         /// <param name="callback">Callback to invoke when value changes</param>
+        /// <param name="fireOnSubscribe">If true, the callback is invoked immediately with the current value upon subscription.</param>
         /// <returns>IDisposable to unsubscribe</returns>
-        public IDisposable Subscribe(Action<T> callback)
+        public IDisposable Subscribe(Action<T> callback, bool fireOnSubscribe = false)
         {
             if (callback == null) throw new ArgumentNullException(nameof(callback));
             lock (_lock)
             {
                 _subscribers.Add(callback);
+            }
+
+            if (fireOnSubscribe)
+            {
+                // Invoke the callback immediately with the current value
+                callback(Value);
             }
             return new Subscription(this, callback);
         }
@@ -106,13 +113,20 @@ namespace FluxFramework.Extensions
             }
         }
 
-        public IDisposable Subscribe(Action<object> callback)
+        public IDisposable Subscribe(Action<object> callback, bool fireOnSubscribe = false)
         {
             if (callback == null) throw new ArgumentNullException(nameof(callback));
             lock (_lock)
             {
                 _objectSubscribers.Add(callback);
             }
+
+            if (fireOnSubscribe)
+            {
+                // Invoke the callback immediately with the current value
+                callback(Value);
+            }
+
             return new ObjectSubscription(this, callback);
         }
 

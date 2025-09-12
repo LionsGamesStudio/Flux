@@ -46,10 +46,16 @@ namespace FluxFramework.UI
             
             // We create a new TextBinding instance.
             _binding = new TextBinding(_propertyKey, _textComponent, _formatString);
+
+            // Binding Options
+            var options = new BindingOptions
+            {
+                ImmediateUpdate = true
+            };
             
             // Register it with the central system.
-            ReactiveBindingSystem.Bind(_propertyKey, _binding, new BindingOptions());
-            
+            ReactiveBindingSystem.Bind(_propertyKey, _binding, options);
+
             // Track the binding for automatic cleanup.
             TrackBinding(_binding);
         }

@@ -3,6 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using FluxFramework.Extensions;
+using FluxFramework.Binding;
 using FluxFramework.Core;
 
 namespace FluxFramework.Binding
@@ -46,62 +48,71 @@ namespace FluxFramework.Binding
         public static void Bind<T>(string propertyKey, IUIBinding<T> binding, BindingOptions options = null)
         {
             options = options ?? BindingOptions.Default;
+            if (string.IsNullOrEmpty(propertyKey)) return;
 
-            if (string.IsNullOrEmpty(propertyKey))
-            {
-                Debug.LogError("[FluxFramework] Cannot create a binding with a null or empty property key.", binding.Component);
-                return;
-            }
-
-            if (!_bindings.ContainsKey(propertyKey))
-            {
-                _bindings[propertyKey] = new List<IUIBinding>();
-            }
-
-            if (_bindings[propertyKey].Contains(binding)) return; // Avoid registering the same binding twice.
-
+            if (!_bindings.ContainsKey(propertyKey)) _bindings[propertyKey] = new List<IUIBinding>();
+            if (_bindings[propertyKey].Contains(binding)) return;
             _bindings[propertyKey].Add(binding);
 
-            if (binding is UIBinding<T> baseBinding) // Check if it's our base type
-            {
-                baseBinding.SetOptions(options);
-            }
+            if (binding is UIBinding<T> baseBinding) baseBinding.SetOptions(options);
 
-            var property = FluxManager.Instance.GetOrCreateProperty<T>(propertyKey, default(T));
-
-            // Define the update action that will be called when the property changes.
-            if (options.ImmediateUpdate)
+            Action<IReactiveProperty> finalizeBindingAction = (property) =>
             {
-                Action<T> updateAction = value =>
+                if (binding == null || binding.Component == null) return;
+                
+                if (property.ValueType == typeof(T))
                 {
-                    try
+                    // CASE 1: The property's type matches the binding's expected type (e.g., float -> float).
+                    BindToProperty((ReactiveProperty<T>)property, binding, options);
+                }
+                else
+                {
+                    // CASE 2: Type mismatch. We need to find and apply a converter.
+                    var sourceValueType = property.ValueType;
+                    var targetValueType = typeof(T);
+                    
+                    // First, see if a converter was explicitly provided in the attribute's options.
+                    Type converterType = options.ConverterType;
+                    
+                    // If not, try to find a suitable one automatically in the registry.
+                    if (converterType == null)
                     {
-                        // 1. Apply a value converter if one is provided.
-                        object finalValue = options.Converter != null ? options.Converter.Convert(value) : value;
-
-                        // 2. Apply debouncing if a delay is specified.
-                        if (options.UpdateDelayMs > 0)
+                        converterType = ValueConverterRegistry.FindConverterType(sourceValueType, targetValueType);
+                    }
+                    
+                    if (converterType != null)
+                    {
+                        try
                         {
-                            EnqueueDebouncedUpdate(binding, (T)finalValue, options.UpdateDelayMs);
+                            var converterInstance = (IValueConverter)Activator.CreateInstance(converterType);
+                            // We need a non-generic Transform method on ReactivePropertyExtensions for this to work cleanly.
+                            // Let's assume we add it.
+                            var transformedProp = property.Transform<T>(converterInstance);
+                            BindToProperty(transformedProp, binding, options);
                         }
-                        else
+                        catch (Exception ex)
                         {
-                            binding.UpdateUI((T)finalValue);
+                            Debug.LogError($"[FluxFramework] Failed to apply converter '{converterType.Name}': {ex.Message}", binding.Component);
                         }
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        Debug.LogError($"[FluxFramework] Error updating UI for binding '{propertyKey}': {ex.Message}", binding.Component);
+                        // CASE 3: No explicit or automatic converter found. This is a fatal binding error.
+                        Debug.LogError($"[FluxFramework] Binding Mismatch: Cannot bind property '{propertyKey}' (type: {sourceValueType.Name}) to a UI component that expects type '{targetValueType.Name}'. No suitable IValueConverter was found or specified.", binding.Component);
                     }
-                };
-
-                // Subscribe to the property and store the IDisposable subscription for cleanup.
-                IDisposable subscription = property.Subscribe(updateAction);
-                _subscriptions[binding] = subscription;
+                }
+            };
+            
+            var existingProperty = FluxManager.Instance.GetProperty(propertyKey);
+            if (existingProperty != null)
+            {
+                finalizeBindingAction(existingProperty);
             }
-            
-            
-            binding.UpdateFromProperty();
+            else
+            {
+                IDisposable deferredSub = FluxManager.Instance.Properties.SubscribeDeferred(propertyKey, finalizeBindingAction);
+                _subscriptions[binding] = deferredSub;
+            }
         }
 
         /// <summary>
@@ -207,6 +218,46 @@ namespace FluxFramework.Binding
             // The .Sum() extension method requires 'using System.Linq;'
             return _bindings.Values.Sum(list => list.Count);
         }
+        
+        /// <summary>
+        /// A private helper that contains the actual subscription logic.
+        /// It is only ever called with a strongly-typed, validated property.
+        /// </summary>
+        private static void BindToProperty<T>(ReactiveProperty<T> property, IUIBinding<T> binding, BindingOptions options)
+        {
+            if (_subscriptions.ContainsKey(binding))
+            {
+                _subscriptions[binding]?.Dispose();
+                _subscriptions.Remove(binding);
+            }
+            
+            if (options.ImmediateUpdate)
+            {
+                Action<T> updateAction = value =>
+                {
+                    try
+                    {
+                        // The converter has already been applied by the .Transform() method.
+                        // We do NOT apply it again here.
+                        if (options.UpdateDelayMs > 0)
+                        {
+                            EnqueueDebouncedUpdate(binding, value, options.UpdateDelayMs);
+                        }
+                        else
+                        {
+                            binding.UpdateUI(value);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogError($"[FluxFramework] Error updating UI for binding '{binding.PropertyKey}': {ex.Message}", binding.Component);
+                    }
+                };
+                
+                IDisposable subscription = property.Subscribe(updateAction, fireOnSubscribe: true);
+                _subscriptions[binding] = subscription;
+            }
+        }
 
         /// <summary>
         /// Manages the debouncing logic by starting a delayed update coroutine.
@@ -228,7 +279,7 @@ namespace FluxFramework.Binding
                     FluxManager.Instance.StopCoroutine(existingCoroutine);
                 }
             }
-            
+
             // Start a new coroutine for the delayed update.
             var newCoroutine = FluxManager.Instance.StartCoroutine(DelayedUpdateCoroutine(binding, value, delayMs));
             _debounceCoroutines[binding] = newCoroutine;
