@@ -90,7 +90,7 @@ namespace FluxFramework.Core
 
             // Initialize configuration system first
             FluxConfigurationManager.Initialize();
-            FluxConfigurationManager.ApplyAllConfigurations();
+            FluxConfigurationManager.ApplyAllConfigurations(this);
 
             // Initialize all converters in the registry
             ValueConverterRegistry.Initialize();

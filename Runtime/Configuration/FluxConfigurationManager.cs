@@ -102,24 +102,22 @@ namespace FluxFramework.Configuration
         }
 
         /// <summary>
-        /// Applies all loaded configurations
+        /// Applies all loaded configurations to the provided manager instance.
         /// </summary>
-        public static void ApplyAllConfigurations()
+        /// <param name="manager">The IFluxManager instance to configure.</param>
+        public static void ApplyAllConfigurations(IFluxManager manager)
         {
             if (!_isInitialized)
             {
                 Initialize();
             }
 
-            // Ensure we have a valid FluxManager instance to pass down.
-            var manager = Flux.Manager as FluxManager;
             if (manager == null)
             {
-                Debug.LogError("[FluxFramework] Cannot apply configurations because Flux.Manager is null.");
+                Debug.LogError("[FluxFramework] Cannot apply configurations because the provided IFluxManager is null.");
                 return;
             }
 
-            // Sort by load priority (higher priority first)
             var sortedConfigs = _loadedConfigurations.Values
                 .OrderByDescending(config => GetLoadPriority(config.GetType()))
                 .ToList();
