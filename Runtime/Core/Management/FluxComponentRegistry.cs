@@ -175,9 +175,18 @@ namespace FluxFramework.Core
             foreach (var field in fields)
             {
                 var reactiveAttr = field.GetCustomAttribute<ReactivePropertyAttribute>();
-                if (reactiveAttr != null)
+                if (reactiveAttr == null) continue;
+
+                // --- DISPATCHER LOGIC ---
+                if (typeof(IReactiveProperty).IsAssignableFrom(field.FieldType))
                 {
-                    RegisterReactiveField(component, field, reactiveAttr);
+                    // PATTERN B: The field is a ReactiveProperty<T> itself.
+                    RegisterAndConfigureExplicitProperty(component, field, reactiveAttr);
+                }
+                else
+                {
+                    // PATTERN A: The field is a primitive type (int, float, etc.).
+                    RegisterImplicitProperty(component, field, reactiveAttr);
                 }
             }
         }
@@ -211,104 +220,110 @@ namespace FluxFramework.Core
         }
 
         /// <summary>
-        /// Registers a single field as a reactive property.
-        /// It detects validation attributes and creates a ValidatedReactiveProperty if necessary.
+        /// Handles PATTERN A: Registers a property for a field with a primitive type (int, float, etc.).
+        /// It creates a property in the manager and keeps the local field synchronized.
         /// </summary>
-        private static void RegisterReactiveField(MonoBehaviour component, FieldInfo field, ReactivePropertyAttribute attribute)
+        private static void RegisterImplicitProperty(MonoBehaviour component, FieldInfo field, ReactivePropertyAttribute attribute)
         {
             var propertyKey = attribute.Key;
-
             try
             {
+                object initialValue = field.GetValue(component);
+                var fieldType = field.FieldType;
                 var validators = GetValidatorsForField(field);
 
                 IReactiveProperty property;
-                object fieldValue = field.GetValue(component);
 
                 if (validators.Count > 0)
                 {
-                    var genericValidatorType = typeof(IValidator<>).MakeGenericType(field.FieldType);
-                    var validatorList = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(genericValidatorType));
-
-                    foreach (var validator in validators)
+                    // Create a ValidatedReactiveProperty
+                    var propertyType = typeof(ValidatedReactiveProperty<>).MakeGenericType(fieldType);
+                    var genericValidatorInterfaceType = typeof(IValidator<>).MakeGenericType(fieldType);
+                    var validatorList = (System.Collections.IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(genericValidatorInterfaceType));
+                    foreach (var v in validators)
                     {
-                        if (genericValidatorType.IsInstanceOfType(validator))
-                        {
-                            validatorList.Add(validator);
-                        }
+                        if (genericValidatorInterfaceType.IsInstanceOfType(v)) validatorList.Add(v);
                     }
-
-                    var propertyType = typeof(ValidatedReactiveProperty<>).MakeGenericType(field.FieldType);
-                    property = (IReactiveProperty)Activator.CreateInstance(propertyType, fieldValue, validatorList);
+                    property = (IReactiveProperty)Activator.CreateInstance(propertyType, initialValue, validatorList);
                 }
                 else
                 {
-                    var propertyType = typeof(ReactiveProperty<>).MakeGenericType(field.FieldType);
-                    property = (IReactiveProperty)Activator.CreateInstance(propertyType, fieldValue);
+                    // Create a standard ReactiveProperty
+                    var propertyType = typeof(ReactiveProperty<>).MakeGenericType(fieldType);
+                    property = (IReactiveProperty)Activator.CreateInstance(propertyType, initialValue);
                 }
-                
+
+                // CRITICAL: Subscribe back to the property to keep the user's private field in sync.
+                property.Subscribe(newValue => field.SetValue(component, newValue));
+
                 FluxManager.Instance.RegisterProperty(propertyKey, property);
-
-                property.Subscribe(newValue => field.SetValue(component, newValue), true);
-
-                if (attribute.Persistent)
-                {
-                    FluxPersistenceManager.RegisterPersistentProperty(propertyKey, property);
-                }
+                if (attribute.Persistent) FluxPersistenceManager.RegisterPersistentProperty(propertyKey, property);
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[FluxFramework] Error registering ReactiveProperty '{propertyKey}' on '{component.name}': {ex.Message}", component);
+                Debug.LogError($"[FluxFramework] Error registering implicit ReactiveProperty '{propertyKey}' on '{component.name}': {ex.Message}", component);
             }
         }
 
         /// <summary>
-        /// A helper method that inspects a field for validation attributes and returns a list of IValidator instances.
+        /// Handles PATTERN B: Configures and registers a field that is explicitly of type ReactiveProperty<T>.
+        /// It may replace the user's instance with a ValidatedReactiveProperty.
         /// </summary>
-        private static List<object> GetValidatorsForField(FieldInfo field)
+        private static void RegisterAndConfigureExplicitProperty(MonoBehaviour component, FieldInfo field, ReactivePropertyAttribute attribute)
         {
-            var validators = new List<object>();
-            var fieldType = field.FieldType;
-
-            var rangeAttr = field.GetCustomAttribute<FluxRangeAttribute>();
-            if (rangeAttr != null)
+            var propertyKey = attribute.Key;
+            try
             {
-                if (typeof(IComparable).IsAssignableFrom(fieldType))
+                var initialProperty = (IReactiveProperty)field.GetValue(component);
+                if (initialProperty == null)
                 {
-                    var validatorType = typeof(RangeValidator<>).MakeGenericType(fieldType);
-                    var min = Convert.ChangeType(rangeAttr.Min, fieldType);
-                    var max = Convert.ChangeType(rangeAttr.Max, fieldType);
-                    validators.Add(Activator.CreateInstance(validatorType, min, max));
+                    var fieldGenericType = field.FieldType.GetGenericArguments()[0];
+                    initialProperty = (IReactiveProperty)Activator.CreateInstance(typeof(ReactiveProperty<>).MakeGenericType(fieldGenericType));
+                    Debug.LogWarning($"[FluxFramework] ReactiveProperty '{field.Name}' on '{component.name}' was not initialized. Created with default value.", component);
                 }
-            }
+                object initialValue = initialProperty.GetValue();
+                var valueType = initialProperty.ValueType;
+                var validators = GetValidatorsForField(field);
 
-            var stringLengthAttr = field.GetCustomAttribute<FluxStringLengthAttribute>();
-            if (stringLengthAttr != null && fieldType == typeof(string))
-            {
-                validators.Add(new StringLengthValidator(stringLengthAttr));
-            }
-
-            var customValidationAttr = field.GetCustomAttribute<FluxValidationAttribute>();
-            if (customValidationAttr?.ValidatorType != null)
-            {
-                try
+                IReactiveProperty finalProperty;
+                if (validators.Count > 0)
                 {
-                    var validatorInterface = typeof(IValidator<>).MakeGenericType(fieldType);
-                    if (validatorInterface.IsAssignableFrom(customValidationAttr.ValidatorType))
+                    var propertyType = typeof(ValidatedReactiveProperty<>).MakeGenericType(valueType);
+                    var genericValidatorInterfaceType = typeof(IValidator<>).MakeGenericType(valueType);
+                    var validatorList = (System.Collections.IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(genericValidatorInterfaceType));
+                    foreach (var v in validators)
                     {
-                        validators.Add(Activator.CreateInstance(customValidationAttr.ValidatorType));
+                        if (genericValidatorInterfaceType.IsInstanceOfType(v)) validatorList.Add(v);
                     }
-                    else
-                    {
-                        Debug.LogWarning($"[FluxFramework] Custom validator '{customValidationAttr.ValidatorType.Name}' on field '{field.Name}' is not compatible with the field type '{fieldType.Name}'.");
-                    }
+                    finalProperty = (IReactiveProperty)Activator.CreateInstance(propertyType, initialValue, validatorList);
                 }
-                catch (Exception ex)
+                else
                 {
-                    Debug.LogError($"[FluxFramework] Failed to create instance of custom validator '{customValidationAttr.ValidatorType.Name}': {ex.Message}");
+                    finalProperty = initialProperty;
                 }
-            }
 
+                field.SetValue(component, finalProperty);
+                FluxManager.Instance.RegisterProperty(propertyKey, finalProperty);
+                if (attribute.Persistent) FluxPersistenceManager.RegisterPersistentProperty(propertyKey, finalProperty);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[FluxFramework] Error registering explicit ReactiveProperty '{propertyKey}' on '{component.name}': {ex.Message}", component);
+            }
+        }
+
+        /// <summary>
+        /// A unified helper to get validators for a field, regardless of the pattern used.
+        /// </summary>
+        private static List<IValidator> GetValidatorsForField(FieldInfo field)
+        {
+            var validators = new List<IValidator>();
+            var validationAttributes = field.GetCustomAttributes<FluxValidationAttribute>(true);
+            foreach (var attr in validationAttributes)
+            {
+                var validator = attr.CreateValidator(field);
+                if (validator != null) validators.Add(validator);
+            }
             return validators;
         }
 

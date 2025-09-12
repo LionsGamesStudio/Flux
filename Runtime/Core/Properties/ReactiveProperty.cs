@@ -55,7 +55,7 @@ namespace FluxFramework.Core
         /// The current value of the property.
         /// Setting this value will notify all subscribers if the new value is different.
         /// </summary>
-        public T Value { get => GetValueInternal(); set => SetValueInternal(value, true); }
+        public virtual T Value { get => GetValueInternal(); set => SetValueInternal(value, true); }
 
         /// <summary>
         /// Gets the current value in a thread-safe manner.

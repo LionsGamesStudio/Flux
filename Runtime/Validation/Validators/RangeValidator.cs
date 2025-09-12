@@ -1,5 +1,7 @@
 using FluxFramework.Attributes;
 using FluxFramework.Core;
+using UnityEngine;
+using System;
 
 namespace FluxFramework.Validation
 {

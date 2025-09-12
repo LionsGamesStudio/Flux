@@ -44,7 +44,7 @@ namespace FluxFramework.Extensions
         /// Sets the value of the property, but only if it passes all validation rules.
         /// </summary>
         /// <param name="value">The new value to set.</param>
-        public new T Value
+        public override T Value
         {
             get => base.Value;
             set

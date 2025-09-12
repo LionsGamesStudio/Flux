@@ -4,7 +4,7 @@ namespace FluxFramework.Core
     /// Interface for validation logic
     /// </summary>
     /// <typeparam name="T">Type of value to validate</typeparam>
-    public interface IValidator<T>
+    public interface IValidator<T> : IValidator
     {
         /// <summary>
         /// Validates the given value
@@ -13,4 +13,11 @@ namespace FluxFramework.Core
         /// <returns>Validation result</returns>
         ValidationResult Validate(T value);
     }
+
+    /// <summary>
+    /// A non-generic marker interface for all validators.
+    /// Its purpose is to allow collections of different generic IValidator<T> instances
+    /// (e.g., a List<IValidator> containing both an IValidator<int> and an IValidator<string>).
+    /// </summary>
+    public interface IValidator { }
 }
