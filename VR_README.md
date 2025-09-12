@@ -43,13 +43,13 @@ The core principle is to **react** to the state changes and events provided by t
 
 ### 1. Reacting to Controller Input (Property Subscription)
 
-Your game logic doesn't need to know about XR devices. It just subscribes to a property.
+Your game logic doesn't need to know about XR devices. It just subscribes to a property using its type-safe key.
 
 ```csharp
 // In a WeaponController.cs script
-using System; // Required for IDisposable
+using System;
 using FluxFramework.Core;
-using FluxFramework.Attributes;
+using Flux; // <-- Import for Flux and FluxKeys
 
 public class WeaponController : FluxMonoBehaviour
 {
@@ -58,13 +58,12 @@ public class WeaponController : FluxMonoBehaviour
     // Use OnFluxAwake for safe initialization and subscriptions.
     protected override void OnFluxAwake()
     {
-        var leftTriggerProp = FluxManager.Instance.GetOrCreateProperty<float>("vr.controller.left.trigger");
-        
-        // Subscribe to changes and store the IDisposable handle.
-        _triggerSubscription = leftTriggerProp.Subscribe(OnTriggerChanged);
+        // 1. Get the property using the clean, type-safe API.
+        // 2. Subscribe and store the IDisposable handle.
+        _triggerSubscription = SubscribeToProperty<float>(FluxKeys.VrControllerLeftTrigger, OnTriggerChanged);
     }
     
-    // Use OnFluxDestroy to clean up the subscription.
+    // The base FluxMonoBehaviour handles cleanup, but manual disposal is good practice for clarity.
     protected override void OnFluxDestroy()
     {
         _triggerSubscription?.Dispose();
@@ -87,6 +86,10 @@ public class WeaponController : FluxMonoBehaviour
 Use the `[FluxEventHandler]` attribute for a code-free way to react to high-level VR events.
 
 ```csharp
+using UnityEngine;
+using FluxFramework.Core;
+using FluxFramework.Attributes;
+
 public class InteractionFeedback : FluxMonoBehaviour
 {
     // This method is automatically subscribed to the VRObjectGrabbedEvent.
@@ -113,13 +116,14 @@ Binding a VR UI is identical to binding a 2D UI. The components are fully compat
 using UnityEngine;
 using FluxFramework.UI;
 using FluxFramework.Attributes;
+using Flux; // <-- Import for FluxKeys
 
 // On your FluxVRCanvas, you might have a PlayerStatusPanel.cs
 public class PlayerStatusPanel : FluxUIComponent
 {
     // This declarative attribute is all you need.
     // When the "player.health" property changes, this VR text component will update automatically.
-    [FluxBinding("player.health")]
+    [FluxBinding(FluxKeys.PlayerHealth)]
     [SerializeField] private FluxVRText _healthText;
 }
 ```
@@ -148,7 +152,7 @@ public class PlayerStatusPanel : FluxUIComponent
 
 The VR extension is a perfect example of building on top of the core framework:
 
--   ✅ **Reactive Properties:** All hardware states (tracking, input) are exposed as standard reactive properties, accessible by any system.
+-   ✅ **Reactive Properties:** All hardware states (tracking, input) are exposed as standard reactive properties, accessible via the type-safe `FluxKeys` class.
 -   ✅ **Event Bus:** All high-level actions (teleporting, grabbing, UI clicks) are published as standard `FluxEvent`s, allowing any system to listen and react without direct dependencies.
 -   ✅ **UI Binding:** VR UI components are `FluxUIComponent`s, meaning they work seamlessly with the automatic `[FluxBinding]` system.
 

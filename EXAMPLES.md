@@ -7,68 +7,90 @@
 1.  [Player Stats System](#1-player-stats-system)
 2.  [Data-Driven Inventory System](#2-data-driven-inventory-system)
 3.  [Settings Menu with Two-Way Binding](#3-settings-menu-with-two-way-binding)
-4.  [Advanced Health Bar (Custom Logic)](#4-advanced-health-bar-custom-logic)
-5.  [Reacting to State Changes](#5-reacting-to-state-changes)
+4.  [Advanced Health Bar (Manual Subscription)](#4-advanced-health-bar-manual-subscription)
+5.  [Reacting to State Changes (Declarative)](#5-reacting-to-state-changes-declarative)
 
 ---
 
 ## 1. Player Stats System
 
-This example shows how to define player stats in a logic component and have the UI react to them automatically with zero binding code.
+This example shows how to define player stats in a central data container and have the UI react to them automatically with zero binding code.
 
-### a) `PlayerStats.cs` (The Logic)
-This component manages the player's health and is the **source of truth**.
+### a) `PlayerData.cs` (The Data)
+First, define all the player's state in a `FluxDataContainer`. This `ScriptableObject` is the **single source of truth**.
+
 ```csharp
 using UnityEngine;
 using FluxFramework.Core;
 using FluxFramework.Attributes;
 
-public class PlayerStats : FluxMonoBehaviour
+[CreateAssetMenu(fileName = "PlayerData", menuName = "Flux/Examples/Player Data")]
+public class PlayerData : FluxDataContainer
 {
-    // The [ReactiveProperty] attribute declares a global property named "player.health"
-    // and links it to this private field, which acts as a read-only cache.
-    [ReactiveProperty("player.health")]
-    [FluxRange(0, 100)] // Provides editor and runtime validation.
-    private float _health = 100f;
+    // The [ReactiveProperty] attribute declares a global property and links it to this public field.
+    // Modifying this field via helper methods will update the global state.
+    [ReactiveProperty("player.health", Persistent = false)]
+    [FluxRange(0, 100)]
+    public float Health = 100f;
+
+    [ReactiveProperty("player.mana", Persistent = false)]
+    [FluxRange(0, 100)]
+    public float Mana = 100f;
+}
+```
+*Don't forget to create an instance of this asset in your project!*
+
+### b) `PlayerStatsManager.cs` (The Logic)
+This component's job is to contain the **business logic** that modifies the state in `PlayerData`.
+
+```csharp
+using UnityEngine;
+using FluxFramework.Core;
+using FluxFramework.Attributes;
+using Flux; // For FluxKeys
+
+public class PlayerStatsManager : FluxMonoBehaviour
+{
+    [SerializeField] private PlayerData playerData; // Assign your PlayerData asset here
 
     [FluxAction("Take Damage", ButtonText = "Apply 10 Damage")]
     public void TakeDamage(float amount = 10f)
     {
-        // To modify the state, use the UpdateReactiveProperty helper method.
-        // This is the only correct way to write to a property.
-        UpdateReactiveProperty("player.health", _health - amount);
+        // To safely modify the data, we use the helper method on the DataContainer itself.
+        // This is the correct way to write to a property defined in a ScriptableObject.
+        playerData.UpdateReactiveProperty(FluxKeys.PlayerHealth, currentHealth => currentHealth - amount);
     }
 }
 ```
 
-### b) `PlayerStatsUI.cs` (The View)
+### c) `PlayerStatsUI.cs` (The View)
 This `FluxUIComponent` is purely declarative. It displays the stats but contains **no logic**.
 ```csharp
 using UnityEngine.UI;
 using TMPro;
 using FluxFramework.UI;
 using FluxFramework.Attributes;
-using FluxFramework.Binding;
+using FluxFramework.Core;
+using Flux; // For FluxKeys
 
 public class PlayerStatsUI : FluxUIComponent
 {
-    // The base FluxUIComponent automatically finds these [FluxBinding] attributes
-    // and creates the necessary bindings.
-    
     [Header("Bindings")]
-    [FluxBinding("player.health")]
+    [FluxBinding(FluxKeys.PlayerHealth)]
     [SerializeField] private Slider _healthBarSlider;
 
-    // We can bind multiple UI elements to the same property.
-    [FluxBinding("player.health", ConverterType = typeof(HealthToTextConverter))]
+    [FluxBinding(FluxKeys.PlayerHealth, ConverterType = typeof(HealthToTextConverter))]
     [SerializeField] private TextMeshProUGUI _healthText;
 }
 
 // A simple converter to format the health float as a string.
-public class HealthToTextConverter : IValueConverter
+public class HealthToTextConverter : IValueConverter<float, string>
 {
-    public object Convert(object value) => $"{value:F0} / 100";
-    public object ConvertBack(object value) => float.TryParse(value.ToString(), out var f) ? f : 0;
+    public string Convert(float value) => $"{value:F0} / 100";
+    public float ConvertBack(string value) => float.TryParse(value, out var f) ? f : 0;
+    
+    object IValueConverter.Convert(object value) => Convert((float)value);
+    object IValueConverter.ConvertBack(object value) => ConvertBack((string)value);
 }
 ```
 
@@ -78,18 +100,17 @@ public class HealthToTextConverter : IValueConverter
 
 This example uses a `FluxDataContainer` to manage inventory data, completely separate from any scene logic.
 
-### a) `PlayerInventory.cs` (The Data)
-A `ScriptableObject` that defines the inventory's data structure.
+### a) `InventoryData.cs` (The Data)
 ```csharp
 using UnityEngine;
 using FluxFramework.Core;
 using FluxFramework.Attributes;
 using System.Collections.Generic;
 
-[CreateAssetMenu(fileName = "PlayerInventory", menuName = "Flux/Examples/Player Inventory")]
-public class PlayerInventory : FluxDataContainer
+[CreateAssetMenu(fileName = "InventoryData", menuName = "Flux/Examples/Inventory Data")]
+public class InventoryData : FluxDataContainer
 {
-    [ReactiveProperty("inventory.gold")]
+    [ReactiveProperty("inventory.gold", Persistent = true)]
     public int Gold;
     
     // For lists, the property itself must be replaced for the change to be detected.
@@ -99,27 +120,29 @@ public class PlayerInventory : FluxDataContainer
 ```
 
 ### b) `InventoryManager.cs` (The Logic)
-A `FluxMonoBehaviour` that contains the business logic for the inventory.
 ```csharp
 using UnityEngine;
 using FluxFramework.Core;
 using FluxFramework.Attributes;
 using System.Collections.Generic;
+using Flux;
 
 public class ItemAddedEvent : FluxEventBase { public string ItemName { get; } public ItemAddedEvent(string name) { ItemName = name; } }
 
 public class InventoryManager : FluxMonoBehaviour
 {
-    [SerializeField] private PlayerInventory inventoryData;
+    [SerializeField] private InventoryData inventoryData; // Assign your InventoryData asset here
 
     [FluxAction("Add Item")]
     public void AddItem(string itemName)
     {
         if (inventoryData == null || string.IsNullOrEmpty(itemName)) return;
         
-        var currentItems = new List<string>(inventoryData.Items); // Create a mutable copy
+        var currentItems = new List<string>(inventoryData.Items);
         currentItems.Add(itemName);
-        inventoryData.Items = currentItems; // Assign the new list back to trigger the update
+        
+        // Correctly update the list property. This replaces the old list and notifies listeners.
+        inventoryData.UpdateReactiveProperty(FluxKeys.InventoryItems, currentItems);
         
         PublishEvent(new ItemAddedEvent(itemName));
     }
@@ -132,42 +155,47 @@ public class InventoryManager : FluxMonoBehaviour
 
 This shows how `TwoWay` binding creates a settings menu where UI controls both read and write values.
 
-### a) `GameSettings.cs` (The Logic)
-This component holds the state for the game settings.
+### a) `GameSettings.cs` (The Data)
+Using a `FluxSettings` `ScriptableObject` is perfect for this, as it adds auto-saving features.
 ```csharp
 using UnityEngine;
 using FluxFramework.Core;
 using FluxFramework.Attributes;
-using System;
 
-public class GameSettings : FluxMonoBehaviour
+[CreateAssetMenu(fileName = "GameSettings", menuName = "Flux/Examples/Game Settings")]
+public class GameSettings : FluxSettings
 {
-    [ReactiveProperty("settings.musicVolume")]
+    [ReactiveProperty("settings.musicVolume", Persistent = true)]
     [FluxRange(0f, 1f)]
-    private float _musicVolume = 0.8f;
+    public float MusicVolume = 0.8f;
     
-    [ReactiveProperty("settings.fullscreen")]
-    private bool _fullscreen = true;
-}```
+    [ReactiveProperty("settings.fullscreen", Persistent = true)]
+    public bool Fullscreen = true;
+}
+```
 
-### b) `SettingsApplier.cs` (The "Controller")
-A separate component that listens for setting changes and applies them.
+### b) `SettingsApplier.cs` (A Logic Component)
+A separate component that listens for setting changes and applies them to Unity's systems.
 ```csharp
+using UnityEngine;
+using FluxFramework.Core;
+using System;
+using Flux;
+
 public class SettingsApplier : FluxMonoBehaviour
 {
-    private IDisposable _fullscreenSub, _qualitySub;
+    private IDisposable _fullscreenSub;
 
     protected override void OnFluxAwake()
     {
         // Subscribe to apply the settings when they change.
-        _fullscreenSub = SubscribeToProperty<bool>("settings.fullscreen", value => Screen.fullScreen = value);
-        // Add more subscriptions for other settings like quality, volume, etc.
+        _fullscreenSub = SubscribeToProperty<bool>(FluxKeys.SettingsFullscreen, value => Screen.fullScreen = value, fireOnSubscribe: true);
+        // For volume, you would subscribe and set AudioMixer values.
     }
 
     protected override void OnFluxDestroy()
     {
         _fullscreenSub?.Dispose();
-        _qualitySub?.Dispose();
     }
 }
 ```
@@ -178,24 +206,25 @@ using UnityEngine.UI;
 using FluxFramework.UI;
 using FluxFramework.Attributes;
 using FluxFramework.Binding;
+using Flux;
 
 public class SettingsUI : FluxUIComponent
 {
     // The 'TwoWay' mode means that when the user moves the slider,
     // it will automatically update the "settings.musicVolume" property.
-    [FluxBinding(Mode = BindingMode.TwoWay)]
+    [FluxBinding(FluxKeys.SettingsMusicVolume, Mode = BindingMode.TwoWay)]
     [SerializeField] private Slider _musicVolumeSlider;
 
-    [FluxBinding(Mode = BindingMode.TwoWay)]
+    [FluxBinding(FluxKeys.SettingsFullscreen, Mode = BindingMode.TwoWay)]
     [SerializeField] private Toggle _fullscreenToggle;
 }
 ```
 
 ---
 
-## 4. Advanced Health Bar (Custom Logic)
+## 4. Advanced Health Bar (Manual Subscription)
 
-This shows how to use `RegisterCustomBindings` when the automatic attribute system isn't enough.
+This shows how to use `RegisterCustomBindings` for complex logic that attributes can't handle.
 
 ```csharp
 using UnityEngine;
@@ -204,6 +233,7 @@ using FluxFramework.UI;
 using FluxFramework.Core;
 using System.Collections;
 using System;
+using Flux;
 
 public class AdvancedHealthBar : FluxUIComponent
 {
@@ -213,13 +243,14 @@ public class AdvancedHealthBar : FluxUIComponent
     private IDisposable _healthSubscription;
     private Coroutine _damageAnimation;
 
-    // We use the custom binding method for complex, multi-component logic.
+    // We use the custom binding method for complex logic.
     protected override void RegisterCustomBindings()
     {
-        var healthProp = FluxManager.Instance.GetOrCreateProperty<float>("player.health", 100f);
+        // We subscribe manually using the helper method and store the IDisposable handle.
+        _healthSubscription = SubscribeToProperty<float>(FluxKeys.PlayerHealth, OnHealthChanged, fireOnSubscribe: true);
         
-        // We subscribe manually and store the IDisposable handle.
-        _healthSubscription = healthProp.Subscribe(OnHealthChanged, fireOnSubscribe: true);
+        // We must also track this binding if we want the base class to manage its lifecycle.
+        // For manual subscriptions, however, cleaning up in CleanupComponent is clearer.
     }
 
     // We use the custom cleanup method to dispose of our manual subscription.
@@ -240,37 +271,28 @@ public class AdvancedHealthBar : FluxUIComponent
 
     private IEnumerator AnimateDamageFill()
     {
-        float timer = 0f;
-        float duration = 0.5f;
-        float startFill = _damageFill.fillAmount;
-        float endFill = _healthFill.fillAmount;
-
-        while (timer < duration)
-        {
-            timer += Time.deltaTime;
-            _damageFill.fillAmount = Mathf.Lerp(startFill, endFill, timer / duration);
-            yield return null;
-        }
+        // ... (Coroutine logic remains the same)
     }
 }
 ```
 
 ---
 
-## 5. Reacting to State Changes
+## 5. Reacting to State Changes (Declarative)
 
-Use the `[FluxPropertyChangeHandler]` attribute for a clean, declarative way to run logic when a property changes, without needing manual subscriptions.
+Use the `[FluxPropertyChangeHandler]` attribute for a clean way to run logic when a property changes, without needing manual subscriptions.
 
 ```csharp
 using UnityEngine;
 using FluxFramework.Core;
 using FluxFramework.Attributes;
+using Flux;
 
 public class PlayerFeedback : FluxMonoBehaviour
 {
     // This attribute tells the framework to automatically subscribe this method
     // to the "player.health" property. The framework handles cleanup.
-    [FluxPropertyChangeHandler("player.health")]
+    [FluxPropertyChangeHandler(FluxKeys.PlayerHealth)]
     private void OnHealthChanged(float oldValue, float newValue)
     {
         if (newValue < oldValue)
@@ -280,3 +302,4 @@ public class PlayerFeedback : FluxMonoBehaviour
         }
     }
 }
+```

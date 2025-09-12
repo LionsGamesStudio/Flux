@@ -2,18 +2,19 @@
 
 **Learn FluxFramework by creating a complete platformer with a reactive inventory and a fully automated UI!**
 
-In this tutorial, we'll demonstrate the power of FluxFramework's reactive architecture by building a simple platformer game from scratch, showcasing a clean separation between logic, data, and UI.
+In this tutorial, we'll demonstrate the power of FluxFramework's reactive architecture by building a simple platformer game from scratch. We will establish a clean separation of concerns using a `ScriptableObject` for our **Data**, `MonoBehaviour`s for our **Logic**, and dedicated `FluxUIComponent`s for our **View**.
 
 ---
 
 ## 📋 Table of Contents
 
 1.  [Project Setup](#1-project-setup)
-2.  [Creating the Player Controller (Logic)](#2-creating-the-player-controller-logic)
-3.  [Creating the Inventory (Data)](#3-creating-the-inventory-data)
-4.  [Building the Reactive UI (View)](#4-building-the-reactive-ui-view)
-5.  [Adding Collectible Items (Interaction)](#5-adding-collectible-items-interaction)
-6.  [Connecting Systems with Events](#6-connecting-systems-with-events)
+2.  [Creating the Player Data Container (The "Model")](#2-creating-the-player-data-container-the-model)
+3.  [Generating Type-Safe Keys](#3-generating-type-safe-keys)
+4.  [Creating the Player Controller (The "Logic")](#4-creating-the-player-controller-the-logic)
+5.  [Building the Reactive UI (The "View")](#5-building-the-reactive-ui-the-view)
+6.  [Adding Collectible Items (Interaction)](#6-adding-collectible-items-interaction)
+7.  [Connecting Systems with Events](#7-connecting-systems-with-events)
 
 ---
 
@@ -35,50 +36,94 @@ In this tutorial, we'll demonstrate the power of FluxFramework's reactive archit
 
 ---
 
-## 2. Creating the Player Controller (Logic)
+## 2. Creating the Player Data Container (The "Model")
 
-This script manages the player's state. It only handles logic and knows nothing about the UI.
+Instead of scattering our game's state across various `MonoBehaviour`s, we'll centralize it in a `FluxDataContainer`. This `ScriptableObject` will be our single source of truth for all player-related data.
 
-### Step 2.1: Create the PlayerController Script
-**🛠️ Use the Template Generator:**
-1.  In `Assets/Scripts/Player/`, right-click → `Create` → `Flux` → `Framework` → `FluxMonoBehaviour`.
-2.  Name it `PlayerController`.
-
-### Step 2.2: Implement Player Logic
-Open `PlayerController.cs` and add this code:
+### Step 2.1: Create the `PlayerData` Script
+1.  **Use the Template Generator:** In your project (e.g., in `Assets/Scripts/Data/`), right-click → `Create` → `Flux` → `Framework` → `FluxDataContainer`.
+2.  Name it `PlayerData`.
+3.  Open the new file and add the following properties. This will be the complete definition of our player's state.
 
 ```csharp
 using UnityEngine;
 using FluxFramework.Core;
 using FluxFramework.Attributes;
 
+[CreateAssetMenu(fileName = "PlayerData", menuName = "Flux/Tutorial/Player Data")]
+public class PlayerData : FluxDataContainer
+{
+    [Header("Player Stats")]
+    // The framework will create a ReactiveProperty named "player.health".
+    [ReactiveProperty("player.health", Persistent = false)] // Health resets when the game restarts.
+    [FluxRange(0, 100)]
+    public float Health = 100f;
+
+    [ReactiveProperty("player.isGrounded", Persistent = false)]
+    public bool IsGrounded;
+
+    [ReactiveProperty("player.position", Persistent = false)]
+    public Vector2 Position;
+    
+    [Header("Inventory")]
+    [ReactiveProperty("player.gold", Persistent = true)] // Gold is saved between sessions.
+    [FluxRange(0, 99999)]
+    public int Gold;
+}
+```
+
+### Step 2.2: Create the Data Asset
+1.  In your Unity project (e.g., in `Assets/Data/`), right-click → `Create` → `Flux` → `Tutorial` → `Player Data`.
+2.  Name the created asset `MyPlayerData`. This file now holds your game's state definitions and initial values.
+
+**✅ Checkpoint 2**: You have a central `ScriptableObject` that defines and holds all the data for your player.
+
+---
+
+## 3. Generating Type-Safe Keys
+
+To avoid typos when referencing our properties (like `"player.health"`), we'll use Flux's code generator to create a static `FluxKeys` class.
+
+### Step 3.1: Generate the Keys
+1.  Open the generator window: **Flux → Tools → Generate Static Keys...**
+2.  Click **"Scan Project and Generate Keys"**.
+3.  A new file, `Assets/Flux/Generated/FluxKeys.cs`, will be created, containing static constants for all the keys we defined in `PlayerData`.
+
+**✅ Checkpoint 3**: You can now access your property keys safely with `FluxKeys.PlayerHealth`, `FluxKeys.PlayerGold`, etc.
+
+---
+
+## 4. Creating the Player Controller (The "Logic")
+
+This script's only job is to handle player input and physics. It doesn't own any data; it simply **sends update requests** to the global state manager.
+
+### Step 4.1: Create the `PlayerController` Script
+1.  Create a new `FluxMonoBehaviour` script named `PlayerController`.
+2.  Attach it to your "Player" GameObject and configure the inspector fields.
+
+### Step 4.2: Implement Player Logic
+```csharp
+using UnityEngine;
+using FluxFramework.Core;
+using Flux; // <-- Import the generated keys namespace
+
 public class PlayerController : FluxMonoBehaviour
 {
-    [Header("Movement")]
+    [Header("Movement Settings")]
     [SerializeField] private float moveSpeed = 5f;
     [SerializeField] private float jumpForce = 12f;
 
-    [Header("Ground Detection")]
+    [Header("Physics Dependencies")]
     [SerializeField] private Transform groundCheck;
     [SerializeField] private LayerMask groundLayer;
-
-    // --- Reactive Properties ---
-    // The framework's ComponentRegistry will find these attributes and create global
-    // ReactiveProperties. These private fields will serve as a read-only cache.
-    [ReactiveProperty("player.isGrounded")]
-    private bool _isGrounded;
-
-    [ReactiveProperty("player.position")]
-    private Vector2 _position;
-
+    
     private Rigidbody2D _rb;
 
-    /// <summary>
-    /// Use OnFluxAwake for component setup. It's guaranteed to run after the framework is ready.
-    /// </summary>
     protected override void OnFluxAwake()
     {
         _rb = GetComponent<Rigidbody2D>();
+        // Reset non-persistent stats at the start of the game
+        UpdateReactiveProperty(FluxKeys.PlayerHealth, 100f);
     }
 
     private void Update()
@@ -86,8 +131,10 @@ public class PlayerController : FluxMonoBehaviour
         float horizontal = Input.GetAxis("Horizontal");
         _rb.velocity = new Vector2(horizontal * moveSpeed, _rb.velocity.y);
 
-        // We can safely READ the cached _isGrounded field. It's always in sync.
-        if (Input.GetButtonDown("Jump") && _isGrounded)
+        // To READ a value, get it from the central manager.
+        bool isGrounded = GetReactivePropertyValue<bool>(FluxKeys.PlayerIsGrounded);
+
+        if (Input.GetButtonDown("Jump") && isGrounded)
         {
             _rb.velocity = new Vector2(_rb.velocity.x, jumpForce);
             PublishEvent(new PlayerJumpedEvent());
@@ -96,14 +143,12 @@ public class PlayerController : FluxMonoBehaviour
 
     private void FixedUpdate()
     {
-        // --- THIS IS THE CORRECT WAY TO UPDATE REACTIVE PROPERTIES ---
-        // To WRITE a value, we must explicitly tell the framework using the helper method.
-        // This ensures all UI and systems are notified of the change.
-
+        // To WRITE state, we must use the helper method. This ensures
+        // the central ReactiveProperty is updated, and all listeners are notified.
         bool groundedState = Physics2D.OverlapCircle(groundCheck.position, 0.2f, groundLayer);
-        UpdateReactiveProperty("player.isGrounded", groundedState);
+        UpdateReactiveProperty(FluxKeys.PlayerIsGrounded, groundedState);
         
-        UpdateReactiveProperty("player.position", (Vector2)_rb.position);
+        UpdateReactiveProperty(FluxKeys.PlayerPosition, (Vector2)_rb.position);
     }
 }
 
@@ -111,99 +156,29 @@ public class PlayerController : FluxMonoBehaviour
 public class PlayerJumpedEvent : FluxEventBase { }
 ```
 
-**✅ Checkpoint 2**: Attach `PlayerController` to your Player and configure the inspector fields. You can now move and jump.
+**✅ Checkpoint 4**: Your player moves, and the framework's state is being updated correctly.
 
 ---
 
-## 3. Creating the Inventory (Data)
+## 5. Building the Reactive UI (The "View")
 
-We'll use a `FluxDataContainer` for data that needs to persist and be accessed globally, like an inventory.
+Now for the magic. The UI will have its own script, but it will contain **zero lines of binding code**.
 
-### Step 3.1: Create the Inventory Data Script
-1.  Use the template generator: `Create` → `Flux` → `Framework` → `FluxDataContainer`.
-2.  Name it `PlayerInventory`.
-3.  Add this code:
+### Step 5.1: Create the UI
+Create a `Canvas` and add `TextMeshPro - Text` elements for: `HealthText`, `PositionText`, and `GoldText`.
 
-```csharp
-using UnityEngine;
-using FluxFramework.Core;
-using FluxFramework.Attributes;
-
-[CreateAssetMenu(fileName = "PlayerInventory", menuName = "Flux/Tutorial/Player Inventory")]
-public class PlayerInventory : FluxDataContainer
-{
-    [Header("Currency")]
-    [ReactiveProperty("inventory.gold")]
-    [FluxRange(0, 99999)] // Adds validation in the editor and at runtime.
-    public int Gold;
-}
-```
-
-### Step 3.2: Create the Inventory Asset and Manager
-1.  **Create the Asset:** In your project, right-click → `Create` → `Flux` → `Tutorial` → `Player Inventory`. Name it `MyPlayerInventory`.
-2.  **Create the Manager:** Create an empty GameObject named "InventoryManager". Create a new `FluxMonoBehaviour` script named `InventoryManager` and attach it.
-
-### Step 3.3: Implement the `InventoryManager`
-This manager contains the **business logic** for the inventory.
-
-```csharp
-using UnityEngine;
-using FluxFramework.Core;
-using FluxFramework.Attributes;
-
-// Custom event for when gold changes.
-public class GoldChangedEventArgs : FluxEventBase
-{
-    public int NewGoldTotal { get; }
-    public GoldChangedEventArgs(int newTotal) { NewGoldTotal = newTotal; }
-}
-
-public class InventoryManager : FluxMonoBehaviour
-{
-    [Header("Data Asset")]
-    [SerializeField] private PlayerInventory inventory;
-
-    /// <summary>
-    /// The business logic for adding gold.
-    /// It modifies the data and announces the change with an event.
-    /// </summary>
-    [FluxAction("Add Gold")]
-    public void AddGold(int amount)
-    {
-        if (inventory == null || amount <= 0) return;
-
-        // 1. To modify data in a DataContainer, assign it directly.
-        // The framework will update the corresponding ReactiveProperty.
-        inventory.Gold += amount;
-        
-        // 2. Publish an event to notify other systems of the change.
-        PublishEvent(new GoldChangedEventArgs(inventory.Gold));
-    }
-}
-```
-
-**✅ Checkpoint 3**: Assign `MyPlayerInventory` to the manager's inspector slot.
-
----
-
-## 4. Building the Reactive UI (View)
-
-Now for the magic. We'll create a UI that updates with **zero lines of binding code in the script**.
-
-### Step 4.1: Create the UI
-Create a `Canvas` and add `TextMeshPro - Text` elements for: `GroundedStatusText`, `PositionText`, and `GoldText`.
-
-### Step 4.2: Create the UI Script
+### Step 5.2: Create the `PlayerHUD` Script
 1.  Use the template generator to create a **`FluxUIComponent`** named `PlayerHUD`.
 2.  Attach it to a "HUD" GameObject under your Canvas.
-3.  Add this code. **It's purely declarative!**
+3.  Add this code. It's purely declarative!
 
 ```csharp
 using UnityEngine;
 using TMPro;
 using FluxFramework.UI;
 using FluxFramework.Attributes;
-using FluxFramework.Binding;
+using FluxFramework.Core;
+using Flux; // <-- Import the generated keys namespace
 
 public class PlayerHUD : FluxUIComponent
 {
@@ -212,64 +187,98 @@ public class PlayerHUD : FluxUIComponent
     // The [FluxBinding] attribute tells the framework to bind this UI component
     // to the specified property key. The base class handles all the work.
     
-    [FluxBinding("player.isGrounded", ConverterType = typeof(BoolToGroundedTextConverter))]
-    [SerializeField] private TextMeshProUGUI _groundedStatusText;
+    [FluxBinding(FluxKeys.PlayerHealth)]
+    [SerializeField] private TextMeshProUGUI _healthText;
 
-    [FluxBinding("player.position")]
+    [FluxBinding(FluxKeys.PlayerPosition)]
     [SerializeField] private TextMeshProUGUI _positionText;
     
-    [FluxBinding("inventory.gold")]
+    [FluxBinding(FluxKeys.PlayerGold, ConverterType = typeof(GoldToTextConverter))]
     [SerializeField] private TextMeshProUGUI _goldText;
 }
 
 /// <summary>
-/// A custom Value Converter that transforms a boolean value into a readable string for the UI.
+/// A custom Value Converter that transforms an integer (gold) into a formatted string.
+/// This can be in its own file.
 /// </summary>
-public class BoolToGroundedTextConverter : IValueConverter
+public class GoldToTextConverter : IValueConverter<int, string>
 {
-    public object Convert(object value)
-    {
-        if (value is bool isGrounded)
-        {
-            return isGrounded ? "Grounded: YES" : "Grounded: NO";
-        }
-        return "Status: Unknown";
-    }
-    public object ConvertBack(object value) => value.ToString().Contains("YES");
+    public string Convert(int value) => $"Gold: {value}";
+    public int ConvertBack(string value) => 0; // Not needed for OneWay binding
+
+    // Implement the non-generic members explicitly
+    object IValueConverter.Convert(object value) => Convert((int)value);
+    object IValueConverter.ConvertBack(object value) => ConvertBack((string)value);
 }
 ```
 
-**✅ Checkpoint 4**: Assign the Text components to the `PlayerHUD`. Press Play. All UI elements now update automatically!
+**✅ Checkpoint 5**: Assign the Text components to the `PlayerHUD` inspector slots. Press Play. The UI updates automatically as the player moves and jumps!
 
 ---
 
-## 5. Adding Collectible Items (Interaction)
+## 6. Adding Collectible Items (Interaction)
 
-Collectibles call the central logic in our `InventoryManager`.
+Now we need a system to modify our inventory. We'll create a dedicated `InventoryManager` for this business logic.
 
-### Step 5.1: Create a Collectible Script
-Create a `FluxMonoBehaviour` named `Collectible.cs`.
+### Step 6.1: Create the `InventoryManager`
+1.  Create an empty GameObject named "InventoryManager".
+2.  Create a `FluxMonoBehaviour` named `InventoryManager` and attach it.
 
 ```csharp
 using UnityEngine;
+using FluxFramework.Core;
+using FluxFramework.Attributes;
+using Flux;
+
+// Custom event for when gold changes, to carry the new total.
+public class GoldChangedEventArgs : FluxEventBase
+{
+    public int NewGoldTotal { get; }
+    public GoldChangedEventArgs(int newTotal) { NewGoldTotal = newTotal; }
+}
+
+public class InventoryManager : FluxMonoBehaviour
+{
+    [FluxAction("Add 10 Gold")] // Makes this method a button in the Inspector!
+    public void AddGold(int amount = 10)
+    {
+        if (amount <= 0) return;
+
+        // --- THIS IS THE CORRECT WAY TO UPDATE A REACTIVE PROPERTY ---
+        // 1. Use the UpdateReactiveProperty helper with a function.
+        // This reads the current authoritative value, modifies it, and writes it back
+        // in one safe, atomic operation that respects validation.
+        UpdateReactiveProperty<int>(FluxKeys.PlayerGold, currentGold => currentGold + amount);
+        
+        // 2. Publish an event to notify other systems of the change.
+        int newTotal = GetReactivePropertyValue<int>(FluxKeys.PlayerGold);
+        PublishEvent(new GoldChangedEventArgs(newTotal));
+    }
+}
+```
+
+### Step 6.2: Create a Collectible
+Create a `FluxMonoBehaviour` named `Collectible.cs` and create a prefab from it.
+```csharp
+using UnityEngine;
+using FluxFramework.Core;
 
 public class Collectible : FluxMonoBehaviour
 {
     [SerializeField] private int goldValue = 10;
-    private static InventoryManager _inventoryManager; // Cache for performance
+    private static InventoryManager _inventoryManager;
 
     private void OnTriggerEnter2D(Collider2D other)
     {
         if (!other.CompareTag("Player")) return;
 
         if (_inventoryManager == null)
-        {
+        .
             _inventoryManager = FindObjectOfType<InventoryManager>();
         }
 
         if (_inventoryManager != null)
         {
-            // The collectible calls the central business logic.
             _inventoryManager.AddGold(goldValue);
             Destroy(gameObject);
         }
@@ -277,15 +286,15 @@ public class Collectible : FluxMonoBehaviour
 }
 ```
 
-**✅ Checkpoint 5**: Create a "GoldCoin" prefab with the `Collectible` script. When the player touches it, your Gold Text updates instantly!
+**✅ Checkpoint 6**: Place some "GoldCoin" prefabs in your scene. When the player touches one, the gold count in your UI updates instantly!
 
 ---
 
-## 6. Connecting Systems with Events
+## 7. Connecting Systems with Events
 
-Add an `AudioManager` that listens for the `PlayerJumpedEvent`.
+Finally, let's create a completely decoupled `AudioManager` that listens for the `PlayerJumpedEvent`.
 
-### Step 6.1: Create the Audio Manager
+### Step 7.1: Create the Audio Manager
 Create a `FluxMonoBehaviour` named `AudioManager.cs` and place it in your scene.
 
 ```csharp
@@ -296,13 +305,20 @@ using FluxFramework.Attributes;
 public class AudioManager : FluxMonoBehaviour
 {
     // This attribute is all you need. The framework will automatically
-    // subscribe this method to any PlayerJumpedEvent.
+    // subscribe this method to any PlayerJumpedEvent published on the EventBus.
     [FluxEventHandler]
     private void OnPlayerJumped(PlayerJumpedEvent evt)
     {
         Debug.Log("AudioManager heard PlayerJumpedEvent! Playing jump sound.");
     }
+    
+    // We can even listen for the gold change event from the InventoryManager.
+    [FluxEventHandler]
+    private void OnGoldChanged(GoldChangedEventArgs evt)
+    {
+        Debug.Log($"AudioManager heard gold changed! New total: {evt.NewGoldTotal}. Playing coin sound.");
+    }
 }
 ```
 
-**🎉 Congratulations!** You have now built a small, complete game loop using FluxFramework, demonstrating a clean separation between Logic (`PlayerController`), Data (`PlayerInventory`), View (`PlayerHUD`), and other systems.
+**🎉 Congratulations!** You have now built a small, complete game loop using FluxFramework, demonstrating a clean separation between Data (`PlayerData`), Logic (`PlayerController`, `InventoryManager`), and View (`PlayerHUD`).
