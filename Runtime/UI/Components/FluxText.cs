@@ -23,7 +23,7 @@ namespace FluxFramework.UI
         [Header("Component Reference")]
         [SerializeField] private TextMeshProUGUI _textComponent;
 
-        private IUIBinding _binding;
+        private TextBinding _binding;
 
         /// <summary>
         /// Gets the reference to the TextMeshProUGUI component.

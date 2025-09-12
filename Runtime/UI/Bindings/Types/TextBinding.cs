@@ -8,18 +8,20 @@ namespace FluxFramework.Binding
     public class TextBinding : UIBinding<string>
     {
         private readonly TextMeshProUGUI _textComponent;
+        private readonly string _formatString;
 
-        public TextBinding(string propertyKey, TextMeshProUGUI textComponent) 
+        public TextBinding(string propertyKey, TextMeshProUGUI textComponent, string formatString = "{0}") 
             : base(propertyKey, textComponent)
         {
             _textComponent = textComponent;
+            _formatString = formatString;
         }
 
         public override void UpdateUI(string value)
         {
             if (_textComponent != null)
             {
-                _textComponent.text = value ?? "";
+                _textComponent.text = string.Format(_formatString, value ?? "");
             }
         }
 

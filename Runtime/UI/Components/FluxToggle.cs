@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using FluxFramework.Core;
 using FluxFramework.Binding;
+using FluxFramework.Attributes;
 
 namespace FluxFramework.UI
 {
@@ -24,7 +25,7 @@ namespace FluxFramework.UI
         [SerializeField] private BindingMode _bindingMode = BindingMode.OneWay;
 
         // --- Private Binding Reference ---
-        private IUIBinding _binding;
+        private ToggleBinding _binding;
 
         /// <summary>
         /// Gets the reference to the Toggle component.

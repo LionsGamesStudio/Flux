@@ -24,8 +24,8 @@ namespace FluxFramework.UI
         [SerializeField] private string _colorPropertyKey;
 
         // --- Private Binding References ---
-        private IUIBinding _spriteBinding;
-        private IUIBinding _colorBinding;
+        private SpriteBinding _spriteBinding;
+        private ColorBinding _colorBinding;
 
         /// <summary>
         /// Gets the reference to the Image component.
