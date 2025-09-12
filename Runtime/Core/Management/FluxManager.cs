@@ -12,7 +12,7 @@ namespace FluxFramework.Core
     /// <summary>
     /// Core framework manager that handles initialization, thread-safe operations, and lifecycle management
     /// </summary>
-    public class FluxManager : MonoBehaviour
+    public class FluxManager : MonoBehaviour, IFluxManager
     {
         private static FluxManager _instance;
         private static readonly object _lock = new object();
@@ -57,7 +57,7 @@ namespace FluxFramework.Core
         /// <summary>
         /// Property manager for reactive properties
         /// </summary>
-        public FluxPropertyManager Properties => _propertyManager;
+        public IFluxPropertyManager Properties => _propertyManager;
 
         /// <summary>
         /// Thread manager for main thread operations
@@ -91,6 +91,11 @@ namespace FluxFramework.Core
         private void Initialize()
         {
             if (_isInitialized) return;
+
+            // Initialize hub for access to services
+            Flux.Manager = this;
+            Flux.Properties = _propertyManager;
+            Flux.Threading = _threadManager;
 
             // Initialize configuration system first
             FluxConfigurationManager.Initialize();

@@ -76,7 +76,7 @@ namespace FluxFramework.Core
                 if (reactiveAttr != null)
                 {
                     var propertyKey = reactiveAttr.Key;
-                    var property = FluxManager.Instance.GetProperty(propertyKey);
+                    var property = Flux.Manager.GetProperty(propertyKey);
                     if (property != null)
                     {
                         property.Subscribe(newValue => LogChange(field.Name, _previousValues.GetValueOrDefault(field.Name), newValue));

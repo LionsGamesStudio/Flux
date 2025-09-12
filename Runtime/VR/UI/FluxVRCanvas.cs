@@ -43,9 +43,9 @@ namespace FluxFramework.VR.UI
 
             // --- Initialize Reactive Properties ---
             string canvasKeyName = $"{gameObject.name}_{GetInstanceID()}";
-            _isVisibleProp = FluxManager.Instance.GetOrCreateProperty<bool>($"vr.ui.canvas.{canvasKeyName}.visible", _canvas.enabled);
-            _distanceFromHMDProp = FluxManager.Instance.GetOrCreateProperty<float>($"vr.ui.canvas.{canvasKeyName}.distance");
-            _isFocusedProp = FluxManager.Instance.GetOrCreateProperty<bool>($"vr.ui.canvas.{canvasKeyName}.focused");
+            _isVisibleProp = Flux.Manager.GetOrCreateProperty<bool>($"vr.ui.canvas.{canvasKeyName}.visible", _canvas.enabled);
+            _distanceFromHMDProp = Flux.Manager.GetOrCreateProperty<float>($"vr.ui.canvas.{canvasKeyName}.distance");
+            _isFocusedProp = Flux.Manager.GetOrCreateProperty<bool>($"vr.ui.canvas.{canvasKeyName}.focused");
 
             SetupVRCanvas();
         }

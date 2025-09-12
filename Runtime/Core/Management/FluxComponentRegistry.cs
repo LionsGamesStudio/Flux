@@ -177,7 +177,7 @@ namespace FluxFramework.Core
                     return null;
                 }
 
-                return FluxManager.Instance.Properties.SubscribeDeferred(attribute.PropertyKey, (property) =>
+                return Flux.Manager.Properties.SubscribeDeferred(attribute.PropertyKey, (property) =>
                 {
                     try
                     {

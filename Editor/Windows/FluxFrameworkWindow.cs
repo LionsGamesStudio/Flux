@@ -94,7 +94,7 @@ namespace FluxFramework.Editor
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
             EditorGUILayout.LabelField("Framework Status", EditorStyles.boldLabel);
             
-            bool isInitialized = Application.isPlaying && FluxManager.Instance != null;
+            bool isInitialized = Application.isPlaying && Flux.Manager != null;
             
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.LabelField("Status:", GUILayout.Width(150)); // Give it a fixed width for alignment
@@ -111,7 +111,7 @@ namespace FluxFramework.Editor
             
             if (Application.isPlaying && isInitialized)
             {
-                EditorGUILayout.LabelField($"Registered Properties:", $"{FluxManager.Instance.Properties.PropertyCount}");
+                EditorGUILayout.LabelField($"Registered Properties:", $"{Flux.Manager.Properties.PropertyCount}");
                 EditorGUILayout.LabelField($"Event Subscriptions:", $"{EventBus.GetTotalSubscriberCount()}");
                 EditorGUILayout.LabelField($"Active UI Bindings:", $"{ReactiveBindingSystem.GetActiveBindingCount()}");
             }
@@ -132,7 +132,7 @@ namespace FluxFramework.Editor
             {
                 EditorGUILayout.BeginVertical(EditorStyles.helpBox);
                 
-                if (Application.isPlaying && FluxManager.Instance != null)
+                if (Application.isPlaying && Flux.Manager != null)
                 {
                     // Show runtime properties
                     EditorGUILayout.LabelField("Runtime Properties:", EditorStyles.boldLabel);

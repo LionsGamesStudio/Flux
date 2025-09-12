@@ -145,9 +145,9 @@ namespace FluxFramework.Core
                     .ToList();
 
                 // 2. Execute on the main thread
-                if (FluxManager.Instance != null)
+                if (Flux.Manager != null)
                 {
-                    FluxManager.Instance.ExecuteOnMainThread(() =>
+                    Flux.Manager.ExecuteOnMainThread(() =>
                     {
                         foreach (var sub in sortedHandlers)
                         {

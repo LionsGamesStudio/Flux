@@ -88,8 +88,8 @@ namespace FluxFramework.Configuration
             // 2. Apply Threading Configuration
             // This assumes your FluxThreadManager is a singleton or has static settings.
             // Example:
-            // if (FluxManager.Instance != null) {
-            //     FluxManager.Instance.Threading.SetMaxActionsPerFrame(this.maxMainThreadActionsPerFrame);
+            // if (Flux.Manager != null) {
+            //     Flux.Threading.SetMaxActionsPerFrame(this.maxMainThreadActionsPerFrame);
             // }
 
             // 3. Apply other configurations...

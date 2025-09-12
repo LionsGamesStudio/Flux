@@ -104,10 +104,10 @@ namespace FluxFramework.VR.Locomotion
             }
 
             // Initialize reactive properties that will be updated by this system.
-            _playerPositionProp = FluxManager.Instance.GetOrCreateProperty<Vector3>("vr.locomotion.position");
-            _playerRotationProp = FluxManager.Instance.GetOrCreateProperty<float>("vr.locomotion.rotation");
-            _isMovingProp = FluxManager.Instance.GetOrCreateProperty<bool>("vr.locomotion.isMoving");
-            _currentMovementSpeedProp = FluxManager.Instance.GetOrCreateProperty<float>("vr.locomotion.movementSpeed");
+            _playerPositionProp = Flux.Manager.GetOrCreateProperty<Vector3>("vr.locomotion.position");
+            _playerRotationProp = Flux.Manager.GetOrCreateProperty<float>("vr.locomotion.rotation");
+            _isMovingProp = Flux.Manager.GetOrCreateProperty<bool>("vr.locomotion.isMoving");
+            _currentMovementSpeedProp = Flux.Manager.GetOrCreateProperty<float>("vr.locomotion.movementSpeed");
 
             SetupTeleportationVisuals();
         }

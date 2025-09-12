@@ -34,7 +34,7 @@ namespace FluxFramework.Editor
         private void RefreshData()
         {
             // We only need to fetch data if the application is playing
-            if (!Application.isPlaying || FluxManager.Instance == null)
+            if (!Application.isPlaying || Flux.Manager == null)
             {
                 if (_properties.Count > 0)
                 {
@@ -45,9 +45,9 @@ namespace FluxFramework.Editor
             }
 
             // Get the current list of properties from the manager
-            var currentKeys = FluxManager.Instance.Properties.GetAllPropertyKeys();
-            _properties = currentKeys.ToDictionary(key => key, key => FluxManager.Instance.Properties.GetProperty(key));
-            
+            var currentKeys = Flux.Manager.Properties.GetAllPropertyKeys();
+            _properties = currentKeys.ToDictionary(key => key, key => Flux.Manager.Properties.GetProperty(key));
+
             Repaint(); // Redraw the window with the latest values
         }
 

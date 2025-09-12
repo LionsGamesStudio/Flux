@@ -97,7 +97,7 @@ namespace FluxFramework.Core
             foreach (var propertyKey in _registeredProperties)
             {
                 // We only unregister. The property manager handles the actual disposal/cleanup.
-                FluxManager.Instance.UnregisterProperty(propertyKey);
+                Flux.Manager.UnregisterProperty(propertyKey);
             }
             _registeredProperties.Clear();
             OnReactivePropertiesCleanup();
@@ -108,7 +108,7 @@ namespace FluxFramework.Core
         /// </summary>
         protected void UpdateReactiveProperty<T>(string propertyKey, T newValue)
         {
-            var property = FluxManager.Instance.GetProperty<T>(propertyKey);
+            var property = Flux.Manager.GetProperty<T>(propertyKey);
             if (property != null)
             {
                 property.Value = newValue;
@@ -120,7 +120,7 @@ namespace FluxFramework.Core
         /// </summary>
         protected T GetReactivePropertyValue<T>(string propertyKey)
         {
-            var property = FluxManager.Instance.GetProperty<T>(propertyKey);
+            var property = Flux.Manager.GetProperty<T>(propertyKey);
             return property != null ? property.Value : default(T);
         }
 
@@ -129,7 +129,7 @@ namespace FluxFramework.Core
         /// </summary>
         protected IDisposable SubscribeToProperty<T>(string propertyKey, Action<T> onChanged)
         {
-            var property = FluxManager.Instance.GetProperty<T>(propertyKey);
+            var property = Flux.Manager.GetProperty<T>(propertyKey);
             return property?.Subscribe(onChanged);
         }
         
@@ -167,7 +167,7 @@ namespace FluxFramework.Core
                     var propertyKey = reactiveAttr.Key;
                     var defaultValue = reactiveAttr.DefaultValue ?? GetDefaultValue(field.FieldType);
                     field.SetValue(this, defaultValue);
-                    var property = FluxManager.Instance.GetProperty(propertyKey);
+                    var property = Flux.Manager.GetProperty(propertyKey);
                     property?.SetValue(defaultValue);
                 }
             }

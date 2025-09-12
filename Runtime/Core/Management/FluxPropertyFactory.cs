@@ -76,7 +76,7 @@ namespace FluxFramework.Core
 
                 property.Subscribe(newValue => field.SetValue(owner, newValue));
 
-                FluxManager.Instance.RegisterProperty(propertyKey, property, attribute.Persistent);
+                Flux.Manager.RegisterProperty(propertyKey, property, attribute.Persistent);
                 if (attribute.Persistent) FluxPersistenceManager.RegisterPersistentProperty(propertyKey, property);
             }
             catch (Exception ex)
@@ -123,7 +123,7 @@ namespace FluxFramework.Core
                 }
 
                 field.SetValue(owner, finalProperty);
-                FluxManager.Instance.RegisterProperty(propertyKey, finalProperty, attribute.Persistent);
+                Flux.Manager.RegisterProperty(propertyKey, finalProperty, attribute.Persistent);
                 if (attribute.Persistent) FluxPersistenceManager.RegisterPersistentProperty(propertyKey, finalProperty);
             }
             catch (Exception ex)

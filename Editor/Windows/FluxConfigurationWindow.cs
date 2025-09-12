@@ -141,7 +141,7 @@ namespace FluxFramework.Editor
                 GUI.enabled = Application.isPlaying;
                 if (GUILayout.Button("Apply (Play Mode)"))
                 {
-                    var manager = FluxManager.Instance;
+                    var manager = Flux.Manager;
                     if (manager != null)
                     {
                         loadedConfig.ApplyConfiguration(manager);

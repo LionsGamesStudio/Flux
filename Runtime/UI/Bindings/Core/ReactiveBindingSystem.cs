@@ -101,14 +101,14 @@ namespace FluxFramework.Binding
                 }
             };
             
-            var existingProperty = FluxManager.Instance.GetProperty(propertyKey);
+            var existingProperty = Flux.Manager.GetProperty(propertyKey);
             if (existingProperty != null)
             {
                 finalizeBindingAction(existingProperty);
             }
             else
             {
-                IDisposable deferredSub = FluxManager.Instance.Properties.SubscribeDeferred(propertyKey, finalizeBindingAction);
+                IDisposable deferredSub = Flux.Manager.Properties.SubscribeDeferred(propertyKey, finalizeBindingAction);
                 _subscriptions[binding] = deferredSub;
             }
         }
@@ -138,9 +138,9 @@ namespace FluxFramework.Binding
             // 1. Stop any pending debounced update coroutine.
             if (_debounceCoroutines.TryGetValue(binding, out Coroutine coroutine))
             {
-                if (coroutine != null && FluxManager.Instance != null)
+                if (coroutine != null && Flux.Manager != null)
                 {
-                    FluxManager.Instance.StopCoroutine(coroutine);
+                    Flux.Manager.StopCoroutine(coroutine);
                 }
                 _debounceCoroutines.Remove(binding);
             }
@@ -195,7 +195,7 @@ namespace FluxFramework.Binding
         {
             if (_bindings.TryGetValue(propertyKey, out var bindingList))
             {
-                var property = FluxManager.Instance.GetProperty(propertyKey);
+                var property = Flux.Manager.GetProperty(propertyKey);
                 if (property == null) return;
                 
                 var value = property.GetValue();
@@ -265,7 +265,7 @@ namespace FluxFramework.Binding
         /// </summary>
         private static void EnqueueDebouncedUpdate<T>(IUIBinding<T> binding, T value, int delayMs)
         {
-            if (FluxManager.Instance == null)
+            if (Flux.Manager == null)
             {
                 binding.UpdateUI(value); // Fallback to immediate update if the manager is not available.
                 return;
@@ -276,12 +276,12 @@ namespace FluxFramework.Binding
             {
                 if (existingCoroutine != null)
                 {
-                    FluxManager.Instance.StopCoroutine(existingCoroutine);
+                    Flux.Manager.StopCoroutine(existingCoroutine);
                 }
             }
 
             // Start a new coroutine for the delayed update.
-            var newCoroutine = FluxManager.Instance.StartCoroutine(DelayedUpdateCoroutine(binding, value, delayMs));
+            var newCoroutine = Flux.Manager.StartCoroutine(DelayedUpdateCoroutine(binding, value, delayMs));
             _debounceCoroutines[binding] = newCoroutine;
         }
         

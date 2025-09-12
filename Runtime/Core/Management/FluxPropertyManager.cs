@@ -9,7 +9,7 @@ namespace FluxFramework.Core
     /// <summary>
     /// Manages reactive properties for the Flux Framework
     /// </summary>
-    public class FluxPropertyManager
+    public class FluxPropertyManager : IFluxPropertyManager
     {
         private class PropertyRegistration
         {
