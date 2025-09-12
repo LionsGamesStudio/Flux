@@ -11,12 +11,13 @@ namespace FluxFramework.UI
     /// The property key is configured directly in the inspector.
     /// </summary>
     [RequireComponent(typeof(TextMeshProUGUI))]
+    [AddComponentMenu("Flux/UI/Flux Text")]
     public class FluxText : FluxUIComponent
     {
         [Header("Binding Configuration")]
         [Tooltip("The Reactive Property Key to bind this text to.")]
         [SerializeField] private string _propertyKey;
-        
+
         [Tooltip("An optional format string for the value (e.g., 'Score: {0}').")]
         [SerializeField] private string _formatString = "{0}";
 
@@ -32,7 +33,7 @@ namespace FluxFramework.UI
         {
             if (_textComponent == null) _textComponent = GetComponent<TextMeshProUGUI>();
         }
-        
+
         /// <summary>
         /// This component uses a manual binding approach for maximum flexibility.
         /// It overrides the custom binding method to create its binding explicitly.
@@ -43,7 +44,7 @@ namespace FluxFramework.UI
             // We create our binding manually here.
 
             if (string.IsNullOrEmpty(_propertyKey) || _textComponent == null) return;
-            
+
             // We create a new TextBinding instance.
             _binding = new TextBinding(_propertyKey, _textComponent, _formatString);
 
@@ -52,7 +53,7 @@ namespace FluxFramework.UI
             {
                 ImmediateUpdate = true
             };
-            
+
             // Register it with the central system.
             ReactiveBindingSystem.Bind(_propertyKey, _binding, options);
 

@@ -45,9 +45,9 @@ namespace FluxFramework.Configuration
 
         /// <summary>
         /// Applies this configuration by iterating through the definitions and creating
-        /// each reactive property in the central FluxManager.
+        /// each reactive property in the central IFluxManager.
         /// </summary>
-        public override void ApplyConfiguration(FluxManager manager)
+        public override void ApplyConfiguration(IFluxManager manager)
         {
             if (!ValidateConfiguration()) return;
 
@@ -59,21 +59,21 @@ namespace FluxFramework.Configuration
                     {
                         case PropertyType.Int:
                             int defaultInt = int.TryParse(propDef.defaultValue, out var i) ? i : 0;
-                            manager.GetOrCreateProperty(propDef.key, defaultInt);
+                            manager.Properties.GetOrCreateProperty(propDef.key, defaultInt);
                             break;
                             
                         case PropertyType.Float:
                             float defaultFloat = float.TryParse(propDef.defaultValue, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var f) ? f : 0f;
-                            manager.GetOrCreateProperty(propDef.key, defaultFloat);
+                            manager.Properties.GetOrCreateProperty(propDef.key, defaultFloat);
                             break;
                             
                         case PropertyType.Bool:
                             bool defaultBool = bool.TryParse(propDef.defaultValue, out var b) ? b : false;
-                            manager.GetOrCreateProperty(propDef.key, defaultBool);
+                            manager.Properties.GetOrCreateProperty(propDef.key, defaultBool);
                             break;
                             
                         case PropertyType.String:
-                            manager.GetOrCreateProperty(propDef.key, propDef.defaultValue ?? "");
+                            manager.Properties.GetOrCreateProperty(propDef.key, propDef.defaultValue ?? "");
                             break;
                             
                         case PropertyType.Vector2:
@@ -83,7 +83,7 @@ namespace FluxFramework.Configuration
                                 try { defaultV2 = JsonUtility.FromJson<Vector2>(propDef.defaultValue); }
                                 catch { /* Ignore malformed string, use Vector2.zero */ }
                             }
-                            manager.GetOrCreateProperty(propDef.key, defaultV2);
+                            manager.Properties.GetOrCreateProperty(propDef.key, defaultV2);
                             break;
                             
                         case PropertyType.Vector3:
@@ -93,7 +93,7 @@ namespace FluxFramework.Configuration
                                 try { defaultV3 = JsonUtility.FromJson<Vector3>(propDef.defaultValue); }
                                 catch { /* Ignore malformed string, use Vector3.zero */ }
                             }
-                            manager.GetOrCreateProperty(propDef.key, defaultV3);
+                            manager.Properties.GetOrCreateProperty(propDef.key, defaultV3);
                             break;
                             
                         case PropertyType.Color:
@@ -102,13 +102,13 @@ namespace FluxFramework.Configuration
                             {
                                 ColorUtility.TryParseHtmlString(propDef.defaultValue, out defaultColor);
                             }
-                            manager.GetOrCreateProperty(propDef.key, defaultColor);
+                            manager.Properties.GetOrCreateProperty(propDef.key, defaultColor);
                             break;
                         
                         // Note: Sprite cannot be created from a string. It would need a path to a resource.
                         case PropertyType.Sprite:
                             Debug.LogWarning($"[FluxFramework] Pre-defining properties of type 'Sprite' is not supported via string. Property '{propDef.key}' will be created with a null default value.", this);
-                            manager.GetOrCreateProperty<Sprite>(propDef.key, null);
+                            manager.Properties.GetOrCreateProperty<Sprite>(propDef.key, null);
                             break;
                     }
                 }

@@ -10,6 +10,7 @@ namespace FluxFramework.UI
     /// The property keys are configured directly in the inspector.
     /// </summary>
     [RequireComponent(typeof(Image))]
+    [AddComponentMenu("Flux/UI/Flux Image")]
     public class FluxImage : FluxUIComponent
     {
         [Header("Component Reference")]
@@ -19,7 +20,7 @@ namespace FluxFramework.UI
         [Header("Binding Configuration")]
         [Tooltip("(Optional) The Reactive Property Key to bind this image's SPRITE to.")]
         [SerializeField] private string _spritePropertyKey;
-        
+
         [Tooltip("(Optional) The Reactive Property Key to bind this image's COLOR to.")]
         [SerializeField] private string _colorPropertyKey;
 
@@ -37,14 +38,14 @@ namespace FluxFramework.UI
                 imageComponent = GetComponent<Image>();
             }
         }
-        
+
         /// <summary>
         /// Manually creates the bindings for sprite and/or color based on the configured property keys.
         /// </summary>
         protected override void RegisterCustomBindings()
         {
             if (imageComponent == null) return;
-            
+
             // --- Create Sprite Binding if key is provided ---
             if (!string.IsNullOrEmpty(_spritePropertyKey))
             {
@@ -61,14 +62,14 @@ namespace FluxFramework.UI
                 TrackBinding(_colorBinding); // Track for automatic cleanup
             }
         }
-        
+
         /// <summary>
         /// Applies the global theme to this component. Can be used to set a default or background color.
         /// </summary>
         public override void ApplyTheme()
         {
             base.ApplyTheme();
-            
+
             var theme = UIThemeManager.CurrentTheme;
             if (theme == null || imageComponent == null) return;
 
@@ -77,12 +78,12 @@ namespace FluxFramework.UI
                 imageComponent.color = theme.backgroundColor;
             }
         }
-        
+
         #region Public API
-        
+
         public Sprite GetCurrentSprite() => imageComponent?.sprite;
         public Color GetCurrentColor() => imageComponent?.color ?? Color.white;
-        
+
         #endregion
     }
 }

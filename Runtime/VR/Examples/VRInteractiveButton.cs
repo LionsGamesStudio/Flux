@@ -34,8 +34,8 @@ namespace FluxFramework.VR.Examples
             
             // --- Reactive Property Initialization ---
             string buttonKeyName = $"{gameObject.name}_{GetInstanceID()}";
-            _isPressedProp = FluxManager.Instance.GetOrCreateProperty<bool>($"vr.button.{buttonKeyName}.isPressed");
-            _pressCountProp = FluxManager.Instance.GetOrCreateProperty<int>($"vr.button.{buttonKeyName}.pressCount");
+            _isPressedProp = Flux.Manager.Properties.GetOrCreateProperty<bool>($"vr.button.{buttonKeyName}.isPressed");
+            _pressCountProp = Flux.Manager.Properties.GetOrCreateProperty<int>($"vr.button.{buttonKeyName}.pressCount");
         }
         
         protected virtual void Update()

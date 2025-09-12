@@ -74,7 +74,7 @@ namespace FluxFramework.Core
         {
             foreach (var key in _persistentSubscriptions.Keys)
             {
-                var property = FluxManager.Instance.GetProperty(key);
+                var property = Flux.Manager.Properties.GetProperty(key);
                 if (property != null)
                 {
                     LoadProperty(key, property);

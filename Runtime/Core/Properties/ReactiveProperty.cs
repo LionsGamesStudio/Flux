@@ -272,9 +272,9 @@ namespace FluxFramework.Core
                 foreach (var subscriber in subscribersWithOldValueCopy) subscriber.Invoke(oldValue, newValue);
             };
 
-            if (FluxManager.Instance != null && !FluxThreadManager.IsMainThread())
+            if (Flux.Manager != null && !Flux.Manager.Threading.IsMainThread())
             {
-                FluxManager.Instance.Threading.ExecuteOnMainThread(notificationAction);
+                Flux.Manager.Threading.ExecuteOnMainThread(notificationAction);
             }
             else
             {

@@ -19,7 +19,7 @@ A complete VR rig, including a manager, controllers, and locomotion, will be cre
 └── FluxVR Player (Root)
     ├── CharacterController
     ├── FluxVRManager
-    ├── FluxVRLocomotion
+    ├── FluxVRLocomotor
     ├── FluxVRPlayer (the "brain")
     └── Camera Offset
         ├── Main Camera (HMD)
@@ -45,24 +45,23 @@ Once the VR player is in your scene, you can immediately start interacting with 
 
 ### 1. Reacting to VR Controller State
 
-Listen to the globally available reactive properties using the safe lifecycle methods.
+Listen to the globally available reactive properties using the safe lifecycle methods and type-safe keys.
 
 ```csharp
-using System; // Required for IDisposable
+using System;
 using FluxFramework.Core;
+using Flux; // <-- Import for Flux and FluxKeys
 
 public class MyVRArm : FluxMonoBehaviour
 {
     private IDisposable _subscription;
 
-    // Use OnFluxAwake() for safe initialization and subscriptions.
-    // It's guaranteed to run after the framework is ready.
-    protected override void OnFluxAwake()
+    // Use OnFluxAwake() for safe initialization.
+    protected override void OnFluxAw-ake()
     {
-        var rightHandPosProp = FluxManager.Instance.GetOrCreateProperty<Vector3>("vr.controller.right.position");
-        
-        // Subscribe and fire immediately to get the initial position.
-        _subscription = rightHandPosProp.Subscribe(newPosition =>
+        // Subscribe to the property using the helper method and the generated FluxKeys class.
+        // fireOnSubscribe ensures we get the initial position immediately.
+        _subscription = SubscribeToProperty<Vector3>(FluxKeys.VrControllerRightPosition, newPosition =>
         {
             transform.position = newPosition;
         }, fireOnSubscribe: true);
@@ -84,8 +83,8 @@ Use the `[FluxEventHandler]` attribute to react to high-level interactions witho
 using UnityEngine;
 using FluxFramework.Core;
 using FluxFramework.Attributes;
-using FluxFramework.VR; // Required for FluxVRManager
-using FluxFramework.VR.Events; // Required for VR event types
+using FluxFramework.VR;
+using FluxFramework.VR.Events;
 
 public class VRGameManager : FluxMonoBehaviour
 {
@@ -110,7 +109,7 @@ Create an object that the player can interact with using the laser pointer.
 ```csharp
 using UnityEngine;
 using FluxFramework.Core;
-using FluxFramework.VR; // Required for FluxVRController and IVRInteractable
+using FluxFramework.VR;
 
 // Attach this script to any GameObject with a Collider.
 public class MySimpleButton : FluxMonoBehaviour, IVRInteractable
@@ -122,7 +121,6 @@ public class MySimpleButton : FluxMonoBehaviour, IVRInteractable
         Debug.Log($"This button was pressed by the {controller.ControllerNode} controller!");
         
         // Add your button's logic here.
-        // e.g., Open a door, change a color, etc.
     }
 }
 ```
@@ -134,24 +132,24 @@ The process is identical to binding a 2D UI. The UI will automatically update.
 ```csharp
 using UnityEngine;
 using FluxFramework.UI;
-using FluxFramework.VR.UI; // Required for FluxVRText
+using FluxFramework.VR.UI;
 using FluxFramework.Attributes;
+using Flux; // <-- Import for FluxKeys
 
 public class MyVRDashboard : FluxUIComponent
 {
-    // The [FluxBinding] attribute on a component reference is all you need.
-    // The base FluxUIComponent handles the registration automatically.
-    [FluxBinding("vr.hmd.position")]
+    // Use the [FluxBinding] attribute with the generated FluxKeys for a safe binding.
+    [FluxBinding(FluxKeys.VrHmdPosition)]
     [SerializeField] private FluxVRText _hmdPositionText;
 
-    [FluxBinding("inventory.gold")]
+    [FluxBinding(FluxKeys.PlayerGold)]
     [SerializeField] private FluxVRText _goldText;
 }
 ```
 
 ## 🎮 Default Controls
 
--   **Left Thumbstick:** Smooth Movement (if enabled in `FluxVRLocomotion`).
+-   **Left Thumbstick:** Smooth Movement (if enabled in `FluxVRLocomotor`).
 -   **Right Thumbstick (Up):** Aim Teleportation.
 -   **Right Thumbstick (Release from Up):** Execute Teleport.
 -   **Right Thumbstick (Left/Right):** Snap/Smooth Turning.
@@ -160,8 +158,8 @@ public class MyVRDashboard : FluxUIComponent
 
 ## 🐛 Troubleshooting
 
--   **"UI is not responding to clicks"**: Ensure your `Canvas` has a `Graphic Raycaster` and your scene has an `EventSystem`. For VR, you may also need an `XRUIInputModule` on your `EventSystem` if using Unity's XR Interaction Toolkit.
--   **"Teleportation doesn't work"**: Check the `Teleport Layer Mask` on the `FluxVRLocomotion` component to ensure it includes your ground/platform layers.
+-   **"UI is not responding to clicks"**: Ensure your `Canvas` has a `Graphic Raycaster` and your scene has an `EventSystem`.
+-   **"Teleportation doesn't work"**: Check the `Teleport Layer Mask` on the `FluxVRLocomotor` component to ensure it includes your ground/platform layers.
 -   **"No controllers appear"**: Make sure your headset is properly connected and that your chosen provider is enabled in `Project Settings` → `XR Plug-in Management`.
 
 ## 🚀 Ready for VR!

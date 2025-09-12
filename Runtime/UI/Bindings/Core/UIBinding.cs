@@ -72,7 +72,7 @@ namespace FluxFramework.Binding
         public virtual void UpdateFromProperty()
         {
             // Get the property from the central manager.
-            var property = FluxManager.Instance.GetProperty<T>(PropertyKey);
+            var property = Flux.Manager.Properties.GetProperty<T>(PropertyKey);
             if (property != null)
             {
                 // Get the raw value.

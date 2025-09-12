@@ -150,7 +150,6 @@ namespace FluxFramework.UI
         private IUIBinding CreateBindingForComponent(Component uiComponent, FluxBindingAttribute bindingAttr)
         {
             var options = bindingAttr.CreateOptions();
-            bool isTwoWay = options.Mode == BindingMode.TwoWay || options.Mode == BindingMode.OneWayToSource;
 
             if (uiComponent is TextMeshProUGUI tmpText) return new TextBinding(bindingAttr.PropertyKey, tmpText);
             if (uiComponent is Text legacyText) return new LegacyTextBinding(bindingAttr.PropertyKey, legacyText);

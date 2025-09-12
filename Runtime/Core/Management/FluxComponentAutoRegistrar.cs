@@ -66,7 +66,7 @@ namespace FluxFramework.Core
             {
                 yield return new WaitForSeconds(scanInterval);
                 
-                if (FluxManager.Instance != null)
+                if (Flux.Manager != null)
                 {
                     FluxComponentRegistry.RegisterAllComponentsInScene();
                 }
