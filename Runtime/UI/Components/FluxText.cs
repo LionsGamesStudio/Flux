@@ -1,97 +1,57 @@
 using UnityEngine;
-using UnityEngine.UI;
 using TMPro;
-using FluxFramework.Attributes;
+using FluxFramework.Core;
 using FluxFramework.Binding;
+using FluxFramework.UI;
 
 namespace FluxFramework.UI
 {
     /// <summary>
-    /// A UI component that provides reactive binding for a TextMeshPro or legacy Text component.
-    /// Binding is handled automatically by the base class.
+    /// A generic, reusable UI component that binds to and displays a string property.
+    /// The property key is configured directly in the inspector.
     /// </summary>
+    [RequireComponent(typeof(TextMeshProUGUI))]
     public class FluxText : FluxUIComponent
     {
-        [Header("Component References")]
-        [Tooltip("The TextMeshProUGUI component. Has priority over the legacy Text component.")]
-        [SerializeField] private TextMeshProUGUI textComponent;
-        [Tooltip("The legacy UI Text component. Used if no TextMeshPro component is found.")]
-        [SerializeField] private Text legacyTextComponent;
-        
-        [Header("Display Options")]
-        [Tooltip("An optional format string for the bound value (e.g., 'Score: {0}').")]
-        [SerializeField] private string formatString = "{0}";
-
-        // --- Declarative Binding ---
         [Header("Binding Configuration")]
-        [Tooltip("Assign the Text or TextMeshProUGUI component here to configure its data binding.")]
-        [FluxBinding("ui.text.value")]
-        [SerializeField] private Component _textBindingTarget; // Use base 'Component' for flexibility
+        [Tooltip("The Reactive Property Key to bind this text to.")]
+        [SerializeField] private string _propertyKey;
+        
+        [Tooltip("An optional format string for the value (e.g., 'Score: {0}').")]
+        [SerializeField] private string _formatString = "{0}";
 
+        [Header("Component Reference")]
+        [SerializeField] private TextMeshProUGUI _textComponent;
+
+        private IUIBinding _binding;
+
+        /// <summary>
+        /// Gets the reference to the TextMeshProUGUI component.
+        /// </summary>
         protected override void InitializeComponent()
         {
-            if (textComponent == null) textComponent = GetComponent<TextMeshProUGUI>();
-            if (legacyTextComponent == null && textComponent == null) legacyTextComponent = GetComponent<Text>();
-
-            if (_textBindingTarget == null)
-            {
-                _textBindingTarget = textComponent != null ? (Component)textComponent : legacyTextComponent;
-            }
+            if (_textComponent == null) _textComponent = GetComponent<TextMeshProUGUI>();
         }
         
         /// <summary>
-        /// Applies the global theme's font and color to this text component.
+        /// This component uses a manual binding approach for maximum flexibility.
+        /// It overrides the custom binding method to create its binding explicitly.
         /// </summary>
-        public override void ApplyTheme()
+        protected override void RegisterCustomBindings()
         {
-            base.ApplyTheme();
+            // The automatic attribute-based binding is skipped because this class doesn't use [FluxBinding].
+            // We create our binding manually here.
+
+            if (string.IsNullOrEmpty(_propertyKey) || _textComponent == null) return;
             
-            var theme = UIThemeManager.CurrentTheme;
-            if (theme == null) return;
-
-            // Apply to TextMeshPro component if it exists
-            if (textComponent != null)
-            {
-                // Apply font if one is assigned in the theme
-                if (theme.primaryFont_TMP != null)
-                {
-                    textComponent.font = theme.primaryFont_TMP;
-                }
-                // Apply font size
-                textComponent.fontSize = theme.defaultFontSize;
-                // Apply color
-                textComponent.color = theme.textColor;
-            }
-            // Apply to legacy Text component if it exists
-            else if (legacyTextComponent != null)
-            {
-                // Apply font if one is assigned in the theme
-                if (theme.primaryFont_Legacy != null)
-                {
-                    legacyTextComponent.font = theme.primaryFont_Legacy;
-                }
-                // Apply font size
-                legacyTextComponent.fontSize = theme.defaultFontSize;
-                // Apply color
-                legacyTextComponent.color = theme.textColor;
-            }
+            // We create a new TextBinding instance.
+            _binding = new TextBinding(_propertyKey, _textComponent, _formatString);
+            
+            // Register it with the central system.
+            ReactiveBindingSystem.Bind(_propertyKey, _binding, new BindingOptions());
+            
+            // Track the binding for automatic cleanup.
+            TrackBinding(_binding);
         }
-        
-        #region Public API
-
-        public string GetCurrentText()
-        {
-            if (textComponent != null) return textComponent.text;
-            if (legacyTextComponent != null) return legacyTextComponent.text;
-            return "";
-        }
-        
-        public virtual void SetText(string newText)
-        {
-            if (textComponent != null) textComponent.text = newText;
-            else if (legacyTextComponent != null) legacyTextComponent.text = newText;
-        }
-        
-        #endregion
     }
 }

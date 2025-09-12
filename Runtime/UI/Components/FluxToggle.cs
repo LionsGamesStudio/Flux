@@ -1,66 +1,85 @@
 using UnityEngine;
 using UnityEngine.UI;
-using FluxFramework.Attributes;
+using FluxFramework.Core;
 using FluxFramework.Binding;
 
 namespace FluxFramework.UI
 {
     /// <summary>
-    /// A UI component that provides reactive binding for a Unity Toggle.
-    /// Binding is handled automatically by the base class.
+    /// A generic, reusable UI component that provides one-way or two-way binding for a Unity Toggle.
+    /// The property key and binding mode are configured directly in the inspector.
     /// </summary>
     [RequireComponent(typeof(Toggle))]
     public class FluxToggle : FluxUIComponent
     {
-        [Header("Component References")]
-        [Tooltip("The Unity Toggle component. If null, it will be found automatically.")]
+        [Header("Component Reference")]
+        [Tooltip("The Unity Toggle component to control. If null, it will be found automatically.")]
         [SerializeField] private Toggle toggleComponent;
 
-        // --- Declarative Binding ---
         [Header("Binding Configuration")]
-        [Tooltip("Assign the Toggle component here to configure its data binding.")]
-        [FluxBinding("ui.toggle.value", Mode = BindingMode.TwoWay)]
-        [SerializeField] private Toggle _valueBindingTarget;
+        [Tooltip("The Reactive Property Key to bind this toggle's 'isOn' state to.")]
+        [SerializeField] private string _propertyKey;
+        
+        [Tooltip("Defines the data flow direction. 'TwoWay' allows the toggle to update the property.")]
+        [SerializeField] private BindingMode _bindingMode = BindingMode.OneWay;
 
+        // --- Private Binding Reference ---
+        private IUIBinding _binding;
+
+        /// <summary>
+        /// Gets the reference to the Toggle component.
+        /// </summary>
         protected override void InitializeComponent()
         {
             if (toggleComponent == null)
             {
                 toggleComponent = GetComponent<Toggle>();
             }
-            if (_valueBindingTarget == null)
-            {
-                _valueBindingTarget = toggleComponent;
-            }
         }
-
+        
+        /// <summary>
+        /// Manually creates the binding for the toggle based on the inspector configuration.
+        /// </summary>
+        protected override void RegisterCustomBindings()
+        {
+            if (string.IsNullOrEmpty(_propertyKey) || toggleComponent == null) return;
+            
+            bool isTwoWay = _bindingMode == BindingMode.TwoWay || _bindingMode == BindingMode.OneWayToSource;
+            
+            _binding = new ToggleBinding(_propertyKey, toggleComponent, isTwoWay);
+            
+            ReactiveBindingSystem.Bind(_propertyKey, _binding, new BindingOptions { Mode = _bindingMode });
+            
+            TrackBinding(_binding);
+        }
+        
+        /// <summary>
+        /// Applies the global theme to the different parts of the toggle.
+        /// </summary>
         public override void ApplyTheme()
         {
             base.ApplyTheme();
             
             var theme = UIThemeManager.CurrentTheme;
-            if (theme == null) return;
-
-            // Apply colors from theme
-            if (toggleComponent != null)
+            if (theme == null || toggleComponent == null) return;
+            
+            // Apply theme colors to the toggle's background and checkmark images.
+            if (toggleComponent.targetGraphic != null)
             {
-                // Background
-                if (toggleComponent.targetGraphic != null && theme.backgroundColor != null)
-                {
-                    toggleComponent.targetGraphic.color = theme.backgroundColor;
-                }
-
-                // Checkmark
-                if (toggleComponent.graphic != null && theme.accentColor != null)
-                {
-                    toggleComponent.graphic.color = theme.accentColor;
-                }
+                toggleComponent.targetGraphic.color = theme.secondaryColor; // Example: use secondary for background
+            }
+            
+            if (toggleComponent.graphic != null) // This is usually the checkmark
+            {
+                toggleComponent.graphic.color = theme.accentColor;
             }
         }
-        
+
         #region Public API
+        
         public bool GetCurrentValue() => toggleComponent?.isOn ?? false;
         public void SetValueWithoutNotify(bool value) { toggleComponent?.SetIsOnWithoutNotify(value); }
+        
         #endregion
     }
 }

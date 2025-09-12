@@ -32,5 +32,18 @@ namespace FluxFramework.Attributes
         {
             EventType = eventType;
         }
+
+        /// <summary>
+        /// Marks a method as a Flux event handler. The event type will be inferred
+        /// from the method's first parameter.
+        /// </summary>
+        /// <example>
+        /// [FluxEventHandler]
+        /// private void OnPlayerDied(PlayerDiedEvent evt) { ... }
+        /// </example>
+        public FluxEventHandlerAttribute()
+        {
+            EventType = null; // Mark for inference
+        }
     }
 }

@@ -1,35 +1,34 @@
 using UnityEngine;
 using UnityEngine.UI;
-using FluxFramework.Attributes;
+using FluxFramework.Core;
+using FluxFramework.Binding;
 
 namespace FluxFramework.UI
 {
     /// <summary>
-    /// A UI component that provides reactive bindings for an Image's sprite and color properties.
-    /// Binding is handled automatically by the base FluxUIComponent class via [FluxBinding] attributes.
+    /// A generic, reusable UI component that can bind an Image's sprite or color to a reactive property.
+    /// The property keys are configured directly in the inspector.
     /// </summary>
     [RequireComponent(typeof(Image))]
     public class FluxImage : FluxUIComponent
     {
-        [Header("Component References")]
-        [Tooltip("The Unity Image component to bind to. If null, it will be found automatically.")]
+        [Header("Component Reference")]
+        [Tooltip("The Unity Image component to control. If null, it will be found automatically.")]
         [SerializeField] private Image imageComponent;
-        
-        // --- Declarative Bindings ---
-        // The base class will automatically find these attributes and create the appropriate bindings.
 
         [Header("Binding Configuration")]
-        [Tooltip("Assign the Image component here. The binding system will link its 'sprite' property.")]
-        [FluxBinding("ui.image.sprite")]
-        [SerializeField] private Image _spriteBindingTarget;
+        [Tooltip("(Optional) The Reactive Property Key to bind this image's SPRITE to.")]
+        [SerializeField] private string _spritePropertyKey;
+        
+        [Tooltip("(Optional) The Reactive Property Key to bind this image's COLOR to.")]
+        [SerializeField] private string _colorPropertyKey;
 
-        [Tooltip("Assign the Image component here. The binding system will link its 'color' property.")]
-        [FluxBinding("ui.image.color")]
-        [SerializeField] private Image _colorBindingTarget;
+        // --- Private Binding References ---
+        private IUIBinding _spriteBinding;
+        private IUIBinding _colorBinding;
 
         /// <summary>
-        /// This method is now used for all component-specific setup.
-        /// It's called automatically by the base class at the correct time.
+        /// Gets the reference to the Image component.
         /// </summary>
         protected override void InitializeComponent()
         {
@@ -37,27 +36,50 @@ namespace FluxFramework.UI
             {
                 imageComponent = GetComponent<Image>();
             }
-            
-            if (_spriteBindingTarget == null) _spriteBindingTarget = imageComponent;
-            if (_colorBindingTarget == null) _colorBindingTarget = imageComponent;
         }
+        
+        /// <summary>
+        /// Manually creates the bindings for sprite and/or color based on the configured property keys.
+        /// </summary>
+        protected override void RegisterCustomBindings()
+        {
+            if (imageComponent == null) return;
+            
+            // --- Create Sprite Binding if key is provided ---
+            if (!string.IsNullOrEmpty(_spritePropertyKey))
+            {
+                _spriteBinding = new SpriteBinding(_spritePropertyKey, imageComponent);
+                ReactiveBindingSystem.Bind(_spritePropertyKey, _spriteBinding, new BindingOptions());
+                TrackBinding(_spriteBinding); // Track for automatic cleanup
+            }
 
+            // --- Create Color Binding if key is provided ---
+            if (!string.IsNullOrEmpty(_colorPropertyKey))
+            {
+                _colorBinding = new ColorBinding(_colorPropertyKey, imageComponent);
+                ReactiveBindingSystem.Bind(_colorPropertyKey, _colorBinding, new BindingOptions());
+                TrackBinding(_colorBinding); // Track for automatic cleanup
+            }
+        }
+        
+        /// <summary>
+        /// Applies the global theme to this component. Can be used to set a default or background color.
+        /// </summary>
         public override void ApplyTheme()
         {
             base.ApplyTheme();
             
             var theme = UIThemeManager.CurrentTheme;
-            if (theme == null) return;
+            if (theme == null || imageComponent == null) return;
 
-            // Apply background color from theme
-            if (imageComponent != null)
+            if (string.IsNullOrEmpty(_colorPropertyKey))
             {
                 imageComponent.color = theme.backgroundColor;
             }
         }
         
         #region Public API
-
+        
         public Sprite GetCurrentSprite() => imageComponent?.sprite;
         public Color GetCurrentColor() => imageComponent?.color ?? Color.white;
         
