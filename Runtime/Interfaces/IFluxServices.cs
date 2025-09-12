@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Collections;
+using System.Linq;
+using UnityEngine;
 
 namespace FluxFramework.Core
 {
@@ -103,17 +106,39 @@ namespace FluxFramework.Core
         IFluxPropertyManager Properties { get; }
 
         /// <summary>
-        /// Executes the given action on the main thread.
+        /// Provides access to the thread management service.
         /// </summary>
-        /// <param name="action"></param>
-        void ExecuteOnMainThread(Action action);
+        IFluxThreadManager Threading { get; }
+
+        /// <summary>
+        /// Starts a coroutine using the framework's internal MonoBehaviour.
+        /// </summary>
+        /// <param name="routine"></param>
+        /// <returns></returns>
+        Coroutine StartCoroutine(IEnumerator routine);
+
+        /// <summary>
+        /// Stops a running coroutine.
+        /// </summary>
+        /// <param name="routine"></param>
+        void StopCoroutine(Coroutine routine);
     }
-    
+
     /// <summary>
     /// Defines the contract for the thread management service.
     /// </summary>
     public interface IFluxThreadManager
     {
+        /// <summary>
+        /// Executes the provided action on the main Unity thread.
+        /// </summary>
+        /// <param name="action"></param>
         void ExecuteOnMainThread(Action action);
+        
+        /// <summary>
+        /// Checks if the current thread is the main Unity thread.
+        /// </summary>
+        /// <returns>True if called from the main thread, otherwise false.</returns>
+        bool IsMainThread();
     }
 }

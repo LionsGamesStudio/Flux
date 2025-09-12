@@ -17,7 +17,7 @@ namespace FluxFramework.Configuration
         /// <summary>
         /// Applies the settings from this asset to the live framework systems.
         /// </summary>
-        /// <param name="manager">The core FluxManager instance to configure.</param>
-        public abstract void ApplyConfiguration(FluxManager manager);
+        /// <param name="manager">The <see cref="IFluxManager"/> instance to configure.</param>
+        public abstract void ApplyConfiguration(IFluxManager manager);
     }
 }

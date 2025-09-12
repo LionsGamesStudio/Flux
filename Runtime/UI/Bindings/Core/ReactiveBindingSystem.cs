@@ -101,7 +101,7 @@ namespace FluxFramework.Binding
                 }
             };
             
-            var existingProperty = Flux.Manager.GetProperty(propertyKey);
+            var existingProperty = Flux.Manager.Properties.GetProperty(propertyKey);
             if (existingProperty != null)
             {
                 finalizeBindingAction(existingProperty);
@@ -195,7 +195,7 @@ namespace FluxFramework.Binding
         {
             if (_bindings.TryGetValue(propertyKey, out var bindingList))
             {
-                var property = Flux.Manager.GetProperty(propertyKey);
+                var property = Flux.Manager.Properties.GetProperty(propertyKey);
                 if (property == null) return;
                 
                 var value = property.GetValue();

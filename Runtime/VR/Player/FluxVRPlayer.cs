@@ -47,10 +47,10 @@ namespace FluxFramework.VR
             _hmdCamera = GetComponentInChildren<Camera>();
 
             // Initialize reactive properties
-            _hmdPositionProp = Flux.Manager.GetOrCreateProperty<Vector3>("vr.player.hmd.position");
-            _hmdRotationProp = Flux.Manager.GetOrCreateProperty<Quaternion>("vr.player.hmd.rotation");
-            _activeControllersProp = Flux.Manager.GetOrCreateProperty<int>("vr.player.controllers.active");
-            _isGroundedProp = Flux.Manager.GetOrCreateProperty<bool>("vr.player.isGrounded", true);
+            _hmdPositionProp = Flux.Manager.Properties.GetOrCreateProperty<Vector3>("vr.player.hmd.position");
+            _hmdRotationProp = Flux.Manager.Properties.GetOrCreateProperty<Quaternion>("vr.player.hmd.rotation");
+            _activeControllersProp = Flux.Manager.Properties.GetOrCreateProperty<int>("vr.player.controllers.active");
+            _isGroundedProp = Flux.Manager.Properties.GetOrCreateProperty<bool>("vr.player.isGrounded", true);
         }
 
         protected virtual void Start()

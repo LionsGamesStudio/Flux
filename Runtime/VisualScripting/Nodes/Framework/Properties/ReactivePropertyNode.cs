@@ -103,7 +103,7 @@ namespace FluxFramework.VisualScripting.Nodes
         
         private void GetPropertyValue(string propertyKey, Dictionary<string, object> outputs)
         {
-            var property = Flux.Manager.GetProperty(propertyKey);
+            var property = Flux.Manager.Properties.GetProperty(propertyKey);
             if (property != null)
             {
                 SetOutputValue(outputs, "value", property.GetValue());
@@ -185,7 +185,7 @@ namespace FluxFramework.VisualScripting.Nodes
         
         private void CheckPropertyExists(string propertyKey, Dictionary<string, object> outputs)
         {
-            bool exists = Flux.Manager.HasProperty(propertyKey);
+            bool exists = Flux.Manager.Properties.HasProperty(propertyKey);
             SetOutputValue(outputs, "exists", exists);
         }
         
@@ -199,12 +199,12 @@ namespace FluxFramework.VisualScripting.Nodes
         {
             return _propertyType switch
             {
-                ReactivePropertyType.Int => Flux.Manager.GetOrCreateProperty<int>(key),
-                ReactivePropertyType.Float => Flux.Manager.GetOrCreateProperty<float>(key),
-                ReactivePropertyType.Bool => Flux.Manager.GetOrCreateProperty<bool>(key),
-                ReactivePropertyType.String => Flux.Manager.GetOrCreateProperty<string>(key),
-                ReactivePropertyType.Vector3 => Flux.Manager.GetOrCreateProperty<Vector3>(key),
-                ReactivePropertyType.Color => Flux.Manager.GetOrCreateProperty<Color>(key),
+                ReactivePropertyType.Int => Flux.Manager.Properties.GetOrCreateProperty<int>(key),
+                ReactivePropertyType.Float => Flux.Manager.Properties.GetOrCreateProperty<float>(key),
+                ReactivePropertyType.Bool => Flux.Manager.Properties.GetOrCreateProperty<bool>(key),
+                ReactivePropertyType.String => Flux.Manager.Properties.GetOrCreateProperty<string>(key),
+                ReactivePropertyType.Vector3 => Flux.Manager.Properties.GetOrCreateProperty<Vector3>(key),
+                ReactivePropertyType.Color => Flux.Manager.Properties.GetOrCreateProperty<Color>(key),
                 _ => null
             };
         }

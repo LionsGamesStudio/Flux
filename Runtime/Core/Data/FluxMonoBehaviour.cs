@@ -32,7 +32,7 @@ namespace FluxFramework.Core
             }
             else
             {
-                FluxManager.OnFrameworkInitialized += FrameworkInitializeOnce;
+                Flux.OnFrameworkInitialized += FrameworkInitializeOnce;
             }
         }
 
@@ -52,7 +52,7 @@ namespace FluxFramework.Core
         /// </summary>
         protected void OnDestroy()
         {
-            FluxManager.OnFrameworkInitialized -= FrameworkInitializeOnce;
+            Flux.OnFrameworkInitialized -= FrameworkInitializeOnce;
 
             if (_isFrameworkInitialized)
             {
@@ -66,7 +66,7 @@ namespace FluxFramework.Core
 
         private void FrameworkInitializeOnce()
         {
-            FluxManager.OnFrameworkInitialized -= FrameworkInitializeOnce;
+            Flux.OnFrameworkInitialized -= FrameworkInitializeOnce;
             FrameworkInitialize();
         }
 
@@ -119,7 +119,7 @@ namespace FluxFramework.Core
         /// <param name="newValue"></param>
         protected void UpdateReactiveProperty<T>(string propertyKey, T newValue)
         {
-            var property = Flux.Manager.GetProperty<T>(propertyKey);
+            var property = Flux.Manager.Properties.GetProperty<T>(propertyKey);
             if (property != null)
             {
                 // This will trigger validation. The property's value will either update or stay the same.
@@ -145,7 +145,7 @@ namespace FluxFramework.Core
         /// </example>
         protected void UpdateReactiveProperty<T>(string propertyKey, Func<T, T> updateFunction)
         {
-            var property = Flux.Manager.GetProperty<T>(propertyKey);
+            var property = Flux.Manager.Properties.GetProperty<T>(propertyKey);
             if (property != null)
             {
                 // This performs the safe "read -> modify -> write" cycle.
@@ -172,19 +172,19 @@ namespace FluxFramework.Core
 
         protected T GetReactivePropertyValue<T>(string propertyKey)
         {
-            var property = Flux.Manager.GetProperty<T>(propertyKey);
+            var property = Flux.Manager.Properties.GetProperty<T>(propertyKey);
             return property != null ? property.Value : default(T);
         }
 
         protected IDisposable SubscribeToProperty<T>(string propertyKey, Action<T> onChanged, bool fireOnSubscribe = false)
         {
-            var property = Flux.Manager.GetProperty<T>(propertyKey);
+            var property = Flux.Manager.Properties.GetProperty<T>(propertyKey);
             return property?.Subscribe(onChanged, fireOnSubscribe);
         }
 
         protected IDisposable SubscribeToProperty<T>(string propertyKey, Action<T, T> onChanged, bool fireOnSubscribe = false)
         {
-            var property = Flux.Manager.GetProperty<T>(propertyKey);
+            var property = Flux.Manager.Properties.GetProperty<T>(propertyKey);
             return property?.Subscribe(onChanged, fireOnSubscribe);
         }
 

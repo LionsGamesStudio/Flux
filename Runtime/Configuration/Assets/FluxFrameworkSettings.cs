@@ -73,7 +73,7 @@ namespace FluxFramework.Configuration
         /// Applies the settings from this asset to the live framework systems.
         /// This is where the configuration becomes active.
         /// </summary>
-        public override void ApplyConfiguration(FluxManager manager)
+        public override void ApplyConfiguration(IFluxManager manager)
         {
             if (!ValidateConfiguration()) return;
 
@@ -89,7 +89,7 @@ namespace FluxFramework.Configuration
             // This assumes your FluxThreadManager is a singleton or has static settings.
             // Example:
             // if (Flux.Manager != null) {
-            //     Flux.Threading.SetMaxActionsPerFrame(this.maxMainThreadActionsPerFrame);
+            //     Flux.Manager.Threading.SetMaxActionsPerFrame(this.maxMainThreadActionsPerFrame);
             // }
 
             // 3. Apply other configurations...

@@ -58,18 +58,18 @@ namespace FluxFramework.VR
             _handIdentifier = node == XRNode.LeftHand ? "left" : "right";
             
             // Programmatically create or get the reactive properties with dynamic keys.
-            _positionProp = Flux.Manager.GetOrCreateProperty<Vector3>($"vr.controller.{_handIdentifier}.position");
-            _rotationProp = Flux.Manager.GetOrCreateProperty<Quaternion>($"vr.controller.{_handIdentifier}.rotation");
-            _velocityProp = Flux.Manager.GetOrCreateProperty<Vector3>($"vr.controller.{_handIdentifier}.velocity");
-            _angularVelocityProp = Flux.Manager.GetOrCreateProperty<Vector3>($"vr.controller.{_handIdentifier}.angularVelocity");
-            _isTrackedProp = Flux.Manager.GetOrCreateProperty<bool>($"vr.controller.{_handIdentifier}.isTracked");
-            _triggerValueProp = Flux.Manager.GetOrCreateProperty<float>($"vr.controller.{_handIdentifier}.trigger");
-            _gripValueProp = Flux.Manager.GetOrCreateProperty<float>($"vr.controller.{_handIdentifier}.grip");
-            _primaryButtonPressedProp = Flux.Manager.GetOrCreateProperty<bool>($"vr.controller.{_handIdentifier}.primaryButton");
-            _secondaryButtonPressedProp = Flux.Manager.GetOrCreateProperty<bool>($"vr.controller.{_handIdentifier}.secondaryButton");
-            _thumbstickValueProp = Flux.Manager.GetOrCreateProperty<Vector2>($"vr.controller.{_handIdentifier}.thumbstick");
-            _thumbstickPressedProp = Flux.Manager.GetOrCreateProperty<bool>($"vr.controller.{_handIdentifier}.thumbstickClick");
-            _menuButtonPressedProp = Flux.Manager.GetOrCreateProperty<bool>($"vr.controller.{_handIdentifier}.menuButton");
+            _positionProp = Flux.Manager.Properties.GetOrCreateProperty<Vector3>($"vr.controller.{_handIdentifier}.position");
+            _rotationProp = Flux.Manager.Properties.GetOrCreateProperty<Quaternion>($"vr.controller.{_handIdentifier}.rotation");
+            _velocityProp = Flux.Manager.Properties.GetOrCreateProperty<Vector3>($"vr.controller.{_handIdentifier}.velocity");
+            _angularVelocityProp = Flux.Manager.Properties.GetOrCreateProperty<Vector3>($"vr.controller.{_handIdentifier}.angularVelocity");
+            _isTrackedProp = Flux.Manager.Properties.GetOrCreateProperty<bool>($"vr.controller.{_handIdentifier}.isTracked");
+            _triggerValueProp = Flux.Manager.Properties.GetOrCreateProperty<float>($"vr.controller.{_handIdentifier}.trigger");
+            _gripValueProp = Flux.Manager.Properties.GetOrCreateProperty<float>($"vr.controller.{_handIdentifier}.grip");
+            _primaryButtonPressedProp = Flux.Manager.Properties.GetOrCreateProperty<bool>($"vr.controller.{_handIdentifier}.primaryButton");
+            _secondaryButtonPressedProp = Flux.Manager.Properties.GetOrCreateProperty<bool>($"vr.controller.{_handIdentifier}.secondaryButton");
+            _thumbstickValueProp = Flux.Manager.Properties.GetOrCreateProperty<Vector2>($"vr.controller.{_handIdentifier}.thumbstick");
+            _thumbstickPressedProp = Flux.Manager.Properties.GetOrCreateProperty<bool>($"vr.controller.{_handIdentifier}.thumbstickClick");
+            _menuButtonPressedProp = Flux.Manager.Properties.GetOrCreateProperty<bool>($"vr.controller.{_handIdentifier}.menuButton");
 
             Debug.Log($"[FluxFramework] FluxVRController initialized for {_handIdentifier} hand.", this);
         }

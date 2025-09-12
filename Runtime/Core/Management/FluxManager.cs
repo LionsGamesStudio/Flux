@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
@@ -50,11 +51,6 @@ namespace FluxFramework.Core
         }
 
         /// <summary>
-        /// Event raised when the framework is fully initialized
-        /// </summary>
-        public static event Action OnFrameworkInitialized;
-
-        /// <summary>
         /// Property manager for reactive properties
         /// </summary>
         public IFluxPropertyManager Properties => _propertyManager;
@@ -62,7 +58,7 @@ namespace FluxFramework.Core
         /// <summary>
         /// Thread manager for main thread operations
         /// </summary>
-        public FluxThreadManager Threading => _threadManager;
+        public IFluxThreadManager Threading => _threadManager;
 
         public FluxManager()
         {
@@ -92,11 +88,6 @@ namespace FluxFramework.Core
         {
             if (_isInitialized) return;
 
-            // Initialize hub for access to services
-            Flux.Manager = this;
-            Flux.Properties = _propertyManager;
-            Flux.Threading = _threadManager;
-
             // Initialize configuration system first
             FluxConfigurationManager.Initialize();
             FluxConfigurationManager.ApplyAllConfigurations();
@@ -118,7 +109,7 @@ namespace FluxFramework.Core
             _isInitialized = true;
 
             Debug.Log("[FluxFramework] Framework initialized successfully");
-            OnFrameworkInitialized?.Invoke();
+            Flux.InvokeOnFrameworkInitialized();
 
             // Auto-register all existing FluxComponents in the scene
             FluxComponentRegistry.RegisterAllComponentsInScene();
@@ -129,94 +120,8 @@ namespace FluxFramework.Core
             _threadManager.ProcessMainThreadActions();
         }
 
-        /// <summary>
-        /// Executes an action on the main thread in a thread-safe manner
-        /// </summary>
-        /// <param name="action">Action to execute on main thread</param>
-        public void ExecuteOnMainThread(Action action)
-        {
-            _threadManager.ExecuteOnMainThread(action);
-        }
-
-        /// <summary>
-        /// Registers a reactive property with the framework, specifying if it should persist across scenes.
-        /// </summary>
-        public void RegisterProperty(string key, IReactiveProperty property, bool isPersistent)
-        {
-            _propertyManager.RegisterProperty(key, property, isPersistent);
-        }
-
-        /// <summary>
-        /// Registers a reactive property with the framework
-        /// </summary>
-        /// <param name="key">Unique key for the property</param>
-        /// <param name="property">Reactive property instance</param>
-        public void RegisterProperty(string key, IReactiveProperty property)
-        {
-            _propertyManager.RegisterProperty(key, property, false);
-        }
-
-        /// <summary>
-        /// Gets a reactive property by key
-        /// </summary>
-        /// <typeparam name="T">Type of the property value</typeparam>
-        /// <param name="key">Property key</param>
-        /// <returns>Reactive property or null if not found</returns>
-        public ReactiveProperty<T> GetProperty<T>(string key)
-        {
-            return _propertyManager.GetProperty<T>(key);
-        }
-
-        /// <summary>
-        /// Gets or creates a reactive property
-        /// </summary>
-        /// <typeparam name="T">Type of the property value</typeparam>
-        /// <param name="key">Property key</param>
-        /// <param name="defaultValue">Default value if property doesn't exist</param>
-        /// <returns>Reactive property</returns>
-        public ReactiveProperty<T> GetOrCreateProperty<T>(string key, T defaultValue = default)
-        {
-            return _propertyManager.GetOrCreateProperty(key, defaultValue);
-        }
-
-        /// <summary>
-        /// Gets a reactive property by key (non-generic version)
-        /// </summary>
-        /// <param name="key">Property key</param>
-        /// <returns>Reactive property or null if not found</returns>
-        public IReactiveProperty GetProperty(string key)
-        {
-            return _propertyManager.GetProperty(key);
-        }
-
-        /// <summary>
-        /// Unregisters a reactive property
-        /// </summary>
-        /// <param name="key">Property key</param>
-        /// <returns>True if property was removed, false if not found</returns>
-        public bool UnregisterProperty(string key)
-        {
-            return _propertyManager.UnregisterProperty(key);
-        }
-
-        /// <summary>
-        /// Checks if a property exists
-        /// </summary>
-        /// <param name="key">Property key</param>
-        /// <returns>True if property exists</returns>
-        public bool HasProperty(string key)
-        {
-            return _propertyManager.HasProperty(key);
-        }
-
-        /// <summary>
-        /// Gets all registered property keys
-        /// </summary>
-        /// <returns>Collection of property keys</returns>
-        public IEnumerable<string> GetAllPropertyKeys()
-        {
-            return _propertyManager.GetAllPropertyKeys();
-        }
+        public Coroutine StartCoroutine(IEnumerator routine) => base.StartCoroutine(routine);
+        public void StopCoroutine(Coroutine routine) => base.StopCoroutine(routine);
 
         private void OnDestroy()
         {

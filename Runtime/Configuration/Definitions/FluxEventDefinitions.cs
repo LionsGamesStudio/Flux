@@ -47,7 +47,7 @@ namespace FluxFramework.Configuration
             return true;
         }
 
-        public override void ApplyConfiguration(FluxManager manager)
+        public override void ApplyConfiguration(IFluxManager manager)
         {
             if (!ValidateConfiguration()) return;
 

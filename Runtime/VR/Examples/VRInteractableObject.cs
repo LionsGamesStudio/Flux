@@ -51,9 +51,9 @@ namespace FluxFramework.VR.Examples
             // --- Reactive Property Initialization ---
             // Using a unique key for each object is important. Here we use the instance ID.
             string objectKeyName = $"{gameObject.name}_{GetInstanceID()}";
-            _isGrabbedProp = Flux.Manager.GetOrCreateProperty<bool>($"vr.object.{objectKeyName}.isGrabbed");
-            _isHoveredProp = Flux.Manager.GetOrCreateProperty<bool>($"vr.object.{objectKeyName}.isHovered");
-            _grabbingControllerProp = Flux.Manager.GetOrCreateProperty<string>($"vr.object.{objectKeyName}.grabbingController");
+            _isGrabbedProp = Flux.Manager.Properties.GetOrCreateProperty<bool>($"vr.object.{objectKeyName}.isGrabbed");
+            _isHoveredProp = Flux.Manager.Properties.GetOrCreateProperty<bool>($"vr.object.{objectKeyName}.isHovered");
+            _grabbingControllerProp = Flux.Manager.Properties.GetOrCreateProperty<string>($"vr.object.{objectKeyName}.grabbingController");
         }
         
         protected virtual void Start()

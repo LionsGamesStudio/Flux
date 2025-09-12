@@ -112,7 +112,7 @@ namespace FluxFramework.Configuration
             }
 
             // Ensure we have a valid FluxManager instance to pass down.
-            var manager = Flux.Manager;
+            var manager = Flux.Manager as FluxManager;
             if (manager == null)
             {
                 Debug.LogError("[FluxFramework] Cannot apply configurations because Flux.Manager is null.");

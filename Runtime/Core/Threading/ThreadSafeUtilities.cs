@@ -28,7 +28,7 @@ namespace FluxFramework.Threading
         /// <param name="action">Action to execute</param>
         public static void ExecuteOnMainThread(Action action)
         {
-            Flux.Threading.ExecuteOnMainThread(action);
+            Flux.Manager.Threading.ExecuteOnMainThread(action);
         }
 
         /// <summary>
@@ -48,7 +48,7 @@ namespace FluxFramework.Threading
             var completed = false;
             var resetEvent = new ManualResetEventSlim(false);
 
-            Flux.Threading.ExecuteOnMainThread(() =>
+            Flux.Manager.Threading.ExecuteOnMainThread(() =>
             {
                 try
                 {
@@ -81,7 +81,7 @@ namespace FluxFramework.Threading
             var result = default(T);
             var resetEvent = new ManualResetEventSlim(false);
 
-            Flux.Threading.ExecuteOnMainThread(() =>
+            Flux.Manager.Threading.ExecuteOnMainThread(() =>
             {
                 try
                 {

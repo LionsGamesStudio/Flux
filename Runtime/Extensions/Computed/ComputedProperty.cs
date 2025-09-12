@@ -193,9 +193,9 @@ namespace FluxFramework.Extensions
 
             // Notification logic can be simplified as it's not expected to run off the main thread,
             // but we add the check for robustness.
-            if (Flux.Manager != null && !FluxThreadManager.IsMainThread())
+            if (Flux.Manager != null && !Flux.Manager.Threading.IsMainThread())
             {
-                Flux.Threading.ExecuteOnMainThread(() =>
+                Flux.Manager.Threading.ExecuteOnMainThread(() =>
                 {
                     foreach (var subscriber in genericSubscribersCopy) subscriber.Invoke(newValue);
                     foreach (var subscriber in objectSubscribersCopy) subscriber.Invoke(newValue);

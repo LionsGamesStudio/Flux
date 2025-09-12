@@ -8,7 +8,7 @@ namespace FluxFramework.Core
     /// <summary>
     /// Manages thread-safe operations for the Flux Framework
     /// </summary>
-    public class FluxThreadManager
+    public class FluxThreadManager : IFluxThreadManager
     {
         private readonly ConcurrentQueue<Action> _mainThreadActions = new();
         private SynchronizationContext _mainThreadContext;
@@ -64,7 +64,7 @@ namespace FluxFramework.Core
         /// Checks if the current thread is the main thread
         /// </summary>
         /// <returns>True if on main thread</returns>
-        public static bool IsMainThread()
+        public bool IsMainThread()
         {
             return Thread.CurrentThread.ManagedThreadId == 1;
         }

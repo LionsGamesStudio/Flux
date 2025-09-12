@@ -45,9 +45,9 @@ namespace FluxFramework.VR.UI
             
             // Init reactive properties with dynamic key
             string hand = _controller.ControllerNode == XRNode.LeftHand ? "left" : "right";
-            _isInteractingProp = Flux.Manager.GetOrCreateProperty<bool>($"vr.interactor.{hand}.isInteracting");
-            _hitDistanceProp = Flux.Manager.GetOrCreateProperty<float>($"vr.interactor.{hand}.hitDistance");
-            _currentElementProp = Flux.Manager.GetOrCreateProperty<string>($"vr.interactor.{hand}.currentElement");
+            _isInteractingProp = Flux.Manager.Properties.GetOrCreateProperty<bool>($"vr.interactor.{hand}.isInteracting");
+            _hitDistanceProp = Flux.Manager.Properties.GetOrCreateProperty<float>($"vr.interactor.{hand}.hitDistance");
+            _currentElementProp = Flux.Manager.Properties.GetOrCreateProperty<string>($"vr.interactor.{hand}.currentElement");
         }
 
         protected virtual void Update()

@@ -35,11 +35,11 @@ namespace FluxFramework.VR
         {
             base.Awake();
             
-            _hmdPositionProp = Flux.Manager.GetOrCreateProperty<Vector3>("vr.hmd.position");
-            _hmdRotationProp = Flux.Manager.GetOrCreateProperty<Quaternion>("vr.hmd.rotation");
-            _hmdIsTrackedProp = Flux.Manager.GetOrCreateProperty<bool>("vr.hmd.isTracked");
-            _playAreaBoundsProp = Flux.Manager.GetOrCreateProperty<Bounds>("vr.playarea.bounds");
-            _activeControllerCountProp = Flux.Manager.GetOrCreateProperty<int>("vr.controllers.count");
+            _hmdPositionProp = Flux.Manager.Properties.GetOrCreateProperty<Vector3>("vr.hmd.position");
+            _hmdRotationProp = Flux.Manager.Properties.GetOrCreateProperty<Quaternion>("vr.hmd.rotation");
+            _hmdIsTrackedProp = Flux.Manager.Properties.GetOrCreateProperty<bool>("vr.hmd.isTracked");
+            _playAreaBoundsProp = Flux.Manager.Properties.GetOrCreateProperty<Bounds>("vr.playarea.bounds");
+            _activeControllerCountProp = Flux.Manager.Properties.GetOrCreateProperty<int>("vr.controllers.count");
         }
 
         protected virtual void Start()

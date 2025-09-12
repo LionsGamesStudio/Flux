@@ -58,8 +58,8 @@ namespace FluxFramework.VR.UI
             _originalScale = transform.localScale;
             
             string buttonKey = $"{gameObject.name}_{GetInstanceID()}";
-            _isPressedProp = Flux.Manager.GetOrCreateProperty<bool>($"vr.button.{buttonKey}.isPressed");
-            _isHoveredProp = Flux.Manager.GetOrCreateProperty<bool>($"vr.button.{buttonKey}.isHovered");
+            _isPressedProp = Flux.Manager.Properties.GetOrCreateProperty<bool>($"vr.button.{buttonKey}.isPressed");
+            _isHoveredProp = Flux.Manager.Properties.GetOrCreateProperty<bool>($"vr.button.{buttonKey}.isHovered");
 
             if(_buttonImage != null) _buttonImage.color = normalColor;
 
