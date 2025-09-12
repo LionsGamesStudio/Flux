@@ -171,49 +171,58 @@ namespace FluxFramework.Core
             {
                 var parameters = method.GetParameters();
                 
-                // Validate the method signature
                 if (parameters.Length > 2)
                 {
                     Debug.LogError($"[FluxFramework] Method '{method.Name}' on '{component.GetType().Name}' has too many parameters for a [FluxPropertyChangeHandler]. It can have 0, 1 (newValue), or 2 (oldValue, newValue) parameters.", component);
                     return null;
                 }
 
-                // We use SubscribeDeferred. It will either run immediately or wait for the property to be created.
                 return FluxManager.Instance.Properties.SubscribeDeferred(attribute.PropertyKey, (property) =>
                 {
-                    // This code block is executed once the property is available.
                     try
                     {
-                        Type delegateType;
-                        Delegate handlerDelegate;
-
+                        var subscriptionManager = component.GetComponent<ComponentSubscriptionManager>() ?? component.gameObject.AddComponent<ComponentSubscriptionManager>();
+                        IDisposable subscription = null;
+                        
                         if (parameters.Length == 2) // Signature: OnChange(T oldValue, T newValue)
                         {
-                            var subscribeMethod = property.GetType().GetMethod("Subscribe", new[] { typeof(Action<,>).MakeGenericType(property.ValueType, property.ValueType) });
-                            delegateType = typeof(Action<,>).MakeGenericType(property.ValueType, property.ValueType);
-                            handlerDelegate = Delegate.CreateDelegate(delegateType, component, method);
-                            var subscription = (IDisposable)subscribeMethod.Invoke(property, new object[] { handlerDelegate });
-                            
-                            // Add this final subscription to the component's cleanup manager.
-                            var subscriptionManager = component.GetComponent<ComponentSubscriptionManager>() ?? component.gameObject.AddComponent<ComponentSubscriptionManager>();
-                            subscriptionManager.Add(subscription);
+                            // Correctly search for the method with TWO parameters: Action<T, T> and bool
+                            var actionType = typeof(Action<,>).MakeGenericType(property.ValueType, property.ValueType);
+                            var subscribeMethod = property.GetType().GetMethod("Subscribe", new[] { actionType, typeof(bool) });
+
+                            if (subscribeMethod != null)
+                            {
+                                var handlerDelegate = Delegate.CreateDelegate(actionType, component, method);
+                                // Invoke with TWO arguments: the delegate and the 'fireOnSubscribe' boolean
+                                subscription = (IDisposable)subscribeMethod.Invoke(property, new object[] { handlerDelegate, true });
+                            }
                         }
                         else if (parameters.Length == 1) // Signature: OnChange(T newValue)
                         {
-                            var subscribeMethod = property.GetType().GetMethod("Subscribe", new[] { typeof(Action<>).MakeGenericType(property.ValueType) });
-                            delegateType = typeof(Action<>).MakeGenericType(property.ValueType);
-                            handlerDelegate = Delegate.CreateDelegate(delegateType, component, method);
-                            var subscription = (IDisposable)subscribeMethod.Invoke(property, new object[] { handlerDelegate });
-                            
-                            var subscriptionManager = component.GetComponent<ComponentSubscriptionManager>() ?? component.gameObject.AddComponent<ComponentSubscriptionManager>();
-                            subscriptionManager.Add(subscription);
+                            // Correctly search for the method with TWO parameters: Action<T> and bool
+                            var actionType = typeof(Action<>).MakeGenericType(property.ValueType);
+                            var subscribeMethod = property.GetType().GetMethod("Subscribe", new[] { actionType, typeof(bool) });
+
+                            if (subscribeMethod != null)
+                            {
+                                var handlerDelegate = Delegate.CreateDelegate(actionType, component, method);
+                                // Invoke with TWO arguments: the delegate and the 'fireOnSubscribe' boolean
+                                subscription = (IDisposable)subscribeMethod.Invoke(property, new object[] { handlerDelegate, true });
+                            }
                         }
                         else // Signature: OnChange()
                         {
-                            var subscription = property.Subscribe(_ => method.Invoke(component, null));
-                            
-                            var subscriptionManager = component.GetComponent<ComponentSubscriptionManager>() ?? component.gameObject.AddComponent<ComponentSubscriptionManager>();
+                            // This one is simpler as it uses the non-generic Subscribe(Action<object>)
+                            subscription = property.Subscribe(_ => method.Invoke(component, null), true);
+                        }
+
+                        if (subscription != null)
+                        {
                             subscriptionManager.Add(subscription);
+                        }
+                        else
+                        {
+                            Debug.LogError($"[FluxFramework] Could not find a suitable 'Subscribe' method on property '{attribute.PropertyKey}' for handler '{method.Name}'. Check for API changes in ReactiveProperty.", component);
                         }
                     }
                     catch (Exception ex)

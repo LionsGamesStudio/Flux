@@ -15,6 +15,12 @@ namespace FluxFramework.Core
         private static bool _isInitialized = false;
 
         /// <summary>
+        /// A global event that is fired whenever any event is published.
+        /// This is primarily intended for debugging and monitoring tools.
+        /// </summary>
+        public static event Action<IFluxEvent> OnEventPublished;
+
+        /// <summary>
         /// Initializes the event bus
         /// </summary>
         public static void Initialize()
@@ -117,6 +123,18 @@ namespace FluxFramework.Core
         /// <param name="eventArgs">Event data</param>
         public static void Publish<T>(T eventArgs) where T : IFluxEvent
         {
+            // Fire the global monitoring event first.
+            // We do this outside of the main thread execution to ensure the monitor
+            // receives the event immediately, even if the handlers are delayed.
+            try
+            {
+                OnEventPublished?.Invoke(eventArgs);
+            }
+            catch (Exception e)
+            {
+                UnityEngine.Debug.LogError($"[FluxFramework] Error in a global event monitor: {e}");
+            }
+
             var eventType = typeof(T);
             if (_subscribers.TryGetValue(eventType, out var subscribers))
             {
