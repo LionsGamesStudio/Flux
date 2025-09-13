@@ -5,10 +5,15 @@ using UnityEngine;
 using FluxFramework.VisualScripting.Execution;
 using FluxFramework.Attributes;
 
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
 namespace FluxFramework.VisualScripting.Graphs
 {
     /// <summary>
-    /// Represents a visual scripting graph containing nodes and connections
+    /// Represents a visual scripting graph asset containing nodes and connections.
+    /// This is the central data model for a visual script.
     /// </summary>
     [CreateAssetMenu(fileName = "FluxVisualGraph", menuName = "Flux/Visual Scripting/Graph")]
     public class FluxVisualGraph : ScriptableObject
@@ -18,52 +23,23 @@ namespace FluxFramework.VisualScripting.Graphs
         [SerializeField] private string _description = "";
         [SerializeField] private bool _autoExecuteOnStart = false;
 
-        /// <summary>
-        /// All nodes in this graph
-        /// </summary>
+        /// <summary> A read-only list of all nodes in this graph. </summary>
         public IReadOnlyList<FluxNodeBase> Nodes => _nodes.AsReadOnly();
-
-        /// <summary>
-        /// All connections in this graph
-        /// </summary>
+        /// <summary> A read-only list of all connections in this graph. </summary>
         public IReadOnlyList<FluxNodeConnection> Connections => _connections.AsReadOnly();
+        /// <summary> A user-defined description of what this graph does. </summary>
+        public string Description { get => _description; set => _description = value; }
+        /// <summary> If true, a runner will automatically execute this graph on Start. </summary>
+        public bool AutoExecuteOnStart { get => _autoExecuteOnStart; set => _autoExecuteOnStart = value; }
 
-        /// <summary>
-        /// Description of this graph
-        /// </summary>
-        public string Description 
-        { 
-            get => _description; 
-            set => _description = value; 
-        }
-
-        /// <summary>
-        /// Whether to automatically execute this graph on start
-        /// </summary>
-        public bool AutoExecuteOnStart 
-        { 
-            get => _autoExecuteOnStart; 
-            set => _autoExecuteOnStart = value; 
-        }
-
-        /// <summary>
-        /// Event raised when the graph execution starts
-        /// </summary>
+        /// <summary> Event fired when the graph execution starts. </summary>
         public event Action<FluxVisualGraph> OnExecutionStarted;
-
-        /// <summary>
-        /// Event raised when the graph execution completes
-        /// </summary>
+        /// <summary> Event fired when the graph execution completes. </summary>
         public event Action<FluxVisualGraph> OnExecutionCompleted;
-
-        /// <summary>
-        /// Event raised when a node is executed
-        /// </summary>
+        /// <summary> Event fired when a node is executed. </summary>
         public event Action<FluxNodeBase> OnNodeExecuted;
 
-        /// <summary>
-        /// Add a node to the graph
-        /// </summary>
+        /// <summary> Adds a node to the graph's internal list. </summary>
         public void AddNode(FluxNodeBase node)
         {
             if (node != null && !_nodes.Contains(node))
@@ -73,290 +49,153 @@ namespace FluxFramework.VisualScripting.Graphs
             }
         }
 
-        /// <summary>
-        /// Remove a node from the graph
-        /// </summary>
+        /// <summary> Removes a node and all of its connections from the graph. </summary>
         public void RemoveNode(FluxNodeBase node)
         {
             if (node != null && _nodes.Contains(node))
             {
-                // Remove all connections involving this node
                 _connections.RemoveAll(c => c.FromNode == node || c.ToNode == node);
-                
                 _nodes.Remove(node);
                 node.OnExecuted -= HandleNodeExecuted;
+                
+                #if UNITY_EDITOR
+                if (AssetDatabase.IsSubAsset(node))
+                {
+                    AssetDatabase.RemoveObjectFromAsset(node);
+                }
+                #endif
             }
         }
 
-        /// <summary>
-        /// Create a connection between two nodes
-        /// </summary>
-        public bool CreateConnection(FluxNodeBase fromNode, string fromPort, FluxNodeBase toNode, string toPort)
+        /// <summary> Sets the editor position of a node. Called by the GraphView. </summary>
+        public void SetNodePosition(FluxNodeBase node, Vector2 newPosition)
+        {
+            if (node != null && _nodes.Contains(node))
+            {
+                node.Position = newPosition;
+            }
+        }
+
+        /// <summary> Duplicates a node, adds it to this graph asset, and registers it. Used by the paste logic. </summary>
+        public FluxNodeBase DuplicateNode(FluxNodeBase original)
+        {
+            if (original == null) return null;
+            var clone = original.Clone();
+            
+            #if UNITY_EDITOR
+            AssetDatabase.AddObjectToAsset(clone, this);
+            #endif
+
+            AddNode(clone);
+            return clone;
+        }
+
+        /// <summary> Creates a connection between two nodes using their internal port names. </summary>
+        public bool CreateConnection(FluxNodeBase fromNode, string fromPortName, FluxNodeBase toNode, string toPortName)
         {
             if (fromNode == null || toNode == null) return false;
-            if (!_nodes.Contains(fromNode) || !_nodes.Contains(toNode)) return false;
 
-            var fromPortObj = fromNode.OutputPorts.FirstOrDefault(p => p.DisplayName == fromPort);
-            var toPortObj = toNode.InputPorts.FirstOrDefault(p => p.DisplayName == toPort);
+            var fromPortObj = fromNode.OutputPorts.FirstOrDefault(p => p.Name == fromPortName);
+            var toPortObj = toNode.InputPorts.FirstOrDefault(p => p.Name == toPortName);
 
-            if (fromPortObj == null || toPortObj == null) return false;
-            if (!fromPortObj.CanConnectTo(toPortObj)) return false;
+            if (fromPortObj == null || toPortObj == null || !fromPortObj.CanConnectTo(toPortObj)) return false;
 
-            // Remove existing connection to the input port
-            _connections.RemoveAll(c => c.ToNode == toNode && c.ToPort == toPort);
+            _connections.RemoveAll(c => c.ToNode == toNode && c.ToPort == toPortName);
 
-            // Create new connection
-            var connection = new FluxNodeConnection(fromNode, fromPort, toNode, toPort);
+            var connection = new FluxNodeConnection(fromNode, fromPortName, toNode, toPortName);
             _connections.Add(connection);
-
-            // Update port connection status
-            fromPortObj.IsConnected = true;
-            fromPortObj.ConnectedPort = toPortObj;
-            toPortObj.IsConnected = true;
-            toPortObj.ConnectedPort = fromPortObj;
-
             return true;
         }
+        
+        /// <summary> Gets all connections that provide input to a specific node. </summary>
+        public IEnumerable<FluxNodeConnection> GetInputConnections(FluxNodeBase node) => _connections.Where(c => c.ToNode == node);
+        /// <summary> Gets all connections that come from outputs of a specific node. </summary>
+        public IEnumerable<FluxNodeConnection> GetOutputConnections(FluxNodeBase node) => _connections.Where(c => c.FromNode == node);
+        /// <summary> Gets the connection for a specific input port of a node. </summary>
+        public FluxNodeConnection GetInputConnection(FluxNodeBase node, string portName) => _connections.FirstOrDefault(c => c.ToNode == node && c.ToPort == portName);
+        /// <summary> Gets all connections from a specific output port of a node. </summary>
+        public IEnumerable<FluxNodeConnection> GetOutputConnections(FluxNodeBase node, string portName) => _connections.Where(c => c.FromNode == node && c.FromPort == portName);
 
-        /// <summary>
-        /// Get all connections that provide input to a specific node
-        /// </summary>
-        public IEnumerable<FluxNodeConnection> GetInputConnections(FluxNodeBase node)
-        {
-            return _connections.Where(c => c.ToNode == node);
-        }
-
-        /// <summary>
-        /// Get all connections that come from outputs of a specific node
-        /// </summary>
-        public IEnumerable<FluxNodeConnection> GetOutputConnections(FluxNodeBase node)
-        {
-            return _connections.Where(c => c.FromNode == node);
-        }
-
-        /// <summary>
-        /// Get the connection for a specific input port of a node
-        /// </summary>
-        public FluxNodeConnection GetInputConnection(FluxNodeBase node, string portName)
-        {
-            return _connections.FirstOrDefault(c => c.ToNode == node && c.ToPort == portName);
-        }
-
-        /// <summary>
-        /// Get all connections from a specific output port of a node
-        /// </summary>
-        public IEnumerable<FluxNodeConnection> GetOutputConnections(FluxNodeBase node, string portName)
-        {
-            return _connections.Where(c => c.FromNode == node && c.FromPort == portName);
-        }
-
-        /// <summary>
-        /// Remove a connection
-        /// </summary>
+        /// <summary> Removes a specific connection instance from the graph. </summary>
         public void RemoveConnection(FluxNodeConnection connection)
         {
-            if (_connections.Remove(connection))
+            if (connection != null)
             {
-                // Update port connection status
-                var fromPort = connection.FromNode.OutputPorts.FirstOrDefault(p => p.DisplayName == connection.FromPort);
-                var toPort = connection.ToNode.InputPorts.FirstOrDefault(p => p.DisplayName == connection.ToPort);
-
-                if (fromPort != null)
-                {
-                    fromPort.IsConnected = false;
-                    fromPort.ConnectedPort = null;
-                }
-
-                if (toPort != null)
-                {
-                    toPort.IsConnected = false;
-                    toPort.ConnectedPort = null;
-                }
+                _connections.Remove(connection);
             }
         }
+        
+        /// <summary> Overload to remove a connection by specifying its source and target nodes and internal port names. </summary>
+        public void RemoveConnection(FluxNodeBase fromNode, string fromPortName, FluxNodeBase toNode, string toPortName)
+        {
+            var connectionToRemove = _connections.FirstOrDefault(c =>
+                c.FromNode == fromNode && c.FromPort == fromPortName &&
+                c.ToNode == toNode && c.ToPort == toPortName);
+            
+            RemoveConnection(connectionToRemove);
+        }
 
-        /// <summary>
-        /// Update all port connection statuses based on current connections
-        /// </summary>
+        /// <summary> Updates all port connection statuses based on current connections. </summary>
         public void UpdateConnectionStatuses()
         {
-            // First, reset all ports to disconnected
-            foreach (var node in _nodes)
+            var allPorts = _nodes.SelectMany(n => n.InputPorts.Concat(n.OutputPorts));
+            foreach (var port in allPorts)
             {
-                foreach (var port in node.InputPorts)
-                {
-                    port.IsConnected = false;
-                    port.ConnectedPort = null;
-                }
-                foreach (var port in node.OutputPorts)
-                {
-                    port.IsConnected = false;
-                    port.ConnectedPort = null;
-                }
+                port.IsConnected = false;
+                port.ConnectedPort = null;
             }
-
-            // Then, set connected status based on actual connections
             foreach (var connection in _connections)
             {
-                var fromPort = connection.FromNode.OutputPorts.FirstOrDefault(p => p.DisplayName == connection.FromPort);
-                var toPort = connection.ToNode.InputPorts.FirstOrDefault(p => p.DisplayName == connection.ToPort);
+                var fromPort = connection.FromNode?.OutputPorts.FirstOrDefault(p => p.Name == connection.FromPort);
+                var toPort = connection.ToNode?.InputPorts.FirstOrDefault(p => p.Name == connection.ToPort);
 
                 if (fromPort != null && toPort != null)
                 {
-                    fromPort.IsConnected = true;
-                    fromPort.ConnectedPort = toPort;
-                    toPort.IsConnected = true;
-                    toPort.ConnectedPort = fromPort;
+                    fromPort.IsConnected = true; fromPort.ConnectedPort = toPort;
+                    toPort.IsConnected = true; toPort.ConnectedPort = fromPort;
                 }
             }
         }
 
-        /// <summary>
-        /// Validate the entire graph
-        /// </summary>
+        /// <summary> Validates the entire graph, checking for unconnected required ports. </summary>
         public bool Validate()
         {
-            // Update connection status before validation
             UpdateConnectionStatuses();
-
             bool isValid = true;
-            var invalidNodes = new List<string>();
-
             foreach (var node in _nodes)
             {
                 if (!node.Validate())
                 {
                     isValid = false;
-                    invalidNodes.Add($"{node.NodeName} ({node.GetType().Name})");
-                    Debug.LogWarning($"Node validation failed: {node.NodeName} - {node.GetType().Name}");
+                    Debug.LogWarning($"Node validation failed: '{node.NodeName}' requires one or more of its input ports to be connected.", node);
                 }
             }
-
             if (!isValid)
             {
-                Debug.LogError($"Graph validation failed. Invalid nodes: {string.Join(", ", invalidNodes)}");
+                Debug.LogError($"Graph validation failed for '{this.name}'. Check warnings for details.", this);
             }
-
             return isValid;
         }
+        
+        /// <summary> Finds all nodes of a specific type in the graph. </summary>
+        public List<T> FindNodes<T>() where T : FluxNodeBase => _nodes.OfType<T>().ToList();
 
-        /// <summary>
-        /// Update the connection status of all ports based on current connections
-        /// </summary>
-        private void UpdateConnectionStatus()
-        {
-            // Reset all connection status
-            foreach (var node in _nodes)
-            {
-                foreach (var port in node.InputPorts)
-                {
-                    port.IsConnected = false;
-                    port.ConnectedPort = null;
-                }
-                foreach (var port in node.OutputPorts)
-                {
-                    port.IsConnected = false;
-                    port.ConnectedPort = null;
-                }
-            }
+        /// <summary> Finds a node by its unique ID. </summary>
+        public FluxNodeBase FindNode(string nodeId) => _nodes.FirstOrDefault(n => n.NodeId == nodeId);
 
-            // Update based on current connections
-            foreach (var connection in _connections)
-            {
-                var fromPort = connection.FromNode.OutputPorts.FirstOrDefault(p => p.Name == connection.FromPort);
-                var toPort = connection.ToNode.InputPorts.FirstOrDefault(p => p.Name == connection.ToPort);
+        /// <summary> Gets all connections (input and output) for a specific node. </summary>
+        public List<FluxNodeConnection> GetNodeConnections(FluxNodeBase node) => _connections.Where(c => c.FromNode == node || c.ToNode == node).ToList();
+        
+        /// <summary> Gets all output connections for a specific node (alternative implementation). </summary>
+        public List<FluxNodeConnection> GetOutputConnectionsList(FluxNodeBase node) => _connections.Where(c => c.FromNode == node).ToList();
 
-                if (fromPort != null && toPort != null)
-                {
-                    fromPort.IsConnected = true;
-                    fromPort.ConnectedPort = toPort;
-                    toPort.IsConnected = true;
-                    toPort.ConnectedPort = fromPort;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Find all nodes of a specific type
-        /// </summary>
-        public List<T> FindNodes<T>() where T : FluxNodeBase
-        {
-            return _nodes.OfType<T>().ToList();
-        }
-
-        /// <summary>
-        /// Find a node by its ID
-        /// </summary>
-        public FluxNodeBase FindNode(string nodeId)
-        {
-            return _nodes.FirstOrDefault(n => n.NodeId == nodeId);
-        }
-
-        /// <summary>
-        /// Get all connections for a specific node
-        /// </summary>
-        public List<FluxNodeConnection> GetNodeConnections(FluxNodeBase node)
-        {
-            return _connections.Where(c => c.FromNode == node || c.ToNode == node).ToList();
-        }
-
-        /// <summary>
-        /// Get output connections for a specific node (alternative implementation)
-        /// </summary>
-        public List<FluxNodeConnection> GetOutputConnectionsList(FluxNodeBase node)
-        {
-            return _connections.Where(c => c.FromNode == node).ToList();
-        }
-
+        /// <summary> Internal handler to bubble up the OnNodeExecuted event. </summary>
         private void HandleNodeExecuted(IFluxNode node)
         {
             OnNodeExecuted?.Invoke(node as FluxNodeBase);
         }
 
         #if UNITY_EDITOR
-        /// <summary>
-        /// Opens this graph in the Flux Visual Scripting Editor
-        /// </summary>
-        [FluxButton("🔧 Open in Editor")]
-        private void OpenInEditor()
-        {
-            // Use reflection to avoid direct assembly reference to Editor
-            var editorAssembly = System.Reflection.Assembly.GetAssembly(typeof(UnityEditor.EditorWindow));
-            if (editorAssembly != null)
-            {
-                var windowType = System.Type.GetType("FluxFramework.VisualScripting.Editor.FluxVisualScriptingWindow, FluxFramework.Editor");
-                if (windowType != null)
-                {
-                    // Show the window
-                    var showWindowMethod = windowType.GetMethod("ShowWindow", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
-                    var window = showWindowMethod?.Invoke(null, null);
-                    
-                    if (window != null)
-                    {
-                        // Load this graph in the window
-                        var loadGraphMethod = windowType.GetMethod("LoadGraph", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-                        if (loadGraphMethod != null)
-                        {
-                            loadGraphMethod.Invoke(window, new object[] { this });
-                        }
-                        else
-                        {
-                            // Fallback: try to set the graph via property
-                            var graphProperty = windowType.GetProperty("CurrentGraph", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-                            graphProperty?.SetValue(window, this);
-                        }
-                    }
-                }
-                else
-                {
-                    Debug.LogWarning("FluxVisualScriptingWindow not found. Make sure the Editor assembly is loaded.");
-                }
-            }
-        }
-
-        /// <summary>
-        /// Shows graph statistics in the console
-        /// </summary>
         [FluxButton("📈 Show Statistics")]
         private void ShowStatistics()
         {
@@ -365,39 +204,19 @@ namespace FluxFramework.VisualScripting.Graphs
             var nodeTypes = _nodes.GroupBy(n => n.GetType().Name).Select(g => $"{g.Key}: {g.Count()}");
             
             Debug.Log($"=== Graph Statistics: {name} ===\n" +
-                     $"Nodes: {nodeCount}\n" +
-                     $"Connections: {connectionCount}\n" +
-                     $"Node Types:\n{string.Join("\n", nodeTypes)}\n" +
-                     $"Description: {(!string.IsNullOrEmpty(_description) ? _description : "No description")}");
-        }
-
-        /// <summary>
-        /// Validates the graph and shows results in console
-        /// </summary>
-        [FluxButton("✓ Validate Graph")]
-        private void ValidateGraphWithLog()
-        {
-            bool isValid = Validate();
-            
-            if (isValid)
-            {
-                Debug.Log($"✅ Graph '{name}' validation passed!\nNodes: {_nodes.Count}, Connections: {_connections.Count}");
-            }
-            else
-            {
-                Debug.LogError($"❌ Graph '{name}' validation failed! Check for missing connections or invalid node configurations.");
-            }
+                    $"Nodes: {nodeCount}\n" +
+                    $"Connections: {connectionCount}\n" +
+                    $"Node Types:\n{string.Join("\n", nodeTypes)}\n" +
+                    $"Description: {(!string.IsNullOrEmpty(_description) ? _description : "No description")}", this);
         }
         #endif
 
+        /// <summary> Unity's OnValidate, used to clean up any null references in lists if they occur. </summary>
         private void OnValidate()
         {
-            // Clean up null references
             _nodes.RemoveAll(n => n == null);
             _connections.RemoveAll(c => c.FromNode == null || c.ToNode == null);
-            
-            // Update connection status
-            UpdateConnectionStatus();
+            UpdateConnectionStatuses();
         }
     }
 }

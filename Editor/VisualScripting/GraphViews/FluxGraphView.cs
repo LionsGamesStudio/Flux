@@ -7,47 +7,40 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using FluxFramework.VisualScripting.Graphs;
 using FluxFramework.VisualScripting.Editor.NodeViews;
+using FluxFramework.VisualScripting.Nodes;
 
 namespace FluxFramework.VisualScripting.Editor
 {
     /// <summary>
     /// The main GraphView for displaying and editing Flux visual script graphs.
-    /// It handles node creation, connection, and synchronization with the underlying graph asset.
+    /// It handles node creation, connection, serialization, and synchronization with the underlying graph asset.
     /// </summary>
     public class FluxGraphView : GraphView
     {
-        // This factory is required by UI Toolkit to instantiate the GraphView from UXML.
+        /// <summary> This factory is required by UI Toolkit to instantiate the GraphView from UXML files. </summary>
         public new class UxmlFactory : UxmlFactory<FluxGraphView, GraphView.UxmlTraits> { }
 
         private FluxVisualScriptingWindow _window;
         private FluxVisualGraph _graph;
         private FluxSearchWindowProvider _searchWindowProvider;
-        
-        // A mapping to associate specific node data types with custom view classes.
-        // This could be populated dynamically using reflection in a more advanced system.
         private static readonly Dictionary<Type, Type> NodeViewMapping = new Dictionary<Type, Type>();
 
+        /// <summary> A reference to the parent editor window that hosts this view. </summary>
         public FluxVisualScriptingWindow Window => _window;
+
+        /// <summary> A reference to the underlying graph asset being edited. </summary>
         public FluxVisualGraph Graph => _graph;
 
-        public FluxGraphView()
-        {
-            // This constructor is for UI Toolkit's instantiation.
-            // The Initialize method will be called later to link it to the window.
-            InitializeGraphView();
-        }
+        /// <summary> Default constructor used by UI Toolkit when creating the view from UXML. </summary>
+        public FluxGraphView() { InitializeGraphView(); }
+        
+        /// <summary> Constructor used when creating the view manually from C# code. </summary>
+        public FluxGraphView(FluxVisualScriptingWindow window) { _window = window; InitializeGraphView(); }
 
-        public FluxGraphView(FluxVisualScriptingWindow window)
-        {
-            _window = window;
-            InitializeGraphView();
-        }
-
+        /// <summary> Sets up the initial state and manipulators for the graph view. </summary>
         private void InitializeGraphView()
         {
             style.flexGrow = 1;
-            
-            // Enable standard graph manipulations
             SetupZoom(ContentZoomer.DefaultMinScale, ContentZoomer.DefaultMaxScale);
             this.AddManipulator(new ContentDragger());
             this.AddManipulator(new SelectionDragger());
@@ -58,31 +51,25 @@ namespace FluxFramework.VisualScripting.Editor
             Insert(0, grid);
             grid.StretchToParentSize();
 
-            // Set up the node creation menu (Search Window)
             _searchWindowProvider = ScriptableObject.CreateInstance<FluxSearchWindowProvider>();
             _searchWindowProvider.Initialize(this, _window);
             nodeCreationRequest = context => SearchWindow.Open(new SearchWindowContext(context.screenMousePosition), _searchWindowProvider);
+            
+            serializeGraphElements = OnSerializeGraphElements;
+            canPasteSerializedData = CanPaste;
+            unserializeAndPaste = OnUnserializeAndPaste;
         }
 
-        /// <summary>
-        /// Populates the view with nodes and connections from a graph asset.
-        /// </summary>
+        /// <summary> Clears the current view and repopulates it with nodes and connections from a given graph asset. </summary>
         public void PopulateView(FluxVisualGraph graph)
         {
             _graph = graph;
-            graphViewChanged -= OnGraphViewChanged; // Unsubscribe previous listener
-            DeleteElements(graphElements); // Clear the old graph
-            graphViewChanged += OnGraphViewChanged; // Subscribe new listener
+            graphViewChanged -= OnGraphViewChanged;
+            DeleteElements(graphElements);
+            graphViewChanged += OnGraphViewChanged;
 
             if (graph == null) return;
-
-            // Create visual nodes for each data node in the graph asset.
-            foreach (var node in graph.Nodes)
-            {
-                CreateNodeView(node);
-            }
-
-            // Create visual edges for each connection in the graph asset.
+            foreach (var node in graph.Nodes) { CreateNodeView(node); }
             foreach (var connection in graph.Connections)
             {
                 var fromNodeView = FindNodeView(connection.FromNode);
@@ -100,29 +87,31 @@ namespace FluxFramework.VisualScripting.Editor
             }
         }
         
+        /// <summary> Factory method to create a visual representation (a FluxNodeView) for a given data node. </summary>
         private FluxNodeView CreateNodeView(FluxNodeBase node)
         {
             FluxNodeView nodeView;
-            
+
+            // The constructor for a node view must receive the DATA MODEL (_graph), not the UI VIEW (this).
             if (NodeViewMapping.TryGetValue(node.GetType(), out var viewType))
             {
-                nodeView = (FluxNodeView)Activator.CreateInstance(viewType, new object[] { this.Graph, node });
+                nodeView = (FluxNodeView)Activator.CreateInstance(viewType, new object[] { _graph, node });
             }
             else
             {
-                nodeView = new FluxNodeView(this.Graph, node);
+                nodeView = new FluxNodeView(_graph, node);
             }
-            
+
             AddElement(nodeView);
             return nodeView;
         }
 
+        /// <summary> An override that determines which ports can be connected to a given start port. </summary>
         public override List<Port> GetCompatiblePorts(Port startPort, NodeAdapter nodeAdapter)
         {
             var compatiblePorts = new List<Port>();
             var startFluxPort = startPort.userData as FluxNodePort;
-
-            if(startFluxPort == null) return compatiblePorts;
+            if (startFluxPort == null) return compatiblePorts;
 
             ports.ForEach(port =>
             {
@@ -135,19 +124,13 @@ namespace FluxFramework.VisualScripting.Editor
                     }
                 }
             });
-
             return compatiblePorts;
         }
         
-        /// <summary>
-        /// This callback is the core of the editor. It syncs changes made in the view (UI)
-        /// back to the graph asset (data model).
-        /// </summary>
+        /// <summary> The central callback that syncs changes made in the view (UI) back to the graph asset (data model). </summary>
         private GraphViewChange OnGraphViewChanged(GraphViewChange graphViewChange)
         {
             if (_graph == null) return graphViewChange;
-
-            // Handle deleted elements
             if (graphViewChange.elementsToRemove != null)
             {
                 foreach (var element in graphViewChange.elementsToRemove)
@@ -159,16 +142,11 @@ namespace FluxFramework.VisualScripting.Editor
                         var toNodeView = edge.input.node as FluxNodeView;
                         if (fromNodeView != null && toNodeView != null)
                         {
-                            var connection = _graph.Connections.FirstOrDefault(c =>
-                                c.FromNode.NodeId == fromNodeView.Node.NodeId && c.FromPort == edge.output.name &&
-                                c.ToNode.NodeId == toNodeView.Node.NodeId && c.ToPort == edge.input.name);
-                            if (connection != null) _graph.RemoveConnection(connection);
+                            _graph.RemoveConnection(fromNodeView.Node, edge.output.portName, toNodeView.Node, edge.input.portName);
                         }
                     }
                 }
             }
-
-            // Handle created edges
             if (graphViewChange.edgesToCreate != null)
             {
                 foreach (var edge in graphViewChange.edgesToCreate)
@@ -177,68 +155,172 @@ namespace FluxFramework.VisualScripting.Editor
                     var toNodeView = edge.input.node as FluxNodeView;
                     if (fromNodeView != null && toNodeView != null)
                     {
-                        _graph.CreateConnection(fromNodeView.Node, edge.output.name, toNodeView.Node, edge.input.name);
+                        _graph.CreateConnection(fromNodeView.Node, edge.output.portName, toNodeView.Node, edge.input.portName);
                     }
                 }
             }
-            
-            // Handle moved elements
             if (graphViewChange.movedElements != null)
             {
-                foreach (var element in graphViewChange.movedElements)
+                foreach(var element in graphViewChange.movedElements)
                 {
-                if(element is FluxNodeView nodeView) nodeView.SetPosition(nodeView.GetPosition());
+                    if(element is FluxNodeView nodeView)
+                    {
+                        Vector2 newPosition = nodeView.GetPosition().position;
+                        _graph.SetNodePosition(nodeView.Node, newPosition);
+                    }
                 }
             }
-
-            // Mark the graph asset as dirty to ensure changes are saved.
             EditorUtility.SetDirty(_graph);
             return graphViewChange;
         }
 
-        public void CreateNode(Type nodeType, Vector2 position)
-        {
-            if (_graph == null) return;
-            
-            var node = ScriptableObject.CreateInstance(nodeType) as FluxNodeBase;
-            node.name = nodeType.Name;
-            
-            AssetDatabase.AddObjectToAsset(node, _graph);
-            EditorUtility.SetDirty(_graph);
-            AssetDatabase.SaveAssets();
-            
-            _graph.AddNode(node);
-            var nodeView = CreateNodeView(node);
-            nodeView.SetPosition(new Rect(position, Vector2.zero));
-        }
-        
-        /// <summary>
-        /// Overridden to build a custom context menu (right-click menu).
-        /// </summary>
-        public override void BuildContextualMenu(ContextualMenuPopulateEvent evt)
-        {
-            base.BuildContextualMenu(evt); // Adds standard options like "Cut", "Copy", "Paste"
-            if (_graph == null) return;
-            
-            // Here, we could add custom actions to the right-click menu.
-        }
-
+        /// <summary> Creates a new node at a specific screen position, handling coordinate conversion. </summary>
         public void CreateNodeAtScreenPosition(Type nodeType, Vector2 screenPosition)
         {
             var graphPosition = this.contentViewContainer.WorldToLocal(screenPosition);
-            
             CreateNode(nodeType, graphPosition);
         }
 
-
-        public void OnNodeSelectionChanged(FluxNodeView nodeView)
+        /// <summary> Creates a new node asset, adds it to the graph, and creates its visual representation. </summary>
+        public void CreateNode(Type nodeType, Vector2 graphPosition)
         {
-            _window?.OnNodeSelectionChanged(nodeView);
+            if (_graph == null) return;
+            var node = ScriptableObject.CreateInstance(nodeType) as FluxNodeBase;
+            node.name = nodeType.Name;
+            AssetDatabase.AddObjectToAsset(node, _graph);
+            _graph.AddNode(node);
+            _graph.SetNodePosition(node, graphPosition);
+            EditorUtility.SetDirty(_graph);
+            AssetDatabase.SaveAssets();
+            CreateNodeView(node);
         }
 
-        private FluxNodeView FindNodeView(FluxNodeBase node)
+        /// <summary> Override for the right-click context menu. </summary>
+        public override void BuildContextualMenu(ContextualMenuPopulateEvent evt) { base.BuildContextualMenu(evt); }
+        
+        /// <summary> Notifies the parent window that the node selection has changed. </summary>
+        public void OnNodeSelectionChanged(FluxNodeView nodeView) => _window?.OnNodeSelectionChanged(nodeView);
+        
+        /// <summary> Helper to find the visual view for a given data node. </summary>
+        private FluxNodeView FindNodeView(FluxNodeBase node) => GetNodeByGuid(node.NodeId) as FluxNodeView;
+
+        #region Copy Paste Logic
+
+        [Serializable] private class ClipboardData { public List<SerializedNode> Nodes = new List<SerializedNode>(); public List<SerializedConnection> Connections = new List<SerializedConnection>(); }
+        [Serializable] private class SerializedNode { public string OriginalNodeId; public string NodeJson; public Vector2 Position; }
+        [Serializable] private class SerializedConnection { public string FromNodeId; public string FromPortName; public string ToNodeId; public string ToPortName; }
+        
+        /// <summary> Callback used by the GraphView to determine if the "Paste" action should be enabled. </summary>
+        private bool CanPaste(string data)
         {
-            return GetNodeByGuid(node.NodeId) as FluxNodeView;
+            try
+            {
+                if (string.IsNullOrEmpty(data)) return false;
+                var clipboardData = JsonUtility.FromJson<ClipboardData>(data);
+                return clipboardData != null && clipboardData.Nodes.Any();
+            }
+            catch { return false; }
         }
+
+        /// <summary> Callback used by the GraphView to execute the "Paste" action. </summary>
+        private void OnUnserializeAndPaste(string operationName, string data)
+        {
+            // We use the 'data' parameter passed by the GraphView. This is the source of truth for the operation.
+            var clipboardData = JsonUtility.FromJson<ClipboardData>(data);
+            if (clipboardData == null) return;
+
+            ClearSelection();
+
+            var newNodesMapping = new Dictionary<string, FluxNodeBase>();
+            var newViewsToSelect = new List<ISelectable>();
+            var basePosition = clipboardData.Nodes.FirstOrDefault()?.Position ?? Vector2.zero;
+            
+            // Determine the paste position (center of view for Paste, offset for Duplicate)
+            Vector2 pasteCenter;
+            if (operationName == "Paste")
+            {
+                pasteCenter = contentViewContainer.WorldToLocal(worldBound.center);
+            }
+            else // "Duplicate"
+            {
+                var firstOriginalNode = _graph.Nodes.FirstOrDefault(n => n.NodeId == clipboardData.Nodes[0]?.OriginalNodeId);
+                pasteCenter = firstOriginalNode?.Position ?? Vector2.zero;
+            }
+
+
+            foreach (var serializedNode in clipboardData.Nodes)
+            {
+                var originalNode = _graph.Nodes.FirstOrDefault(n => n.NodeId == serializedNode.OriginalNodeId);
+                if (originalNode == null) continue;
+
+                var newNode = _graph.DuplicateNode(originalNode);
+                JsonUtility.FromJsonOverwrite(serializedNode.NodeJson, newNode);
+                
+                // Position pasted nodes intelligently
+                newNode.Position = pasteCenter + (serializedNode.Position - basePosition) + new Vector2(30,30);
+
+                newNodesMapping.Add(serializedNode.OriginalNodeId, newNode);
+                var nodeView = CreateNodeView(newNode);
+                newViewsToSelect.Add(nodeView);
+            }
+
+            foreach (var serializedConn in clipboardData.Connections)
+            {
+                if (newNodesMapping.TryGetValue(serializedConn.FromNodeId, out var fromNode) &&
+                    newNodesMapping.TryGetValue(serializedConn.ToNodeId, out var toNode))
+                {
+                    _graph.CreateConnection(fromNode, serializedConn.FromPortName, toNode, serializedConn.ToPortName);
+                }
+            }
+            
+            PopulateView(_graph);
+            newViewsToSelect.ForEach(AddToSelection);
+        }
+        
+        /// <summary> Callback used by the GraphView to execute the "Copy" action. </summary>
+        private string OnSerializeGraphElements(IEnumerable<GraphElement> elements)
+        {
+            var selectedNodeViews = elements.OfType<FluxNodeView>().ToList();
+            if (!selectedNodeViews.Any()) return "";
+
+            var selectedNodeGuids = new HashSet<string>(selectedNodeViews.Select(v => v.Node.NodeId));
+            var clipboardData = new ClipboardData();
+            var basePosition = selectedNodeViews.First().Node.Position;
+
+            foreach (var nodeView in selectedNodeViews)
+            {
+                var node = nodeView.Node;
+                clipboardData.Nodes.Add(new SerializedNode
+                {
+                    OriginalNodeId = node.NodeId,
+                    NodeJson = JsonUtility.ToJson(node),
+                    Position = node.Position - basePosition
+                });
+            }
+
+            foreach (var nodeView in selectedNodeViews)
+            {
+                var connections = _graph.GetOutputConnections(nodeView.Node);
+                foreach(var connection in connections)
+                {
+                    if (selectedNodeGuids.Contains(connection.ToNode.NodeId))
+                    {
+                        clipboardData.Connections.Add(new SerializedConnection
+                        {
+                            FromNodeId = connection.FromNode.NodeId,
+                            FromPortName = connection.FromPort,
+                            ToNodeId = connection.ToNode.NodeId,
+                            ToPortName = connection.ToPort
+                        });
+                    }
+                }
+            }
+
+            var json = JsonUtility.ToJson(clipboardData);
+            GUIUtility.systemCopyBuffer = json;
+            return json;
+        }
+
+        #endregion
     }
 }

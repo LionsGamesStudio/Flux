@@ -24,6 +24,9 @@ namespace FluxFramework.VisualScripting
         [SerializeField] protected List<FluxNodePort> _inputPorts;
         [SerializeField] protected List<FluxNodePort> _outputPorts;
 
+        /// <summary>
+        /// A unique identifier for this specific node instance.
+        /// </summary>
         public string NodeId 
         { 
             get 
@@ -34,20 +37,76 @@ namespace FluxFramework.VisualScripting
             }
         }
 
+        /// <summary>
+        /// The name displayed on the node in the editor. Uses a custom name if provided.
+        /// </summary>
         public virtual string NodeName => !string.IsNullOrEmpty(_customDisplayName) ? _customDisplayName : DefaultNodeName;
+        
+        /// <summary>
+        /// The default name for the node, typically derived from its class name.
+        /// </summary>
         public virtual string DefaultNodeName => _nodeName ?? GetType().Name;
+        
+        /// <summary>
+        /// A user-defined name for this specific node instance.
+        /// </summary>
         public string CustomDisplayName { get => _customDisplayName; set { _customDisplayName = value; NotifyChanged(); } }
+        
+        /// <summary>
+        /// The category path for this node in the creation menu (e.g., "Logic/Math").
+        /// </summary>
         public virtual string Category => _category ?? "General";
+        
+        /// <summary>
+        /// The position of the node on the graph canvas.
+        /// </summary>
         public Vector2 Position { get => _position; set { _position = value; } }
         
+        /// <summary>
+        /// An optional override to specify a custom editor view class for this node.
+        /// </summary>
         public virtual Type GetEditorViewType() => null;
+        
+        /// <summary>
+        /// A read-only list of all input ports on this node.
+        /// </summary>
         public IReadOnlyList<FluxNodePort> InputPorts => _inputPorts?.AsReadOnly() ?? new List<FluxNodePort>().AsReadOnly();
+        
+        /// <summary>
+        /// A read-only list of all output ports on this node.
+        /// </summary>
         public IReadOnlyList<FluxNodePort> OutputPorts => _outputPorts?.AsReadOnly() ?? new List<FluxNodePort>().AsReadOnly();
+        
+        /// <summary>
+        /// Determines if this node can be executed by the graph runner.
+        /// </summary>
         public virtual bool CanExecute => true;
 
+        /// <summary>
+        /// An event fired immediately after this node has finished executing its logic.
+        /// </summary>
         public event Action<IFluxNode> OnExecuted;
+        
+        /// <summary>
+        /// An event fired whenever a property of the node is changed in the editor.
+        /// </summary>
         public event Action<IFluxNode> OnChanged;
 
+        /// <summary>
+        /// Creates a deep copy of this node instance with a new, unique NodeId.
+        /// </summary>
+        /// <returns>A new instance of the node with copied values.</returns>
+        public virtual FluxNodeBase Clone()
+        {
+            var clone = Instantiate(this);
+            clone._nodeId = Guid.NewGuid().ToString();
+            clone.name = this.name;
+            return clone;
+        }
+
+        /// <summary>
+        /// Unity's OnEnable, used here to ensure port lists are initialized.
+        /// </summary>
         protected virtual void OnEnable()
         {
             if (_inputPorts == null) _inputPorts = new List<FluxNodePort>();
@@ -59,8 +118,14 @@ namespace FluxFramework.VisualScripting
             }
         }
         
+        /// <summary>
+        /// The main method for derived nodes to define their ports. This is called once on creation.
+        /// </summary>
         protected virtual void InitializePorts() { }
 
+        /// <summary>
+        /// Adds a new input port to this node.
+        /// </summary>
         protected void AddInputPort(string name, string displayName, FluxPortType portType, 
                                    string valueType, bool isRequired = false, object defaultValue = null, string tooltip = null)
         {
@@ -72,6 +137,9 @@ namespace FluxFramework.VisualScripting
             _inputPorts.Add(port);
         }
 
+        /// <summary>
+        /// Adds a new output port to this node.
+        /// </summary>
         protected void AddOutputPort(string name, string displayName, FluxPortType portType, 
                                     string valueType, bool isRequired = false, string tooltip = null)
         {
@@ -83,6 +151,9 @@ namespace FluxFramework.VisualScripting
             _outputPorts.Add(port);
         }
         
+        /// <summary>
+        /// The public execution entry point called by the FluxGraphExecutor.
+        /// </summary>
         public void Execute(FluxGraphExecutor executor, Dictionary<string, object> inputs, out Dictionary<string, object> outputs)
         {
             outputs = new Dictionary<string, object>();
@@ -97,14 +168,23 @@ namespace FluxFramework.VisualScripting
             }
         }
 
+        /// <summary>
+        /// The internal execution logic that must be implemented by all derived nodes.
+        /// </summary>
         protected abstract void ExecuteInternal(FluxGraphExecutor executor, Dictionary<string, object> inputs, Dictionary<string, object> outputs);
         
+        /// <summary>
+        /// Re-initializes the node's ports.
+        /// </summary>
         public virtual void RefreshPorts()
         {
             InitializePorts();
             NotifyChanged();
         }
 
+        /// <summary>
+        /// Validates the node's state, primarily checking for required but unconnected input ports.
+        /// </summary>
         public virtual bool Validate()
         {
             foreach (var port in InputPorts)
@@ -116,23 +196,15 @@ namespace FluxFramework.VisualScripting
             }
             return true;
         }
-
+        
         /// <summary>
         /// Forces a complete and destructive regeneration of the node's ports.
-        /// This will discard all existing ports and connections. Use with caution.
-        /// This is primarily a debugging tool for when a node's port configuration
-        /// becomes corrupted or needs a hard reset.
         /// </summary>
         public void ForceRegeneratePorts()
         {
-            // Clear the existing port lists completely.
             _inputPorts.Clear();
             _outputPorts.Clear();
-            
-            // Re-run the initialization logic from scratch.
             InitializePorts();
-            
-            // Notify the editor that the node has changed significantly.
             NotifyChanged();
             Debug.Log($"[FluxFramework] Force-regenerated ports for node: {NodeName}", this);
         }
@@ -144,8 +216,6 @@ namespace FluxFramework.VisualScripting
         {
             var port = InputPorts.FirstOrDefault(p => p.Name == portName);
             if (port == null) return null;
-
-            // This is a simplified lookup. A more robust system might handle fully qualified type names.
             return Type.GetType(port.ValueType) ?? ResolveTypeName(port.ValueType);
         }
 
@@ -156,26 +226,25 @@ namespace FluxFramework.VisualScripting
         {
             var port = OutputPorts.FirstOrDefault(p => p.Name == portName);
             if (port == null) return null;
-
             return Type.GetType(port.ValueType) ?? ResolveTypeName(port.ValueType);
         }
 
-        // Helper to resolve common type names that Type.GetType struggles with (e.g., "int", "float")
+        /// <summary>
+        /// A helper to resolve common C# type names that Type.GetType struggles with.
+        /// </summary>
         private Type ResolveTypeName(string typeName)
         {
-            return typeName.ToLower() switch
+            return typeName?.ToLower() switch
             {
-                "int" => typeof(int),
-                "float" => typeof(float),
-                "string" => typeof(string),
-                "bool" => typeof(bool),
-                "gameobject" => typeof(GameObject),
-                "object" => typeof(object),
-                "void" => typeof(void),
-                _ => null, // Or search all assemblies if needed
+                "int" => typeof(int), "float" => typeof(float), "string" => typeof(string),
+                "bool" => typeof(bool), "gameobject" => typeof(GameObject), "object" => typeof(object),
+                "void" => typeof(void), _ => null,
             };
         }
 
+        /// <summary>
+        /// A helper for derived nodes to safely get a value from an input port.
+        /// </summary>
         protected T GetInputValue<T>(Dictionary<string, object> inputs, string portName, T defaultValue = default(T))
         {
             if (inputs.TryGetValue(portName, out object value))
@@ -183,18 +252,22 @@ namespace FluxFramework.VisualScripting
                 if (value is T typedValue) return typedValue;
                 try { return (T)Convert.ChangeType(value, typeof(T)); } catch { /* Conversion failed */ }
             }
-            
             var port = InputPorts.FirstOrDefault(p => p.Name == portName);
             if (port?.DefaultValue is T portDefault) return portDefault;
-
             return defaultValue;
         }
 
+        /// <summary>
+        /// A helper for derived nodes to set an output port's value.
+        /// </summary>
         protected void SetOutputValue(Dictionary<string, object> outputs, string portName, object value)
         {
             outputs[portName] = value;
         }
 
+        /// <summary>
+        /// Notifies the editor that a property on this node has changed, marking it as dirty.
+        /// </summary>
         protected void NotifyChanged()
         {
             OnChanged?.Invoke(this);
@@ -203,15 +276,12 @@ namespace FluxFramework.VisualScripting
             #endif
         }
         
+        /// <summary>
+        /// Notifies listeners that this node has finished its execution.
+        /// </summary>
         protected void NotifyExecuted()
         {
             OnExecuted?.Invoke(this);
-        }
-
-        private void OnValidate()
-        {
-            // The logic to auto-update ports on code change was moved to the custom editor (FluxGraphView)
-            // as OnValidate can be unreliable and slow for this purpose.
         }
     }
 }
