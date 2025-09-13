@@ -60,7 +60,7 @@ namespace FluxFramework.VisualScripting.Editor
 
             // Set up the node creation menu (Search Window)
             _searchWindowProvider = ScriptableObject.CreateInstance<FluxSearchWindowProvider>();
-            _searchWindowProvider.Initialize(this);
+            _searchWindowProvider.Initialize(this, _window);
             nodeCreationRequest = context => SearchWindow.Open(new SearchWindowContext(context.screenMousePosition), _searchWindowProvider);
         }
 
@@ -222,6 +222,14 @@ namespace FluxFramework.VisualScripting.Editor
             
             // Here, we could add custom actions to the right-click menu.
         }
+
+        public void CreateNodeAtScreenPosition(Type nodeType, Vector2 screenPosition)
+        {
+            var graphPosition = this.contentViewContainer.WorldToLocal(screenPosition);
+            
+            CreateNode(nodeType, graphPosition);
+        }
+
 
         public void OnNodeSelectionChanged(FluxNodeView nodeView)
         {
