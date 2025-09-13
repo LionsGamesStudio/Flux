@@ -24,8 +24,7 @@ namespace FluxFramework.Validation
             // Subscribe to the min property if a key was provided.
             if (!string.IsNullOrEmpty(minKey))
             {
-                // Use SubscribeDeferred to handle cases where the boundary property might not be registered yet.
-                _minSubscription = Flux.Properties.SubscribeDeferred(minKey, prop =>
+                _minSubscription = Flux.Manager.Properties.SubscribeDeferred(minKey, prop =>
                 {
                     if (prop is ReactiveProperty<T> typedProp)
                     {
@@ -43,7 +42,7 @@ namespace FluxFramework.Validation
             // Subscribe to the max property if a key was provided.
             if (!string.IsNullOrEmpty(maxKey))
             {
-                _maxSubscription = Flux.Properties.SubscribeDeferred(maxKey, prop =>
+                _maxSubscription = Flux.Manager.Properties.SubscribeDeferred(maxKey, prop =>
                 {
                     if (prop is ReactiveProperty<T> typedProp)
                     {
