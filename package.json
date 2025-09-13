@@ -1,6 +1,6 @@
 {
   "name": "com.fluxframework.core",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "displayName": "Flux Framework",
   "description": "An innovative Unity framework for decoupling UI from logic with reactive patterns, thread-safe operations, and enhanced developer experience",
   "unity": "2022.3",
