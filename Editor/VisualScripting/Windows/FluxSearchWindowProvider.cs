@@ -28,51 +28,49 @@ namespace FluxFramework.VisualScripting.Editor
                 new SearchTreeGroupEntry(new GUIContent("Create Node"), 0),
             };
 
-            // Use TypeCache to find all INode classes with our custom attribute, which is very fast.
             var nodeTypes = TypeCache.GetTypesWithAttribute<FluxNodeAttribute>()
                 .Where(t => typeof(INode).IsAssignableFrom(t) && !t.IsAbstract);
 
-            // Create a sorted dictionary to build the hierarchy
-            var sortedNodes = new SortedDictionary<string, List<Type>>();
+            // Use a sorted dictionary to automatically handle alphabetical sorting of categories.
+            var sortedCategories = new SortedDictionary<string, List<Type>>();
             foreach (var type in nodeTypes)
             {
-                var nodeAttr = type.GetCustomAttribute<FluxNodeAttribute>();
-                var category = string.IsNullOrEmpty(nodeAttr.Category) ? "General" : nodeAttr.Category;
-
-                if (!sortedNodes.ContainsKey(category))
+                var attr = type.GetCustomAttribute<FluxNodeAttribute>();
+                var category = string.IsNullOrEmpty(attr.Category) ? "General" : attr.Category;
+                if (!sortedCategories.ContainsKey(category))
                 {
-                    sortedNodes[category] = new List<Type>();
+                    sortedCategories[category] = new List<Type>();
                 }
-                sortedNodes[category].Add(type);
+                sortedCategories[category].Add(type);
             }
             
-            // Add categories to the tree
-            var groups = new HashSet<string>();
-            foreach (var (categoryPath, types) in sortedNodes)
+            // This set helps create group entries only once.
+            var createdGroups = new HashSet<string>();
+
+            foreach (var (categoryPath, types) in sortedCategories)
             {
                 var pathParts = categoryPath.Split('/');
                 var cumulativePath = string.Empty;
 
-                for (int i = 0; i < pathParts.Length; i++)
+                // Create group entries for the category path (e.g., "Math", then "Math/Advanced")
+                for (var i = 0; i < pathParts.Length; i++)
                 {
-                    cumulativePath += pathParts[i];
-                    if (!groups.Contains(cumulativePath))
+                    cumulativePath = string.Join("/", pathParts.Take(i + 1));
+                    if (createdGroups.Add(cumulativePath))
                     {
                         tree.Add(new SearchTreeGroupEntry(new GUIContent(pathParts[i]), i + 1));
-                        groups.Add(cumulativePath);
                     }
                 }
                 
-                // Add node entries under their category
+                // Add the actual node types to the tree, sorted alphabetically by display name.
                 foreach (var type in types.OrderBy(t => t.GetCustomAttribute<FluxNodeAttribute>().DisplayName))
                 {
-                    var nodeAttr = type.GetCustomAttribute<FluxNodeAttribute>();
-                    var entry = new SearchTreeEntry(new GUIContent(nodeAttr.DisplayName))
+                    var attr = type.GetCustomAttribute<FluxNodeAttribute>();
+                    tree.Add(new SearchTreeEntry(new GUIContent(attr.DisplayName))
                     {
                         userData = type,
                         level = pathParts.Length + 1
-                    };
-                    tree.Add(entry);
+                    });
                 }
             }
             

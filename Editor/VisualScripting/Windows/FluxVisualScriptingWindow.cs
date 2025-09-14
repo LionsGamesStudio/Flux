@@ -1,12 +1,15 @@
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
+using UnityEditor.UIElements;
 
 namespace FluxFramework.VisualScripting.Editor
 {
     public class FluxVisualScriptingWindow : EditorWindow
     {
         private FluxGraphView _graphView;
+        private FluxInspectorView _inspectorView;
+        private Label _graphNameLabel;
 
         [MenuItem("Flux/Visual Scripting/Visual Scripting Editor")]
         public static void OpenWindow()
@@ -14,19 +17,90 @@ namespace FluxFramework.VisualScripting.Editor
             var window = GetWindow<FluxVisualScriptingWindow>();
             window.titleContent = new GUIContent("Flux Visual Scripting");
         }
+        
+        public static void OpenWithGraph(FluxVisualGraph graph)
+        {
+            var window = GetWindow<FluxVisualScriptingWindow>();
+            window.titleContent = new GUIContent("Flux Visual Scripting");
+            
+            Selection.activeObject = graph;
+        }
 
         private void CreateGUI()
         {
-            // Each editor window contains a root VisualElement object
             VisualElement root = rootVisualElement;
 
-            // Create and add the graph view
-            _graphView = new FluxGraphView(this)
+            // --- 1. Create the Toolbar ---
+            var toolbar = new Toolbar();
+            root.Add(toolbar);
+
+            // --- 2. Create Toolbar Menus ---
+            var fileMenu = new ToolbarMenu { text = "File" };
+            fileMenu.menu.AppendAction("New Graph...", (a) => CreateNewGraph());
+            fileMenu.menu.AppendAction("Open Graph...", (a) => OpenGraphAsset());
+            toolbar.Add(fileMenu);
+
+            // --- 3. Add a label for the current graph ---
+            _graphNameLabel = new Label("No Graph Loaded");
+            _graphNameLabel.style.unityTextAlign = TextAnchor.MiddleLeft;
+            _graphNameLabel.style.marginLeft = 10;
+            toolbar.Add(_graphNameLabel);
+
+            // --- 4. The rest of the layout ---
+            var splitView = new TwoPaneSplitView(0, 1000, TwoPaneSplitViewOrientation.Horizontal);
+            root.Add(splitView);
+
+            _graphView = new FluxGraphView(this);
+            splitView.Add(_graphView);
+
+            _inspectorView = new FluxInspectorView();
+            splitView.Add(_inspectorView);
+
+            OnSelectionChange();
+        }
+
+        public void OnNodeSelected(FluxNodeView node)
+        {
+            _inspectorView?.UpdateSelection(node);
+        }
+
+        private void CreateNewGraph()
+        {
+            string path = EditorUtility.SaveFilePanelInProject(
+                "Create New Flux Graph", 
+                "NewFluxGraph.asset", 
+                "asset", 
+                "Please enter a file name to save the new graph to.");
+
+            if (string.IsNullOrEmpty(path)) return;
+
+            var newGraph = ScriptableObject.CreateInstance<FluxVisualGraph>();
+            AssetDatabase.CreateAsset(newGraph, path);
+            AssetDatabase.SaveAssets();
+            
+            // Automatically select and load the new graph
+            Selection.activeObject = newGraph;
+        }
+
+        private void OpenGraphAsset()
+        {
+            string path = EditorUtility.OpenFilePanel("Open Flux Graph", Application.dataPath, "asset");
+            if (string.IsNullOrEmpty(path)) return;
+
+            // Convert absolute path to a project-relative path.
+            if (path.StartsWith(Application.dataPath))
             {
-                name = "Flux Graph View",
-                style = { flexGrow = 1 } // Make it fill the window
-            };
-            root.Add(_graphView);
+                string relativePath = "Assets" + path.Substring(Application.dataPath.Length);
+                var graph = AssetDatabase.LoadAssetAtPath<FluxVisualGraph>(relativePath);
+                if (graph != null)
+                {
+                    Selection.activeObject = graph; // Selecting it will trigger OnSelectionChange and load it.
+                }
+                else
+                {
+                    EditorUtility.DisplayDialog("Load Error", "The selected asset is not a valid Flux Visual Graph.", "OK");
+                }
+            }
         }
 
         private void OnSelectionChange()
@@ -36,6 +110,13 @@ namespace FluxFramework.VisualScripting.Editor
             if (graph != null && _graphView != null)
             {
                 _graphView.PopulateView(graph);
+                _graphNameLabel.text = $"Editing: {graph.name}";
+            }
+            else
+            {
+                // Clear the graph view if no valid graph is selected
+                _graphView?.PopulateView(null);
+                _graphNameLabel.text = "No Graph Loaded";
             }
         }
     }
