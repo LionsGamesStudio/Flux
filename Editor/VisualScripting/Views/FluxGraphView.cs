@@ -1,17 +1,26 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using UnityEngine.UIElements;
+using UnityEditor;
+using FluxFramework.VisualScripting;
+using FluxFramework.Attributes.VisualScripting;
 
 namespace FluxFramework.VisualScripting.Editor
 {
     public class FluxGraphView : GraphView
     {
         private FluxVisualGraph _graph;
+        private FluxSearchWindowProvider _searchWindowProvider;
+        private readonly FluxVisualScriptingWindow _window;
 
-        public FluxGraphView()
+        public FluxGraphView(FluxVisualScriptingWindow window)
         {
+            _window = window;
+
             // Add background grid
             Insert(0, new GridBackground());
 
@@ -22,9 +31,23 @@ namespace FluxFramework.VisualScripting.Editor
             this.AddManipulator(new RectangleSelector());
 
             // This is required to draw the lines for new connections
-            var styleSheet = new StyleSheet();
-            styleSheet.ImportStyleSheet("Packages/com.unity.visualscripting/Editor/Application/Graphs/Styles/GraphView.uss");
-            styleSheets.Add(styleSheet);
+            var styleSheet = AssetDatabase.LoadAssetAtPath<StyleSheet>("Packages/com.unity.visualscripting/Editor/Application/Graphs/Styles/GraphView.uss");
+            if(styleSheet != null)
+            {
+                styleSheets.Add(styleSheet);
+            }
+            else
+            {
+                Debug.LogWarning("[FluxGraphView] Could not find the default Visual Scripting stylesheet. Connection lines may be invisible.");
+            }
+
+            // 1. Create the search window provider
+            _searchWindowProvider = ScriptableObject.CreateInstance<FluxSearchWindowProvider>();
+            _searchWindowProvider.Initialize(this, _window);
+
+            // 2. Set the nodeCreationRequest callback. This is called when the user right-clicks to create a node.
+            nodeCreationRequest = context =>
+                SearchWindow.Open(new SearchWindowContext(context.screenMousePosition), _searchWindowProvider);
         }
 
         /// <summary>
@@ -122,6 +145,39 @@ namespace FluxFramework.VisualScripting.Editor
             });
             return compatiblePorts;
         }
+
+        /// <summary>
+        /// Creates a new node of the specified logic type at the given screen position.
+        /// </summary>
+        /// <param name="nodeLogicType"></param>
+        /// <param name="screenPosition"></param>
+        public void CreateAttributedNode(Type nodeLogicType, Vector2 screenPosition)
+        {
+            if (_graph == null)
+            {
+                EditorUtility.DisplayDialog("No Graph Selected", "Cannot create a node because no graph asset is loaded.", "OK");
+                return;
+            }
+
+            // Convert screen position to graph position
+            var graphPosition = this.contentViewContainer.WorldToLocal(screenPosition);
+
+            // Create the wrapper node in the asset
+            var wrapperNode = _graph.CreateNode<AttributedNodeWrapper>(graphPosition);
+
+            // Initialize it with the selected logic type
+            wrapperNode.Initialize(nodeLogicType);
+
+            // Set a user-friendly name for the sub-asset
+            var nodeAttr = nodeLogicType.GetCustomAttribute<FluxNodeAttribute>();
+            wrapperNode.name = nodeAttr?.DisplayName ?? nodeLogicType.Name;
+
+            // Create the visual representation in the graph
+            CreateNodeView(wrapperNode);
+
+            UnityEditor.EditorUtility.SetDirty(wrapperNode);
+        }
+
 
         public override void BuildContextualMenu(ContextualMenuPopulateEvent evt)
         {

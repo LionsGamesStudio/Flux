@@ -1,4 +1,8 @@
 using System;
+using System.Collections.Generic;
+using System.Reflection;
+using System.Linq;
+using UnityEngine;
 
 namespace FluxFramework.VisualScripting
 {
@@ -13,16 +17,19 @@ namespace FluxFramework.VisualScripting
         [SerializeField] private FluxPortType _portType;
         [SerializeField] private FluxPortDirection _direction;
         [SerializeField] private string _valueTypeName; // Stores the AssemblyQualifiedName of the data type.
+        [SerializeField] private string _displayName;
 
         public string Name => _name;
         public FluxPortType PortType => _portType;
         public FluxPortDirection Direction => _direction;
         public string ValueTypeName => _valueTypeName;
+        public string DisplayName => _displayName;
 
         // Public constructor
-        public FluxNodePort(string name, FluxPortType portType, FluxPortDirection direction, Type valueType)
+        public FluxNodePort(string name, string displayName, FluxPortType portType, FluxPortDirection direction, Type valueType)
         {
             _name = name;
+            _displayName = displayName;
             _portType = portType;
             _direction = direction;
             _valueTypeName = valueType.AssemblyQualifiedName;

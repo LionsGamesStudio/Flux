@@ -24,17 +24,17 @@ namespace FluxFramework.VisualScripting
         /// <summary>
         /// (Editor-only) Adds a new input port to this node's data model.
         /// </summary>
-        public void AddInputPort(string name, FluxPortType portType, System.Type valueType)
+        public void AddInputPort(string name, string displayName, FluxPortType portType, System.Type valueType)
         {
-            _inputPorts.Add(new FluxNodePort(name, portType, FluxPortDirection.Input, valueType));
+            _inputPorts.Add(new FluxNodePort(name, displayName, portType, FluxPortDirection.Input, valueType));
         }
 
         /// <summary>
         /// (Editor-only) Adds a new output port to this node's data model.
         /// </summary>
-        public void AddOutputPort(string name, FluxPortType portType, System.Type valueType)
+        public void AddOutputPort(string name, string displayName, FluxPortType portType, System.Type valueType)
         {
-            _outputPorts.Add(new FluxNodePort(name, portType, FluxPortDirection.Output, valueType));
+            _outputPorts.Add(new FluxNodePort(name, displayName, portType, FluxPortDirection.Output, valueType));
         }
 
         /// <summary>

@@ -1,4 +1,5 @@
 using System;
+using FluxFramework.VisualScripting;
 
 namespace FluxFramework.Attributes.VisualScripting
 {

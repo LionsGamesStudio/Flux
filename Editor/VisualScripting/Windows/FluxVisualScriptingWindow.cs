@@ -21,7 +21,7 @@ namespace FluxFramework.VisualScripting.Editor
             VisualElement root = rootVisualElement;
 
             // Create and add the graph view
-            _graphView = new FluxGraphView
+            _graphView = new FluxGraphView(this)
             {
                 name = "Flux Graph View",
                 style = { flexGrow = 1 } // Make it fill the window

@@ -1,16 +1,34 @@
-using UnityEditor.Experimental.GraphView;
+using System;
+using System.Linq;
+using System.Reflection;
 using UnityEngine;
+using UnityEditor;
+using UnityEditor.Experimental.GraphView;
+using FluxFramework.Attributes.VisualScripting;
 
 namespace FluxFramework.VisualScripting.Editor
 {
-    public class FluxNodeView : Node
+    public class FluxNodeView : UnityEditor.Experimental.GraphView.Node 
     {
         public FluxNodeBase Node { get; }
 
         public FluxNodeView(FluxNodeBase node) : base()
         {
             this.Node = node;
-            this.title = node.name;
+            
+            if (node is AttributedNodeWrapper wrapper && wrapper.NodeLogic != null)
+            {
+                var attr = wrapper.NodeLogic.GetType().GetCustomAttribute<FluxNodeAttribute>();
+                if (attr != null)
+                {
+                    this.title = attr.DisplayName;
+                }
+            }
+            else
+            {
+                this.title = node.name;
+            }
+
             this.viewDataKey = node.NodeId; // This is used by Unity to save/load the layout
 
             style.left = node.Position.x;
@@ -25,7 +43,7 @@ namespace FluxFramework.VisualScripting.Editor
             foreach (var portData in Node.InputPorts)
             {
                 var portView = InstantiatePort(Orientation.Horizontal, Direction.Input, Port.Capacity.Single, GetPortType(portData));
-                portView.portName = portData.Name;
+                portView.portName = portData.DisplayName;
                 portView.name = portData.Name; // Used for querying
                 inputContainer.Add(portView);
             }
@@ -37,7 +55,7 @@ namespace FluxFramework.VisualScripting.Editor
             {
                 // Output ports can have multiple connections
                 var portView = InstantiatePort(Orientation.Horizontal, Direction.Output, Port.Capacity.Multi, GetPortType(portData));
-                portView.portName = portData.Name;
+                portView.portName = portData.DisplayName;
                 portView.name = portData.Name; // Used for querying
                 outputContainer.Add(portView);
             }
@@ -51,7 +69,10 @@ namespace FluxFramework.VisualScripting.Editor
         public override void SetPosition(Rect newPos)
         {
             base.SetPosition(newPos);
+            // Important: Update the data model when the view is moved.
+            Undo.RecordObject(Node, "Move Node"); // Make this undo-able
             Node.Position = newPos.position;
+            EditorUtility.SetDirty(Node);
         }
     }
 }

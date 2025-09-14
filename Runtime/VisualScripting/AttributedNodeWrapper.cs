@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Reflection;
 using UnityEngine;
 using FluxFramework.Attributes.VisualScripting;
@@ -16,8 +17,19 @@ namespace FluxFramework.VisualScripting
     {
         [SerializeReference]
         private INode _nodeLogic;
-        
+
         public INode NodeLogic => _nodeLogic;
+        
+        private string GenerateDisplayName(string fieldName)
+        {
+            if (string.IsNullOrEmpty(fieldName)) return fieldName;
+
+            // Split camel case and capitalize words
+            var words = System.Text.RegularExpressions.Regex.Matches(fieldName, @"([A-Z][a-z]+)")
+                .Cast<System.Text.RegularExpressions.Match>()
+                .Select(m => m.Value);
+            return string.Join(" ", words);
+        }
 
         #if UNITY_EDITOR
         /// <summary>
@@ -57,6 +69,7 @@ namespace FluxFramework.VisualScripting
                 if (portAttr == null) continue;
 
                 string portName = field.Name;
+                string displayName = portAttr.DisplayName ?? GenerateDisplayName(portName);
                 Type valueType = field.FieldType;
                 
                 // For Execution ports, we need a way to represent their 'void' type.
@@ -68,15 +81,15 @@ namespace FluxFramework.VisualScripting
 
                 if (portAttr.Direction == FluxPortDirection.Input)
                 {
-                    AddInputPort(portName, portAttr.PortType, valueType);
+                    AddInputPort(portName, displayName, portAttr.PortType, valueType); 
                 }
-                else // Output
+                else
                 {
-                    AddOutputPort(portName, portAttr.PortType, valueType);
+                    AddOutputPort(portName, displayName, portAttr.PortType, valueType);
                 }
             }
         }
-        #endif
+#endif
     }
     
     /// <summary>
