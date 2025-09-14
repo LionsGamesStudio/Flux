@@ -73,6 +73,21 @@ namespace FluxFramework.VisualScripting
             _connections.Remove(connection);
             UnityEditor.EditorUtility.SetDirty(this);
         }
+
+        /// <summary>
+        /// (Editor-only) Removes a connection by specifying nodes and port names.
+        /// </summary>
+        public void RemoveConnection(FluxNodeBase fromNode, string fromPort, FluxNodeBase toNode, string toPort)
+        {
+            var connection = _connections.FirstOrDefault(c =>
+                c.FromNodeId == fromNode.NodeId && c.FromPortName == fromPort &&
+                c.ToNodeId == toNode.NodeId && c.ToPortName == toPort);
+
+            if (connection != null)
+            {
+                RemoveConnection(connection);
+            }
+        }
         #endif
     }
 }
