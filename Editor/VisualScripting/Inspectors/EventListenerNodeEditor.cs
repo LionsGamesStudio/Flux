@@ -14,7 +14,7 @@ namespace FluxFramework.VisualScripting.Editor.Inspectors
     [CustomEditor(typeof(EventListenerNode))]
     public class EventListenerNodeEditor : UnityEditor.Editor
     {
-        private SerializedProperty _eventTypeProp;
+        private SerializedProperty _eventNameProp;
         private SerializedProperty _customDisplayNameProp;
         
         private List<string> _availableEventTypes;
@@ -23,7 +23,7 @@ namespace FluxFramework.VisualScripting.Editor.Inspectors
 
         private void OnEnable()
         {
-            _eventTypeProp = serializedObject.FindProperty("_eventType");
+            _eventNameProp = serializedObject.FindProperty("_eventName");
             _customDisplayNameProp = serializedObject.FindProperty("_customDisplayName");
             
             RefreshEventTypes();
@@ -31,9 +31,9 @@ namespace FluxFramework.VisualScripting.Editor.Inspectors
 
         public override void OnInspectorGUI()
         {
-            if (_eventTypeProp == null || _customDisplayNameProp == null)
+            if (_eventNameProp == null || _customDisplayNameProp == null)
             {
-                EditorGUILayout.HelpBox("Could not find the required serialized properties ('_eventType', '_customDisplayName'). Has the node script been changed?", MessageType.Error);
+                EditorGUILayout.HelpBox("Could not find the required serialized properties ('_eventName', '_customDisplayName'). Has the node script been changed?", MessageType.Error);
                 return;
             }
 
@@ -59,13 +59,13 @@ namespace FluxFramework.VisualScripting.Editor.Inspectors
             string newEventType;
             if (_useManualEntry)
             {
-                newEventType = EditorGUILayout.TextField("Event Type", _eventTypeProp.stringValue);
+                newEventType = EditorGUILayout.TextField("Event Type", _eventNameProp.stringValue);
             }
             else
             {
                 if (_availableEventTypes != null && _availableEventTypes.Count > 1)
                 {
-                    _selectedEventIndex = _availableEventTypes.IndexOf(_eventTypeProp.stringValue);
+                    _selectedEventIndex = _availableEventTypes.IndexOf(_eventNameProp.stringValue);
                     if (_selectedEventIndex < 0) _selectedEventIndex = 0;
 
                     _selectedEventIndex = EditorGUILayout.Popup("Event Type", _selectedEventIndex, _availableEventTypes.ToArray());
@@ -74,18 +74,18 @@ namespace FluxFramework.VisualScripting.Editor.Inspectors
                 else
                 {
                     EditorGUILayout.HelpBox("No event types discovered. Use 'Refresh' or enable 'Manual Entry'.", MessageType.Info);
-                    newEventType = EditorGUILayout.TextField("Event Type", _eventTypeProp.stringValue);
+                    newEventType = EditorGUILayout.TextField("Event Type", _eventNameProp.stringValue);
                 }
             }
 
-            if (newEventType != _eventTypeProp.stringValue)
+            if (newEventType != _eventNameProp.stringValue)
             {
-                _eventTypeProp.stringValue = newEventType;
+                _eventNameProp.stringValue = newEventType;
             }
 
             EditorGUILayout.Space();
 
-            string currentEventTypeValue = _eventTypeProp.stringValue;
+            string currentEventTypeValue = _eventNameProp.stringValue;
 
             EditorGUILayout.LabelField("Event Info", EditorStyles.boldLabel);
             EditorGUI.BeginDisabledGroup(true);

@@ -14,7 +14,7 @@ namespace FluxFramework.VisualScripting.Editor.Inspectors
     [CustomEditor(typeof(EventPublishNode))]
     public class EventPublishNodeEditor : UnityEditor.Editor
     {
-        private SerializedProperty _eventTypeProp;
+        private SerializedProperty _eventNameProp;
         private SerializedProperty _customDisplayNameProp;
         
         private List<string> _availableEventTypes;
@@ -24,7 +24,7 @@ namespace FluxFramework.VisualScripting.Editor.Inspectors
         private void OnEnable()
         {
             // Find properties using their private field names for robustness.
-            _eventTypeProp = serializedObject.FindProperty("_eventType");
+            _eventNameProp = serializedObject.FindProperty("_eventName");
             _customDisplayNameProp = serializedObject.FindProperty("_customDisplayName");
             
             RefreshEventTypes();
@@ -32,6 +32,12 @@ namespace FluxFramework.VisualScripting.Editor.Inspectors
 
         public override void OnInspectorGUI()
         {
+            if (_eventNameProp == null || _customDisplayNameProp == null)
+            {
+                EditorGUILayout.HelpBox("Could not find the required serialized properties ('_eventName', '_customDisplayName'). Has the node's C# script been renamed or changed?", MessageType.Error);
+                return;
+            }
+
             serializedObject.Update();
 
             EditorGUILayout.Space();
@@ -54,13 +60,13 @@ namespace FluxFramework.VisualScripting.Editor.Inspectors
             string newEventType;
             if (_useManualEntry)
             {
-                newEventType = EditorGUILayout.TextField("Event Type", _eventTypeProp.stringValue);
+                newEventType = EditorGUILayout.TextField("Event Type", _eventNameProp.stringValue);
             }
             else
             {
                 if (_availableEventTypes != null && _availableEventTypes.Count > 1)
                 {
-                    _selectedEventIndex = _availableEventTypes.IndexOf(_eventTypeProp.stringValue);
+                    _selectedEventIndex = _availableEventTypes.IndexOf(_eventNameProp.stringValue);
                     if (_selectedEventIndex < 0) _selectedEventIndex = 0;
 
                     _selectedEventIndex = EditorGUILayout.Popup("Event Type", _selectedEventIndex, _availableEventTypes.ToArray());
@@ -69,28 +75,28 @@ namespace FluxFramework.VisualScripting.Editor.Inspectors
                 else
                 {
                     EditorGUILayout.HelpBox("No event types discovered. Use 'Refresh' or enable 'Manual Entry'.", MessageType.Info);
-                    newEventType = EditorGUILayout.TextField("Event Type", _eventTypeProp.stringValue);
+                    newEventType = EditorGUILayout.TextField("Event Type", _eventNameProp.stringValue);
                 }
             }
 
-            if (newEventType != _eventTypeProp.stringValue)
+            if (newEventType != _eventNameProp.stringValue)
             {
-                _eventTypeProp.stringValue = newEventType;
+                _eventNameProp.stringValue = newEventType;
             }
 
             EditorGUILayout.Space();
             
             // --- Read the value directly from the SerializedProperty ---
-            string currentEventTypeValue = _eventTypeProp.stringValue;
+            string currentEventNameValue = _eventNameProp.stringValue;
 
             EditorGUILayout.LabelField("Event Info", EditorStyles.boldLabel);
             EditorGUI.BeginDisabledGroup(true);
-            EditorGUILayout.TextField("Current Event Type", string.IsNullOrEmpty(currentEventTypeValue) ? "Generic Event" : currentEventTypeValue);
+            EditorGUILayout.TextField("Current Event Type", string.IsNullOrEmpty(currentEventNameValue) ? "Generic Event" : currentEventNameValue);
             EditorGUI.EndDisabledGroup();
 
-            if (!string.IsNullOrEmpty(currentEventTypeValue))
+            if (!string.IsNullOrEmpty(currentEventNameValue))
             {
-                EditorGUILayout.HelpBox($"Will publish a '{currentEventTypeValue}' event when executed.", MessageType.Info);
+                EditorGUILayout.HelpBox($"Will publish a '{currentEventNameValue}' event when executed.", MessageType.Info);
             }
             else
             {
