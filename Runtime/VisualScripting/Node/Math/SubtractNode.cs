@@ -3,12 +3,13 @@ using System.Linq;
 using FluxFramework.Attributes.VisualScripting;
 using FluxFramework.VisualScripting;
 using FluxFramework.VisualScripting.Node;
+using Microsoft.CSharp;
 
 namespace FluxFramework.VisualScripting.Node
 {
     [Serializable]
-    [FluxNode("Add", Category = "Math", Description = "Adds two numbers together.")]
-    public class AddNode : INode
+    [FluxNode("Subtract", Category = "Math", Description = "Subtracts two numbers.")]
+    public class SubtractNode : INode
     {
         [Port(FluxPortDirection.Input, "A", PortCapacity.Single)]
         public object A;
@@ -33,7 +34,7 @@ namespace FluxFramework.VisualScripting.Node
                 double aVal = Convert.ToDouble(A);
                 double bVal = Convert.ToDouble(B);
 
-                Result = aVal + bVal;
+                Result = aVal - bVal;
             }
             catch
             {

@@ -7,8 +7,8 @@ using FluxFramework.VisualScripting.Node;
 namespace FluxFramework.VisualScripting.Node
 {
     [Serializable]
-    [FluxNode("Add", Category = "Math", Description = "Adds two numbers together.")]
-    public class AddNode : INode
+    [FluxNode("Divide", Category = "Math", Description = "Divides two numbers.")]
+    public class DivideNode : INode
     {
         [Port(FluxPortDirection.Input, "A", PortCapacity.Single)]
         public object A;
@@ -29,15 +29,19 @@ namespace FluxFramework.VisualScripting.Node
                     return;
                 }
 
-                // Convert both operands to double for calculation
                 double aVal = Convert.ToDouble(A);
                 double bVal = Convert.ToDouble(B);
 
-                Result = aVal + bVal;
+                if (Math.Abs(bVal) < double.Epsilon)
+                {
+                    Result = 0;
+                    return;
+                }
+
+                Result = aVal / bVal;
             }
             catch
             {
-                // Fallback if conversion fails
                 Result = 0;
             }
         }
