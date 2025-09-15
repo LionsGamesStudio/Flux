@@ -47,26 +47,58 @@ namespace FluxFramework.VisualScripting
         public bool CanConnectTo(FluxNodePort otherPort)
         {
             if (otherPort == null) return false;
-
-            // Rule 1: Cannot connect to a port on the same node.
-            if (ReferenceEquals(this, otherPort)) return false;
             
-            // Rule 2: Directions must be opposite (Input to Output, or Output to Input).
+            // Basic Rule: Directions must be opposite.
             if (this.Direction == otherPort.Direction) return false;
 
-            // Rule 3: Port types must be the same (Execution to Execution, Data to Data).
-            if (this.PortType != otherPort.PortType) return false;
+            // --- TYPE-SPECIFIC RULES ---
             
-            // Rule 4 (for Data ports): The value types must be compatible.
-            if (this.PortType == FluxPortType.Data)
-            {
-                var fromType = (this.Direction == FluxPortDirection.Output) ? this.ValueTypeName : otherPort.ValueTypeName;
-                var toType = (this.Direction == FluxPortDirection.Input) ? this.ValueTypeName : otherPort.ValueTypeName;
-                return IsValueTypeCompatible(fromType, toType);
-            }
+            // Get the port that is the SOURCE of the connection (Output) and the one that is the SINK (Input).
+            var sourcePort = (this.Direction == FluxPortDirection.Output) ? this : otherPort;
+            var sinkPort = (this.Direction == FluxPortDirection.Input) ? this : otherPort;
 
-            // If all checks pass, the connection is valid.
-            return true;
+            switch (sourcePort.PortType)
+            {
+                case FluxPortType.Execution:
+                    // An Execution source can ONLY connect to an Execution sink.
+                    return sinkPort.PortType == FluxPortType.Execution;
+
+                case FluxPortType.Data:
+                    // A Data source can connect to a Data sink OR a Property sink.
+                    if (sinkPort.PortType == FluxPortType.Data)
+                    {
+                        return IsValueTypeCompatible(sourcePort.ValueTypeName, sinkPort.ValueTypeName);
+                    }
+                    if (sinkPort.PortType == FluxPortType.Property)
+                    {
+                        // You can connect a value to a property port (e.g., to set its initial value).
+                        // We need to check if the data type is compatible with the property's generic type.
+                        return IsValueTypeCompatible(sourcePort.ValueTypeName, sinkPort.ValueTypeName);
+                    }
+                    return false;
+
+                case FluxPortType.Event:
+                    // An Event source can ONLY connect to an Execution sink. This triggers a flow.
+                    return sinkPort.PortType == FluxPortType.Execution;
+
+                case FluxPortType.Property:
+                    // A Property source can connect to a Property sink OR a Data sink.
+                    if (sinkPort.PortType == FluxPortType.Property)
+                    {
+                        // Property-to-Property connection (passing the live link).
+                        return IsValueTypeCompatible(sourcePort.ValueTypeName, sinkPort.ValueTypeName);
+                    }
+                    if (sinkPort.PortType == FluxPortType.Data)
+                    {
+                        // You can get the value from a property port and pass it to a data port.
+                        // The property's generic type must be compatible with the data port's type.
+                        return IsValueTypeCompatible(sourcePort.ValueTypeName, sinkPort.ValueTypeName);
+                    }
+                    return false;
+
+                default:
+                    return false;
+            }
         }
 
         /// <summary>
@@ -74,28 +106,42 @@ namespace FluxFramework.VisualScripting
         /// </summary>
         private bool IsValueTypeCompatible(string fromTypeName, string toTypeName)
         {
+            // Rule 0: Exact match is always valid.
             if (fromTypeName == toTypeName) return true;
             
             Type fromType = Type.GetType(fromTypeName);
             Type toType = Type.GetType(toTypeName);
             
-            if (fromType == null || toType == null) return false; // Should not happen
+            // This can happen if an assembly is not loaded yet, so it's a safe check.
+            if (fromType == null || toType == null) return false;
 
-            // Rule A: Anything can be connected to an 'object' port.
+            // Rule 1 (Sink is Object): Anything can be connected TO an 'object' port.
+            // This is safe because any type can be implicitly cast to object.
             if (toType == typeof(object)) return true;
             
-            // Rule B: A derived class can be connected to a base class port (e.g., a specific FluxUIComponent to a generic FluxUIComponent).
+            // Rule 2 (Source is Object): An 'object' output can connect TO ANYTHING.
+            // This is an optimistic rule for nodes like 'Add' that use dynamic types.
+            // We trust the user that the runtime value will be convertible.
+            // A runtime error will occur if the conversion fails, which is acceptable.
+            if (fromType == typeof(object)) return true;
+            
+            // Rule 3 (Inheritance): A derived class can be connected to a base class port.
+            // (e.g., a specific FluxUIComponent to a generic Component port).
             if (toType.IsAssignableFrom(fromType)) return true;
             
-            // Rule C: Check for common numeric conversions (e.g., int to float).
+            // Rule 4 (Explicit Conversion): Check if an explicit conversion is possible.
+            // This handles cases like int -> float, float -> double, etc.
             try
             {
-                var dummyValue = Activator.CreateInstance(fromType);
+                // We use FormatterServices to get an uninitialized object, which is faster
+                // and doesn't require a parameterless constructor.
+                var dummyValue = System.Runtime.Serialization.FormatterServices.GetUninitializedObject(fromType);
                 System.Convert.ChangeType(dummyValue, toType);
                 return true; // If no exception is thrown, the conversion is possible.
             }
             catch
             {
+                // The conversion is not supported by System.Convert.
                 return false;
             }
         }

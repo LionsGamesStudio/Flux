@@ -16,8 +16,8 @@ namespace FluxFramework.VisualScripting.Node
         [Port(FluxPortDirection.Input, "B", PortCapacity.Single)]
         public object B;
 
-        [Port(FluxPortDirection.Output, "Result", PortCapacity.Multi)]
-        public object Result;
+        [Port(FluxPortDirection.Output, "Result", FluxPortType.Data, PortCapacity.Multi)]
+        public double Result;
 
         public void Execute()
         {

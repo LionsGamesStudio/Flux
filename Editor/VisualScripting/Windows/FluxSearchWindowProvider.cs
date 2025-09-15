@@ -43,10 +43,20 @@ namespace FluxFramework.VisualScripting.Editor
             var nodeTypes = TypeCache.GetTypesWithAttribute<FluxNodeAttribute>()
                 .Where(t => typeof(INode).IsAssignableFrom(t) && !t.IsAbstract);
 
-            // If we are dragging from a port, we can filter this list to only show compatible nodes.
-            // (This is an advanced feature we can add later. For now, we show all nodes).
-            
+            // If we are dragging from a port, we can filter this list to only show compatible nodes.            
             var sortedCategories = new SortedDictionary<string, List<Type>>();
+            // if (_originPort != null)
+            // {
+            //     if (_originPort.userData is FluxNodePort originFluxPort)
+            //     {
+            //         nodeTypes = nodeTypes.Where(t =>
+            //         {
+            //             var ports = FluxNodeHelper.GetNodePorts(t);
+            //             return ports.Any(p => originFluxPort.CanConnectTo(p));
+            //         });
+            //     }
+            // }
+
             foreach (var type in nodeTypes)
             {
                 var attr = type.GetCustomAttribute<FluxNodeAttribute>();
