@@ -181,11 +181,23 @@ namespace FluxFramework.VisualScripting.Execution
 
                 if (executionResult is IEnumerable<ExecutionToken> resultingTokens)
                 {
+                    // Case A: The node is a flow controller (like ForEach) and returns its own tokens.
                     foreach (var resultToken in resultingTokens) yield return resultToken;
                 }
                 else
                 {
-                    foreach (var nextToken in FindNextTokensFromPorts(node, activeGraph)) yield return nextToken;
+                    // Case B: The node is synchronous (returns void). The executor is responsible for continuing the flow.
+                    // We find the output port that logically follows the input port that was triggered.
+                    // By convention, if the input is "In", the output is "Out". Or if input is "Start", output might be "OnStarted".
+                    // For now, a simple rule: find the first execution output.
+                    var outputPortToFollow = node.OutputPorts.FirstOrDefault(p => p.PortType == FluxPortType.Execution);
+                    if (outputPortToFollow != null)
+                    {
+                        foreach (var nextToken in FindNextTokensFromPorts(node, activeGraph, outputPortToFollow.Name))
+                        {
+                            yield return nextToken;
+                        }
+                    }
                 }
             }
         }
@@ -324,6 +336,32 @@ namespace FluxFramework.VisualScripting.Execution
                 var newToken = new ExecutionToken(chosenNode);
                 newToken.SetData("_triggeredPortName", chosenConnection.ToPortName);
                 yield return newToken;
+            }
+        }
+
+        /// <summary>
+        /// Finds the next nodes to execute based on a specific output port name.
+        /// This is used when a synchronous node completes and the executor needs to continue the flow.
+        /// </summary>
+        /// <param name="completedNode"></param>
+        /// <param name="activeGraph"></param>
+        /// <param name="outputPortName"></param>
+        /// <returns></returns>
+        private IEnumerable<ExecutionToken> FindNextTokensFromPorts(FluxNodeBase completedNode, FluxVisualGraph activeGraph, string outputPortName)
+        {
+            var outputPort = completedNode.OutputPorts.FirstOrDefault(p => p.Name == outputPortName && p.PortType == FluxPortType.Execution);
+            if (outputPort == null) yield break;
+
+            var connections = activeGraph.Connections.Where(c => c.FromNodeId == completedNode.NodeId && c.FromPortName == outputPort.Name);
+            foreach (var connection in connections)
+            {
+                var nextNode = activeGraph.Nodes.FirstOrDefault(n => n.NodeId == connection.ToNodeId);
+                if (nextNode != null)
+                {
+                    var newToken = new ExecutionToken(nextNode);
+                    newToken.SetData("_triggeredPortName", connection.ToPortName);
+                    yield return newToken;
+                }
             }
         }
         
