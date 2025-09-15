@@ -7,13 +7,13 @@ namespace FluxFramework.VisualScripting.Node
     [FluxNode("Add", Category = "Math", Description = "Adds two float numbers together.")]
     public class AddNode : INode
     {
-        [Port(FluxPortDirection.Input)]
+        [Port(FluxPortDirection.Input, "A")]
         public float A;
 
-        [Port(FluxPortDirection.Input)]
+        [Port(FluxPortDirection.Input, "B")]
         public float B;
 
-        [Port(FluxPortDirection.Output)]
+        [Port(FluxPortDirection.Output, "Result")]
         public float Result;
 
         public void Execute()

@@ -12,8 +12,8 @@ namespace FluxFramework.VisualScripting
     {
         [SerializeField] private string _nodeId = System.Guid.NewGuid().ToString();
         [SerializeField] private Vector2 _position;
-        [SerializeField] private List<FluxNodePort> _inputPorts = new List<FluxNodePort>();
-        [SerializeField] private List<FluxNodePort> _outputPorts = new List<FluxNodePort>();
+        [SerializeField] protected List<FluxNodePort> _inputPorts = new List<FluxNodePort>();
+        [SerializeField] protected List<FluxNodePort> _outputPorts = new List<FluxNodePort>();
 
         public string NodeId => _nodeId;
         public Vector2 Position { get => _position; set => _position = value; }

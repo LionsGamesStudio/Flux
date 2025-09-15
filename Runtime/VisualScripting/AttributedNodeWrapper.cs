@@ -1,6 +1,8 @@
 using System;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
+using System.Text;
 using UnityEngine;
 using FluxFramework.Attributes.VisualScripting;
 using FluxFramework.VisualScripting.Node;
@@ -17,26 +19,34 @@ namespace FluxFramework.VisualScripting
     {
         [SerializeReference]
         private INode _nodeLogic;
+        
+        // This non-serialized reference to the parent graph is crucial for nodes
+        // that need to query their connections (like ForEach).
+        [NonSerialized]
+        private FluxVisualGraph _parentGraph;
 
         public INode NodeLogic => _nodeLogic;
+        public FluxVisualGraph ParentGraph { get => _parentGraph; set => _parentGraph = value; }
         
-        private string GenerateDisplayName(string fieldName)
+        /// <summary>
+        /// Finds the first node connected to a specific output port of this wrapper.
+        /// This is a vital helper for flow-control nodes like ForEach and Branch.
+        /// </summary>
+        public FluxNodeBase GetConnectedNode(string portName)
         {
-            if (string.IsNullOrEmpty(fieldName)) return fieldName;
+            if (_parentGraph == null) return null;
+            
+            var connection = _parentGraph.Connections.FirstOrDefault(c => c.FromNodeId == NodeId && c.FromPortName == portName);
+            if (connection == null) return null;
 
-            // Split camel case and capitalize words
-            var words = System.Text.RegularExpressions.Regex.Matches(fieldName, @"([A-Z][a-z]+)")
-                .Cast<System.Text.RegularExpressions.Match>()
-                .Select(m => m.Value);
-            return string.Join(" ", words);
+            return _parentGraph.Nodes.FirstOrDefault(n => n.NodeId == connection.ToNodeId);
         }
 
         #if UNITY_EDITOR
         /// <summary>
         /// (Editor-only) Initializes the wrapper with a specific type of INode logic.
-        /// This creates an instance of the logic and populates the wrapper's ports.
         /// </summary>
-        public void Initialize(Type nodeLogicType)
+        public void Initialize(Type nodeLogicType, FluxVisualGraph graph)
         {
             if (nodeLogicType == null || !typeof(INode).IsAssignableFrom(nodeLogicType))
             {
@@ -44,10 +54,15 @@ namespace FluxFramework.VisualScripting
                 return;
             }
 
+            _parentGraph = graph; // Set the parent graph reference
             _nodeLogic = (INode)Activator.CreateInstance(nodeLogicType);
             
-            // Generate the visual ports from the logic's attributes
             GeneratePortsFromLogic();
+
+            if (_nodeLogic is IPortConfiguration configurator)
+            {
+                configurator.ConfigurePorts(this);
+            }
         }
         
         /// <summary>
@@ -58,7 +73,7 @@ namespace FluxFramework.VisualScripting
         {
             if (_nodeLogic == null) return;
             
-            ClearPorts(); // Start with a clean slate
+            ClearPorts();
             
             var logicType = _nodeLogic.GetType();
             var fields = logicType.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
@@ -72,8 +87,6 @@ namespace FluxFramework.VisualScripting
                 string displayName = portAttr.DisplayName ?? GenerateDisplayName(portName);
                 Type valueType = field.FieldType;
                 
-                // For Execution ports, we need a way to represent their 'void' type.
-                // We'll create a dummy type for this.
                 if (portAttr.PortType == FluxPortType.Execution)
                 {
                     valueType = typeof(ExecutionPin);
@@ -89,12 +102,25 @@ namespace FluxFramework.VisualScripting
                 }
             }
         }
-#endif
+
+        public FluxNodePort FindPort(string name)
+        {
+            return (FluxNodePort)_inputPorts.FirstOrDefault(p => p.Name == name) ?? 
+                   (FluxNodePort)_outputPorts.FirstOrDefault(p => p.Name == name);
+        }
+        
+        private string GenerateDisplayName(string fieldName)
+        {
+            if (string.IsNullOrEmpty(fieldName)) return fieldName;
+            
+            // This is a more robust way to "nicify" camelCase and PascalCase names.
+            return Regex.Replace(fieldName, "(\\B[A-Z])", " $1");
+        }
+        #endif
     }
     
     /// <summary>
-    /// A simple, empty struct used as a placeholder type for Execution ports,
-    /// since they don't carry any data.
+    /// A simple, empty struct used as a placeholder type for Execution ports.
     /// </summary>
     public struct ExecutionPin { }
 }

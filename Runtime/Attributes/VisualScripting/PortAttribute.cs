@@ -33,5 +33,46 @@ namespace FluxFramework.Attributes.VisualScripting
         {
             Direction = direction;
         }
+
+        public PortAttribute(FluxPortDirection direction, FluxPortType portType)
+        {
+            Direction = direction;
+            PortType = portType;
+        }
+
+        public PortAttribute(FluxPortDirection direction, string displayName)
+        {
+            Direction = direction;
+            DisplayName = displayName;
+        }
+
+        public PortAttribute(FluxPortDirection direction, string displayName, string tooltip)
+        {
+            Direction = direction;
+            DisplayName = displayName;
+            Tooltip = tooltip;
+        }
+
+        public PortAttribute(FluxPortDirection direction, FluxPortType portType, string tooltip)
+        {
+            Direction = direction;
+            PortType = portType;
+            Tooltip = tooltip;
+        }
+
+        public PortAttribute(FluxPortDirection direction, string displayName, FluxPortType portType = FluxPortType.Data)
+        {
+            Direction = direction;
+            DisplayName = displayName;
+            PortType = portType;
+        }
+
+        public PortAttribute(FluxPortDirection direction, string displayName, FluxPortType portType, string tooltip)
+        {
+            Direction = direction;
+            DisplayName = displayName;
+            PortType = portType;
+            Tooltip = tooltip;
+        }
     }
 }

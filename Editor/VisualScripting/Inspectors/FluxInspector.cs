@@ -1,6 +1,10 @@
+using System;
+using System.Reflection;
+using UnityEngine;
 using UnityEngine.UIElements;
 using UnityEditor;
-using System.Reflection;
+using UnityEditor.UIElements;
+using UnityEditor.Experimental.GraphView;
 using FluxFramework.Attributes.VisualScripting;
 using FluxFramework.VisualScripting.Node;
 
@@ -26,7 +30,10 @@ namespace FluxFramework.VisualScripting.Editor
         /// <summary>
         /// Updates the view to inspect a new node.
         /// </summary>
-        public void UpdateSelection(FluxNodeView nodeView)
+        /// <summary>
+        /// Updates the view to inspect a graph element (Node or Edge).
+        /// </summary>
+        public void UpdateSelection(GraphElement element)
         {
             // Clean up the old editor
             if (_editor != null)
@@ -35,10 +42,33 @@ namespace FluxFramework.VisualScripting.Editor
                 _editor = null;
             }
 
-            if (nodeView == null) return;
-            
-            // Create a new editor for the selected node's data model
-            _editor = UnityEditor.Editor.CreateEditor(nodeView.Node);
+            if (element is FluxNodeView nodeView)
+            {
+                _editor = UnityEditor.Editor.CreateEditor(nodeView.Node);
+            }
+            else if (element is Edge edge)
+            {
+                // Find the FluxNodeConnection that this Edge represents
+                var graphView = edge.GetFirstAncestorOfType<FluxGraphView>();
+                var connectionData = graphView.GetConnectionDataForEdge(edge);
+                if (connectionData != null)
+                {
+                    // Create our temporary proxy object to be the target of the editor.
+                    var proxy = ScriptableObject.CreateInstance<ConnectionProxy>();
+                    proxy.Initialize(connectionData);
+                    _editor = UnityEditor.Editor.CreateEditor(proxy);
+                }
+            }
+            else
+            {
+                // If nothing (or something else) is selected, ensure the inspector is cleared.
+                // This might have been the missing piece.
+                if (_editor != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(_editor);
+                    _editor = null;
+                }
+            }
         }
     }
 }

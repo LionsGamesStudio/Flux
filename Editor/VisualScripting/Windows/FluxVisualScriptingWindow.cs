@@ -2,6 +2,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 using UnityEditor.UIElements;
+using UnityEditor.Experimental.GraphView;
 
 namespace FluxFramework.VisualScripting.Editor
 {
@@ -59,9 +60,9 @@ namespace FluxFramework.VisualScripting.Editor
             OnSelectionChange();
         }
 
-        public void OnNodeSelected(FluxNodeView node)
+        public void OnElementSelected(GraphElement element)
         {
-            _inspectorView?.UpdateSelection(node);
+            _inspectorView?.UpdateSelection(element);
         }
 
         private void CreateNewGraph()

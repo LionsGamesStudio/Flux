@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections;
 using System.Linq;
 using System.Reflection;
 using UnityEditor.Experimental.GraphView;
@@ -7,6 +8,7 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using UnityEditor;
 using FluxFramework.VisualScripting;
+using FluxFramework.VisualScripting.Execution;
 using FluxFramework.Attributes.VisualScripting;
 
 namespace FluxFramework.VisualScripting.Editor
@@ -50,6 +52,33 @@ namespace FluxFramework.VisualScripting.Editor
             this.serializeGraphElements = OnSerializeGraphElements;
             this.unserializeAndPaste = OnUnserializeAndPaste;
             this.canPasteSerializedData = CanPaste;
+
+            // We subscribe to the selection change event instead of overriding a method.
+            graphViewChanged = OnGraphViewChanged;
+            viewTransformChanged = OnViewTransformChanged;
+
+            // We register a callback for when the mouse is released anywhere on the graph.
+            this.RegisterCallback<MouseUpEvent>(evt => CheckSelectionChange());
+            // We also do it for key ups, to catch selections via arrow keys or delete.
+            this.RegisterCallback<KeyUpEvent>(evt => CheckSelectionChange());
+
+            // Subscribe to the GraphDebugger events for visual debugging
+            GraphDebugger.OnNodeEnter += OnNodeEnter;
+            GraphDebugger.OnNodeExit += OnNodeExit;
+            GraphDebugger.OnTokenTraverse += OnTokenTraverse;
+            GraphDebugger.OnNodeDataUpdate += OnNodeDataUpdate;
+
+            // To clear the debug info when stop playing
+            EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
+        }
+
+        ~FluxGraphView()
+        {
+            GraphDebugger.OnNodeEnter -= OnNodeEnter;
+            GraphDebugger.OnNodeExit -= OnNodeExit;
+            GraphDebugger.OnTokenTraverse -= OnTokenTraverse;
+            GraphDebugger.OnNodeDataUpdate -= OnNodeDataUpdate;
+            EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
         }
 
         /// <summary>
@@ -65,6 +94,9 @@ namespace FluxFramework.VisualScripting.Editor
             graphViewChanged += OnGraphViewChanged;
 
             if (_graph == null) return;
+
+            ClearSelection();
+            _window.OnElementSelected(null);
 
             // Create a view for each node in the data model
             foreach (var nodeData in _graph.Nodes)
@@ -92,7 +124,9 @@ namespace FluxFramework.VisualScripting.Editor
             }
         }
 
-        // This is the main callback that synchronizes UI changes back to our data model (_graph).
+        /// <summary>
+        /// Called whenever the graph changes (nodes or edges are added/removed).
+        /// </summary>
         private GraphViewChange OnGraphViewChanged(GraphViewChange graphViewChange)
         {
             if (graphViewChange.elementsToRemove != null)
@@ -121,8 +155,6 @@ namespace FluxFramework.VisualScripting.Editor
 
                     if (fromNodeView != null && toNodeView != null)
                     {
-                        // TODO: This part is tricky because the PortView doesn't store our FluxNodePort.
-                        // We'll need to look it up by name.
                         var fromPortData = fromNodeView.Node.OutputPorts.First(p => p.Name == edge.output.portName);
                         var toPortData = toNodeView.Node.InputPorts.First(p => p.Name == edge.input.portName);
 
@@ -131,7 +163,43 @@ namespace FluxFramework.VisualScripting.Editor
                 }
             }
 
+            if(graphViewChange.movedElements != null)
+            {
+                foreach (var element in graphViewChange.movedElements)
+                {
+                    if (element is FluxNodeView nodeView)
+                    {
+                        nodeView.Node.Position = nodeView.GetPosition().position;
+                        EditorUtility.SetDirty(_graph); // Mark the graph as dirty to save the new position
+                    }
+                }
+            }
+
             return graphViewChange;
+        }
+
+        /// <summary>
+        /// Called when the view transform (zoom/pan) changes.
+        /// </summary>
+        /// <param name="view"></param>
+        private void OnViewTransformChanged(GraphView view)
+        {
+            // This can be used to save the zoom and pan state later.
+        }
+
+        /// <summary>
+        /// Checks for selection changes and notifies the window.
+        /// </summary>
+        private void CheckSelectionChange()
+        {
+            // By scheduling the check for the next editor frame, we guarantee
+            // that the GraphView's 'selection' property has been fully updated
+            // before we read it. This solves the race condition.
+            schedule.Execute(() =>
+            {
+                var selectedElement = selection.OfType<GraphElement>().LastOrDefault();
+                _window.OnElementSelected(selectedElement);
+            });
         }
 
         // We override this to define our own connection rules.
@@ -170,7 +238,7 @@ namespace FluxFramework.VisualScripting.Editor
             var wrapperNode = _graph.CreateNode<AttributedNodeWrapper>(graphPosition);
 
             // Initialize the wrapper with the selected logic. This also generates its ports.
-            wrapperNode.Initialize(nodeLogicType);
+            wrapperNode.Initialize(nodeLogicType, _graph);
 
             // Give the node a user-friendly name in the asset hierarchy.
             var nodeAttr = nodeLogicType.GetCustomAttribute<FluxNodeAttribute>();
@@ -187,85 +255,212 @@ namespace FluxFramework.VisualScripting.Editor
         /// Creates and adds a FluxNodeView to the GraphView for the given node data model.
         /// </summary>
         /// <param name="nodeData"></param>
-        private void CreateNodeView(FluxNodeBase nodeData)
+        private FluxNodeView CreateNodeView(FluxNodeBase nodeData)
         {
             var nodeView = new FluxNodeView(nodeData);
             AddElement(nodeView);
+            return nodeView;
         }
 
-        private void CreateNode(System.Type type, Vector2 position)
+        /// <summary>
+        /// A helper method to find the data model object for a visual edge.
+        /// </summary>
+        public FluxNodeConnection GetConnectionDataForEdge(Edge edge)
         {
-            if (_graph != null)
+            var fromNodeView = edge.output.node as FluxNodeView;
+            var toNodeView = edge.input.node as FluxNodeView;
+
+            if (fromNodeView == null || toNodeView == null) return null;
+
+            return _graph.Connections.FirstOrDefault(c =>
+                c.FromNodeId == fromNodeView.Node.NodeId && c.FromPortName == edge.output.portName &&
+                c.ToNodeId == toNodeView.Node.NodeId && c.ToPortName == edge.input.portName);
+        }
+
+        #region Visual Debugging Support
+        
+        /// <summary>
+        /// Called when a node begins execution.
+        /// </summary>
+        /// <param name="nodeId"></param>
+        private void OnNodeEnter(string nodeId)
+        {
+            var nodeView = GetNodeByGuid(nodeId) as FluxNodeView;
+            nodeView?.Flash(Color.yellow);
+        }
+
+        /// <summary>
+        /// Called when a node finishes execution.
+        /// </summary>
+        /// <param name="nodeId"></param>
+        private void OnNodeExit(string nodeId)
+        {
+            // Optional: Could add a different flash color for exit.
+        }
+
+        /// <summary>
+        /// Called when an execution token traverses a connection.
+        /// </summary>
+        /// <param name="fromNodeId"></param>
+        /// <param name="fromPortName"></param>
+        /// <param name="toNodeId"></param>
+        /// <param name="toPortName"></param>
+        private void OnTokenTraverse(string fromNodeId, string fromPortName, string toNodeId, string toPortName)
+        {
+            var edge = edges.ToList().FirstOrDefault(e =>
             {
-                var node = _graph.CreateNode<AttributedNodeWrapper>(position);
+                var fromNode = e.output.node as FluxNodeView;
+                var toNode = e.input.node as FluxNodeView;
+                return fromNode?.Node.NodeId == fromNodeId && e.output.portName == fromPortName &&
+                    toNode?.Node.NodeId == toNodeId && e.input.portName == toPortName;
+            });
 
-                // TODO: For now, we need a way to create an example INode to test.
-                // We will create a dummy 'AddNode' for this.
-                var addNodeLogicType = System.Type.GetType("FluxFramework.VisualScripting.Node.AddNode, Assembly-CSharp");
-                if (addNodeLogicType != null)
+            edge?.Flash(Color.cyan);
+        }
+
+        /// <summary>
+        /// Called when a node updates its data ports during execution.
+        /// </summary>
+        /// <param name="nodeId"></param>
+        /// <param name="portValues"></param>
+        private void OnNodeDataUpdate(string nodeId, Dictionary<string, string> portValues)
+        {
+            var nodeView = GetNodeByGuid(nodeId) as FluxNodeView;
+            nodeView?.SetPortDebugValues(portValues);
+        }
+        
+        /// <summary>
+        /// Called when the play mode state changes.
+        /// </summary>
+        /// <param name="state"></param>
+        private void OnPlayModeStateChanged(PlayModeStateChange state)
+        {
+            // When we exit play mode, clear all the debug labels.
+            if (state == PlayModeStateChange.ExitingPlayMode)
+            {
+                foreach (var nodeView in nodes.OfType<FluxNodeView>())
                 {
-                    node.Initialize(addNodeLogicType);
+                    nodeView.ClearPortDebugValues();
                 }
-
-                CreateNodeView(node);
             }
         }
+
+
+        #endregion
 
         #region Copy/Paste Support
 
         /// <summary>
         /// This method is called by the GraphView when the user presses Ctrl+C or selects "Copy".
-        /// It should return a string representation of the selected elements. We'll use JSON.
+        /// It now serializes both the selected nodes and the connections between them.
         /// </summary>
         private string OnSerializeGraphElements(IEnumerable<GraphElement> elements)
         {
-            var data = new ClipboardData();
-
-            // Store the nodes
-            foreach (var nodeView in elements.OfType<FluxNodeView>())
+            var selectedNodeViews = elements.OfType<FluxNodeView>().ToList();
+            if (!selectedNodeViews.Any())
             {
-                data.Nodes.Add(JsonUtility.ToJson(nodeView.Node));
+                return string.Empty;
             }
 
-            // TODO: Store the connections between the selected nodes
+            var clipboardData = new ClipboardData();
 
-            return JsonUtility.ToJson(data);
+            // 1. Create a set of the selected node IDs for quick lookups.
+            var selectedNodeIds = new HashSet<string>(selectedNodeViews.Select(v => v.Node.NodeId));
+
+            // 2. Serialize all selected nodes.
+            foreach (var nodeView in selectedNodeViews)
+            {
+                clipboardData.NodesJson.Add(EditorJsonUtility.ToJson(nodeView.Node));
+            }
+
+            // 3. Find and serialize all connections that are *internal* to the selection.
+            foreach (var connection in _graph.Connections)
+            {
+                // A connection is internal if both its source and destination nodes are in our selection set.
+                if (selectedNodeIds.Contains(connection.FromNodeId) && selectedNodeIds.Contains(connection.ToNodeId))
+                {
+                    clipboardData.Connections.Add(new ConnectionData
+                    {
+                        FromNodeId = connection.FromNodeId,
+                        FromPortName = connection.FromPortName,
+                        ToNodeId = connection.ToNodeId,
+                        ToPortName = connection.ToPortName
+                    });
+                }
+            }
+
+            return JsonUtility.ToJson(clipboardData);
         }
 
         /// <summary>
         /// This method is called by the GraphView when the user presses Ctrl+V or selects "Paste".
-        /// It receives the string from the clipboard and should create new nodes.
+        /// It now recreates both the nodes and their internal connections.
         /// </summary>
         private void OnUnserializeAndPaste(string operationName, string data)
         {
             if (_graph == null) return;
 
             var clipboardData = JsonUtility.FromJson<ClipboardData>(data);
+            if (clipboardData == null) return;
 
-            Undo.RecordObject(_graph, "Paste Nodes");
+            // Start a single Undo group for the entire paste operation.
+            Undo.RecordObject(_graph, "Paste Graph Elements");
 
-            foreach (var nodeJson in clipboardData.Nodes)
+            var newNodes = new List<FluxNodeView>();
+            // This dictionary is crucial to remap old connections to the newly created nodes.
+            var oldIdToNewNodeMap = new Dictionary<string, FluxNodeBase>();
+
+            // --- 1. Recreate all the nodes ---
+            foreach (var nodeJson in clipboardData.NodesJson)
             {
-                // This is a bit tricky. We need to create an empty ScriptableObject first,
-                // then overwrite it with our JSON data.
                 var tempNode = ScriptableObject.CreateInstance<AttributedNodeWrapper>();
-                JsonUtility.FromJsonOverwrite(nodeJson, tempNode);
+                EditorJsonUtility.FromJsonOverwrite(nodeJson, tempNode);
+                
+                string oldNodeId = tempNode.NodeId;
+                
+                // Create a new node in the graph asset. It will get a NEW, unique ID.
+                var newNode = _graph.CreateNode<AttributedNodeWrapper>(tempNode.Position + new Vector2(50, 50));
 
-                // Now, create a *real* node in our graph asset by cloning the temporary one.
-                var newNode = _graph.CreateNode<AttributedNodeWrapper>(tempNode.Position + new Vector2(30, 30));
-
-                // We need to re-initialize the logic from the type, because SerializeReference isn't perfect with FromJsonOverwrite
-                var logicType = Type.GetType(tempNode.NodeLogic.GetType().AssemblyQualifiedName);
-                newNode.Initialize(logicType);
-
-                // Now copy the serialized fields from the pasted logic to the new logic instance
+                // Initialize its logic and copy the data.
+                var logicType = tempNode.NodeLogic.GetType();
+                newNode.Initialize(logicType, _graph);
                 EditorJsonUtility.FromJsonOverwrite(EditorJsonUtility.ToJson(tempNode.NodeLogic), newNode.NodeLogic);
-
-                CreateNodeView(newNode);
-
-                // Clean up the temporary node
-                ScriptableObject.DestroyImmediate(tempNode);
+                newNode.name = tempNode.name;
+                
+                // Store the mapping from the old ID to the new node instance.
+                oldIdToNewNodeMap[oldNodeId] = newNode;
+                
+                var nodeView = CreateNodeView(newNode);
+                newNodes.Add(nodeView);
+                
+                ScriptableObject.DestroyImmediate(tempNode, true);
             }
+
+            // --- 2. Recreate all the connections ---
+            foreach (var connectionData in clipboardData.Connections)
+            {
+                // Find the newly created source and destination nodes using our map.
+                if (oldIdToNewNodeMap.TryGetValue(connectionData.FromNodeId, out var newFromNode) &&
+                    oldIdToNewNodeMap.TryGetValue(connectionData.ToNodeId, out var newToNode))
+                {
+                    // Find the corresponding port data on the new nodes.
+                    var fromPortData = newFromNode.OutputPorts.FirstOrDefault(p => p.Name == connectionData.FromPortName);
+                    var toPortData = newToNode.InputPorts.FirstOrDefault(p => p.Name == connectionData.ToPortName);
+                    
+                    if (fromPortData != null && toPortData != null)
+                    {
+                        // Add the connection to our data model.
+                        _graph.AddConnection(fromPortData, newFromNode, toPortData, newToNode);
+                    }
+                }
+            }
+
+            // Repopulate the entire view to draw the new connections.
+            PopulateView(_graph);
+            
+            // Select all the newly pasted nodes.
+            ClearSelection();
+            newNodes.ForEach(AddToSelection);
         }
 
         /// <summary>
@@ -275,8 +470,11 @@ namespace FluxFramework.VisualScripting.Editor
         {
             try
             {
+                if (string.IsNullOrEmpty(data)) return false;
+                
                 var clipboardData = JsonUtility.FromJson<ClipboardData>(data);
-                return clipboardData != null && clipboardData.Nodes.Any();
+                
+                return clipboardData != null && clipboardData.NodesJson.Any();
             }
             catch
             {
@@ -287,10 +485,26 @@ namespace FluxFramework.VisualScripting.Editor
         /// <summary>
         /// A helper class to structure our clipboard data for JSON serialization.
         /// </summary>
+        [Serializable]
         public class ClipboardData
         {
-            public List<string> Nodes = new List<string>();
-            // We will add connections here later
+            // We will store the full JSON of each node.
+            public List<string> NodesJson = new List<string>();
+            
+            // We will store a serializable version of the connections.
+            public List<ConnectionData> Connections = new List<ConnectionData>();
+        }
+
+        /// <summary>
+        /// A simple, serializable representation of a FluxNodeConnection.
+        /// </summary>
+        [Serializable]
+        public struct ConnectionData
+        {
+            public string FromNodeId;
+            public string FromPortName;
+            public string ToNodeId;
+            public string ToPortName;
         }
         
         #endregion

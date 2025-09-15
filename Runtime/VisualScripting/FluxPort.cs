@@ -18,21 +18,24 @@ namespace FluxFramework.VisualScripting
         [SerializeField] private FluxPortDirection _direction;
         [SerializeField] private string _valueTypeName; // Stores the AssemblyQualifiedName of the data type.
         [SerializeField] private string _displayName;
+        [SerializeField] private float _probabilityWeight = 1.0f;
 
         public string Name => _name;
         public FluxPortType PortType => _portType;
         public FluxPortDirection Direction => _direction;
         public string ValueTypeName => _valueTypeName;
         public string DisplayName => _displayName;
+        public float ProbabilityWeight { get => _probabilityWeight; set => _probabilityWeight = value; }
 
         // Public constructor
-        public FluxNodePort(string name, string displayName, FluxPortType portType, FluxPortDirection direction, Type valueType)
+        internal FluxNodePort(string name, string displayName, FluxPortType portType, FluxPortDirection direction, Type valueType)
         {
             _name = name;
             _displayName = displayName;
             _portType = portType;
             _direction = direction;
             _valueTypeName = valueType.AssemblyQualifiedName;
+            _probabilityWeight = 1.0f;
         }
     }
 
