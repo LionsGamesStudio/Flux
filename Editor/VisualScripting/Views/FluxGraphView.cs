@@ -19,6 +19,8 @@ namespace FluxFramework.VisualScripting.Editor
         private FluxSearchWindowProvider _searchWindowProvider;
         private readonly FluxVisualScriptingWindow _window;
 
+        public FluxEdgeListener EdgeListener { get; private set; }
+
         public FluxGraphView(FluxVisualScriptingWindow window)
         {
             _window = window;
@@ -44,10 +46,14 @@ namespace FluxFramework.VisualScripting.Editor
             }
 
             _searchWindowProvider = ScriptableObject.CreateInstance<FluxSearchWindowProvider>();
-            _searchWindowProvider.Initialize(this, _window);
 
-            nodeCreationRequest = context =>
+            EdgeListener = new FluxEdgeListener(this, _searchWindowProvider);
+
+            nodeCreationRequest = context => {
+                // When creating from the canvas, there is no origin port.
+                _searchWindowProvider.Initialize(this, _window, null);
                 SearchWindow.Open(new SearchWindowContext(context.screenMousePosition), _searchWindowProvider);
+            };
 
             this.serializeGraphElements = OnSerializeGraphElements;
             this.unserializeAndPaste = OnUnserializeAndPaste;
@@ -154,7 +160,7 @@ namespace FluxFramework.VisualScripting.Editor
                     {
                         var fromNodeView = edge.output.node as FluxNodeView;
                         var toNodeView = edge.input.node as FluxNodeView;
-                        _graph.RemoveConnection(fromNodeView.Node, edge.output.portName, toNodeView.Node, edge.input.portName);
+                        _graph.RemoveConnection(fromNodeView.Node, edge.output.name, toNodeView.Node, edge.input.name);
                     }
                 }
             }
@@ -264,38 +270,40 @@ namespace FluxFramework.VisualScripting.Editor
         }
 
         /// <summary>
-        /// Creates a new node of the specified logic type at the given screen position.
+        /// The single, unified method for creating a new node. If an origin port is provided,
+        /// it will also attempt to create a connection.
         /// </summary>
-        /// <param name="nodeLogicType"></param>
-        /// <param name="screenPosition"></param>
-        public void CreateAttributedNode(Type nodeLogicType, Vector2 screenPosition)
+        public FluxNodeView CreateNodeAndConnect(Type nodeLogicType, Vector2 screenPosition, Port originPort)
         {
-            if (_graph == null)
-            {
-                EditorUtility.DisplayDialog("No Graph Selected", "Cannot create a node because no graph asset is loaded.", "OK");
-                return;
-            }
-
-            // Record the entire operation so it can be undone.
-            Undo.RecordObject(_graph, "Create Node");
+            if (_graph == null) return null;
 
             var graphPosition = this.contentViewContainer.WorldToLocal(screenPosition);
-
-            // Create the wrapper node and add it as a sub-asset to the graph.
             var wrapperNode = _graph.CreateNode<AttributedNodeWrapper>(graphPosition);
-
-            // Initialize the wrapper with the selected logic. This also generates its ports.
             wrapperNode.Initialize(nodeLogicType, _graph);
 
-            // Give the node a user-friendly name in the asset hierarchy.
             var nodeAttr = nodeLogicType.GetCustomAttribute<FluxNodeAttribute>();
             wrapperNode.name = nodeAttr?.DisplayName ?? nodeLogicType.Name;
 
-            // Mark the wrapper as dirty to ensure its changes (like the new ports) are saved.
             EditorUtility.SetDirty(wrapperNode);
 
-            // Create the visual representation for the new node in the graph view.
-            CreateNodeView(wrapperNode);
+            var newNodeView = CreateNodeView(wrapperNode);
+
+            if (originPort != null)
+            {
+                var targetPort = FindCompatiblePort(newNodeView, originPort);
+                if (targetPort != null)
+                {
+                    var output = originPort.direction == Direction.Output ? originPort : targetPort;
+                    var input = originPort.direction == Direction.Input ? originPort : targetPort;
+                    
+                    var edge = new Edge { output = output, input = input };
+                    AddElement(edge);
+                    
+                    var change = new GraphViewChange { edgesToCreate = new List<Edge> { edge } };
+                    this.graphViewChanged(change);
+                }
+            }
+            return newNodeView;
         }
 
         /// <summary>
@@ -304,9 +312,32 @@ namespace FluxFramework.VisualScripting.Editor
         /// <param name="nodeData"></param>
         private FluxNodeView CreateNodeView(FluxNodeBase nodeData)
         {
-            var nodeView = new FluxNodeView(nodeData);
+            var nodeView = new FluxNodeView(nodeData, this);
             AddElement(nodeView);
             return nodeView;
+        }
+
+        /// <summary>
+        /// Finds a port on the given node that is compatible with the origin port.
+        /// </summary>
+        /// <param name="nodeView"></param>
+        /// <param name="originPort"></param>
+        /// <returns></returns>
+        private Port FindCompatiblePort(FluxNodeView nodeView, Port originPort)
+        {
+            var originPortData = originPort.userData as FluxNodePort;
+            if (originPortData == null) return null;
+            var targetContainer = originPort.direction == Direction.Input ? nodeView.outputContainer : nodeView.inputContainer;
+
+            foreach (Port port in targetContainer.Children())
+            {
+                var portData = port.userData as FluxNodePort;
+                if (portData != null && originPortData.CanConnectTo(portData))
+                {
+                    return port;
+                }
+            }
+            return null;
         }
 
         /// <summary>

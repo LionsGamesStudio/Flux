@@ -14,11 +14,22 @@ namespace FluxFramework.VisualScripting.Editor
     {
         private FluxGraphView _graphView;
         private EditorWindow _window;
+        
+        // This will hold the port the user is dragging from. It will be null
+        // if the user is just right-clicking on the canvas.
+        private Port _originPort;
 
-        public void Initialize(FluxGraphView graphView, EditorWindow window)
+        /// <summary>
+        /// Initializes the provider with the necessary context.
+        /// </summary>
+        /// <param name="graphView">The target graph view.</param>
+        /// <param name="window">The parent editor window.</param>
+        /// <param name="originPort">The port from which a connection is being dragged, if any.</param>
+        public void Initialize(FluxGraphView graphView, EditorWindow window, Port originPort = null)
         {
             _graphView = graphView;
             _window = window;
+            _originPort = originPort;
         }
 
         public List<SearchTreeEntry> CreateSearchTree(SearchWindowContext context)
@@ -28,10 +39,13 @@ namespace FluxFramework.VisualScripting.Editor
                 new SearchTreeGroupEntry(new GUIContent("Create Node"), 0),
             };
 
+            // Get all valid INode types with the [FluxNode] attribute.
             var nodeTypes = TypeCache.GetTypesWithAttribute<FluxNodeAttribute>()
                 .Where(t => typeof(INode).IsAssignableFrom(t) && !t.IsAbstract);
 
-            // Use a sorted dictionary to automatically handle alphabetical sorting of categories.
+            // If we are dragging from a port, we can filter this list to only show compatible nodes.
+            // (This is an advanced feature we can add later. For now, we show all nodes).
+            
             var sortedCategories = new SortedDictionary<string, List<Type>>();
             foreach (var type in nodeTypes)
             {
@@ -44,15 +58,12 @@ namespace FluxFramework.VisualScripting.Editor
                 sortedCategories[category].Add(type);
             }
             
-            // This set helps create group entries only once.
             var createdGroups = new HashSet<string>();
-
             foreach (var (categoryPath, types) in sortedCategories)
             {
                 var pathParts = categoryPath.Split('/');
                 var cumulativePath = string.Empty;
 
-                // Create group entries for the category path (e.g., "Math", then "Math/Advanced")
                 for (var i = 0; i < pathParts.Length; i++)
                 {
                     cumulativePath = string.Join("/", pathParts.Take(i + 1));
@@ -62,7 +73,6 @@ namespace FluxFramework.VisualScripting.Editor
                     }
                 }
                 
-                // Add the actual node types to the tree, sorted alphabetically by display name.
                 foreach (var type in types.OrderBy(t => t.GetCustomAttribute<FluxNodeAttribute>().DisplayName))
                 {
                     var attr = type.GetCustomAttribute<FluxNodeAttribute>();
@@ -77,11 +87,16 @@ namespace FluxFramework.VisualScripting.Editor
             return tree;
         }
 
+        /// <summary>
+        /// Called when the user selects a node type from the search window.
+        /// </summary>
         public bool OnSelectEntry(SearchTreeEntry searchTreeEntry, SearchWindowContext context)
         {
             if (searchTreeEntry.userData is Type nodeLogicType)
             {
-                _graphView.CreateAttributedNode(nodeLogicType, context.screenMousePosition);
+                // We call the single, unified method on the GraphView.
+                // It will handle both cases (originPort is null or not null) correctly.
+                _graphView.CreateNodeAndConnect(nodeLogicType, context.screenMousePosition, _originPort);
                 return true;
             }
             return false;

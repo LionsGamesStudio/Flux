@@ -17,7 +17,7 @@ namespace FluxFramework.VisualScripting.Editor
 
         public FluxNodeBase Node { get; }
 
-        public FluxNodeView(FluxNodeBase node) : base()
+        public FluxNodeView(FluxNodeBase node, FluxGraphView graphView) : base()
         {
             this.Node = node;
 
@@ -39,13 +39,13 @@ namespace FluxFramework.VisualScripting.Editor
             style.left = node.Position.x;
             style.top = node.Position.y;
 
-            CreateInputPorts();
-            CreateOutputPorts();
+            CreateInputPorts(graphView.EdgeListener);
+            CreateOutputPorts(graphView.EdgeListener);
             
             ApplyCategoryColor();
         }
 
-        private void CreateInputPorts()
+        private void CreateInputPorts(IEdgeConnectorListener edgeListener)
         {
             foreach (var portData in Node.InputPorts)
             {
@@ -54,11 +54,14 @@ namespace FluxFramework.VisualScripting.Editor
                 portView.portName = portData.DisplayName;
                 portView.name = portData.Name; // Used for querying
                 portView.userData = portData; // Store the port data for later use
+
+                portView.AddManipulator(new EdgeConnector<Edge>(edgeListener));
+
                 inputContainer.Add(portView);
             }
         }
         
-        private void CreateOutputPorts()
+        private void CreateOutputPorts(IEdgeConnectorListener listener)
         {
             foreach (var portData in Node.OutputPorts)
             {
@@ -67,6 +70,9 @@ namespace FluxFramework.VisualScripting.Editor
                 portView.portName = portData.DisplayName;
                 portView.name = portData.Name; // Used for querying
                 portView.userData = portData; // Store the port data for later use
+
+                portView.AddManipulator(new EdgeConnector<Edge>(listener));
+
                 outputContainer.Add(portView);
             }
         }
