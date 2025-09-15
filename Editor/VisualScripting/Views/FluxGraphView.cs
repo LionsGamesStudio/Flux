@@ -123,6 +123,19 @@ namespace FluxFramework.VisualScripting.Editor
                 }
             }
         }
+        
+        /// <summary>
+        /// A robust way to refresh the entire view. This is less surgical but more reliable
+        /// than trying to refresh a single node and its edges manually.
+        /// </summary>
+        public void Refresh()
+        {
+            if (_graph == null) return;
+            
+            // This forces a complete reload and redraw of the entire graph from the data model.
+            // It's the most reliable way to ensure the view is in sync with the data.
+            PopulateView(_graph);
+        }
 
         /// <summary>
         /// Called whenever the graph changes (nodes or edges are added/removed).
@@ -155,15 +168,23 @@ namespace FluxFramework.VisualScripting.Editor
 
                     if (fromNodeView != null && toNodeView != null)
                     {
-                        var fromPortData = fromNodeView.Node.OutputPorts.First(p => p.Name == edge.output.portName);
-                        var toPortData = toNodeView.Node.InputPorts.First(p => p.Name == edge.input.portName);
+                        var fromPortData = fromNodeView.Node.OutputPorts.FirstOrDefault(p => p.Name == edge.output.name);
+                        var toPortData = toNodeView.Node.InputPorts.FirstOrDefault(p => p.Name == edge.input.name);
 
-                        _graph.AddConnection(fromPortData, fromNodeView.Node, toPortData, toNodeView.Node);
+                        if (fromPortData != null && toPortData != null)
+                        {
+                            _graph.AddConnection(fromPortData, fromNodeView.Node, toPortData, toNodeView.Node);
+                        }
+                        else
+                        {
+                            Debug.LogError($"[FluxGraphView] Failed to create connection. Could not find port data in the model. " +
+                                           $"FromPort: '{edge.output.portName}', ToPort: '{edge.input.portName}'. This can happen if ports were rebuilt and the view is not yet updated.", _graph);
+                        }
                     }
                 }
             }
 
-            if(graphViewChange.movedElements != null)
+            if (graphViewChange.movedElements != null)
             {
                 foreach (var element in graphViewChange.movedElements)
                 {
@@ -202,17 +223,43 @@ namespace FluxFramework.VisualScripting.Editor
             });
         }
 
-        // We override this to define our own connection rules.
+        /// <summary>
+        /// Determines which ports are compatible for connection when the user starts dragging a connection from a port.
+        /// </summary>
+        /// <param name="startPort"></param>
+        /// <param name="nodeAdapter"></param>
+        /// <returns></returns>
         public override List<Port> GetCompatiblePorts(Port startPort, NodeAdapter nodeAdapter)
         {
             var compatiblePorts = new List<Port>();
-            ports.ForEach(port =>
+
+            // Get the data model of the port where the connection starts.
+            var startPortData = startPort.userData as FluxNodePort;
+            if (startPortData == null)
             {
-                if (startPort != port && startPort.node != port.node && startPort.direction != port.direction)
+                // If the start port has no data, we can't determine compatibility.
+                return compatiblePorts;
+            }
+
+            // Iterate through all other ports in the graph.
+            ports.ForEach(portView =>
+            {
+                // Basic checks: don't connect to the same node or the same port.
+                if (startPort.node == portView.node || startPort == portView)
                 {
-                    compatiblePorts.Add(port);
+                    return;
+                }
+
+                var endPortData = portView.userData as FluxNodePort;
+                if (endPortData != null)
+                {
+                    if (startPortData.CanConnectTo(endPortData))
+                    {
+                        compatiblePorts.Add(portView);
+                    }
                 }
             });
+
             return compatiblePorts;
         }
 

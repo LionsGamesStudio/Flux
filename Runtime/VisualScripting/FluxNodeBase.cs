@@ -20,31 +20,31 @@ namespace FluxFramework.VisualScripting
         public IReadOnlyList<FluxNodePort> InputPorts => _inputPorts;
         public IReadOnlyList<FluxNodePort> OutputPorts => _outputPorts;
 
-        #if UNITY_EDITOR
+        protected virtual void OnEnable() { }
+
         /// <summary>
-        /// (Editor-only) Adds a new input port to this node's data model.
+        /// Adds a new input port to this node's data model.
         /// </summary>
-        public void AddInputPort(string name, string displayName, FluxPortType portType, System.Type valueType)
+        public void AddInputPort(string name, string displayName, FluxPortType portType, System.Type valueType, PortCapacity capacity = PortCapacity.Single)
         {
-            _inputPorts.Add(new FluxNodePort(name, displayName, portType, FluxPortDirection.Input, valueType));
+            _inputPorts.Add(new FluxNodePort(name, displayName, portType, FluxPortDirection.Input, valueType, capacity));
         }
 
         /// <summary>
-        /// (Editor-only) Adds a new output port to this node's data model.
+        /// Adds a new output port to this node's data model.
         /// </summary>
-        public void AddOutputPort(string name, string displayName, FluxPortType portType, System.Type valueType)
+        public void AddOutputPort(string name, string displayName, FluxPortType portType, System.Type valueType, PortCapacity capacity = PortCapacity.Multi)
         {
-            _outputPorts.Add(new FluxNodePort(name, displayName, portType, FluxPortDirection.Output, valueType));
+            _outputPorts.Add(new FluxNodePort(name, displayName, portType, FluxPortDirection.Output, valueType, capacity));
         }
 
         /// <summary>
-        /// (Editor-only) Clears all ports. Used when regenerating node structures.
+        /// Clears all ports. Used when regenerating node structures.
         /// </summary>
         public void ClearPorts()
         {
             _inputPorts.Clear();
             _outputPorts.Clear();
         }
-        #endif
     }
 }

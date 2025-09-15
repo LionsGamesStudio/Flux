@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using FluxFramework.Attributes.VisualScripting;
 using FluxFramework.VisualScripting.Execution;
+using FluxFramework.VisualScripting;
 
 namespace FluxFramework.VisualScripting.Node
 {
@@ -11,25 +12,25 @@ namespace FluxFramework.VisualScripting.Node
     public class ForEachNode : INode
     {
         // --- Input Ports ---
-        [Port(FluxPortDirection.Input, portType: FluxPortType.Execution)]
+        [Port(FluxPortDirection.Input, portType: FluxPortType.Execution, PortCapacity.Single)]
         public ExecutionPin In;
         
-        [Port(FluxPortDirection.Input, "Collection", Tooltip = "The list or array to iterate over.")]
+        [Port(FluxPortDirection.Input, "Collection", "The list or array to iterate over.", PortCapacity.Single)]
         public IEnumerable collection;
 
         // --- Output Ports ---
-        [Port(FluxPortDirection.Output, "Loop Body", portType: FluxPortType.Execution, Tooltip = "Executes once for each item in the collection.")]
+        [Port(FluxPortDirection.Output, "Loop Body", portType: FluxPortType.Execution, "Executes once for each item in the collection.", PortCapacity.Multi)]
         public ExecutionPin LoopBody;
 
-        [Port(FluxPortDirection.Output, "Completed", portType: FluxPortType.Execution, Tooltip = "Executes after the entire collection has been processed.")]
+        [Port(FluxPortDirection.Output, "Completed", portType: FluxPortType.Execution, "Executes after the entire collection has been processed.", PortCapacity.Multi)]
         public ExecutionPin Completed;
 
         // Note: Output data ports are fields on the INode.
         // Their values will be set inside the token's local data.
-        [Port(FluxPortDirection.Output, "Item", Tooltip = "The current item in the iteration.")]
+        [Port(FluxPortDirection.Output, "Item", "The current item in the iteration.", PortCapacity.Multi)]
         public object item;
         
-        [Port(FluxPortDirection.Output, "Index", Tooltip = "The index of the current item.")]
+        [Port(FluxPortDirection.Output, "Index", "The index of the current item.", PortCapacity.Multi)]
         public int index;
 
         // This node takes control of the execution flow by returning a list of tokens.

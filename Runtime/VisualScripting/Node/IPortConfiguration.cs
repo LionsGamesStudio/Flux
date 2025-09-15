@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace FluxFramework.VisualScripting.Node
 {
     /// <summary>
@@ -6,6 +8,10 @@ namespace FluxFramework.VisualScripting.Node
     /// </summary>
     public interface IPortConfiguration
     {
-        void ConfigurePorts(AttributedNodeWrapper wrapper);
+        /// <summary>
+        /// Gets the list of dynamic ports this node wants to create.
+        /// This is called by the wrapper to build the node's final port structure.
+        /// </summary>
+        IEnumerable<CustomPortDefinition> GetDynamicPorts();
     }
 }

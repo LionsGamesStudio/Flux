@@ -25,6 +25,12 @@ namespace FluxFramework.Attributes.VisualScripting
         public FluxPortType PortType { get; set; } = FluxPortType.Data;
 
         /// <summary>
+        /// Defines if the port can accept single or multiple connections.
+        /// Default is Multi for Outputs, Single for Inputs.
+        /// </summary>
+        public PortCapacity Capacity { get; set; } = PortCapacity.Single;
+
+        /// <summary>
         /// A descriptive tooltip that will appear when hovering over the port in the editor.
         /// </summary>
         public string Tooltip { get; set; }
@@ -34,45 +40,51 @@ namespace FluxFramework.Attributes.VisualScripting
             Direction = direction;
         }
 
-        public PortAttribute(FluxPortDirection direction, FluxPortType portType)
+        public PortAttribute(FluxPortDirection direction, FluxPortType portType, PortCapacity capacity)
         {
             Direction = direction;
             PortType = portType;
+            Capacity = capacity;
         }
 
-        public PortAttribute(FluxPortDirection direction, string displayName)
+        public PortAttribute(FluxPortDirection direction, string displayName, PortCapacity capacity)
         {
             Direction = direction;
             DisplayName = displayName;
+            Capacity = capacity;
         }
 
-        public PortAttribute(FluxPortDirection direction, string displayName, string tooltip)
+        public PortAttribute(FluxPortDirection direction, string displayName, string tooltip, PortCapacity capacity)
         {
             Direction = direction;
             DisplayName = displayName;
             Tooltip = tooltip;
+            Capacity = capacity;
         }
 
-        public PortAttribute(FluxPortDirection direction, FluxPortType portType, string tooltip)
+        public PortAttribute(FluxPortDirection direction, FluxPortType portType, string tooltip, PortCapacity capacity)
         {
             Direction = direction;
             PortType = portType;
             Tooltip = tooltip;
+            Capacity = capacity;
         }
 
-        public PortAttribute(FluxPortDirection direction, string displayName, FluxPortType portType = FluxPortType.Data)
+        public PortAttribute(FluxPortDirection direction, string displayName, FluxPortType portType, PortCapacity capacity)
         {
             Direction = direction;
             DisplayName = displayName;
             PortType = portType;
+            Capacity = capacity;
         }
 
-        public PortAttribute(FluxPortDirection direction, string displayName, FluxPortType portType, string tooltip)
+        public PortAttribute(FluxPortDirection direction, string displayName, FluxPortType portType, string tooltip, PortCapacity capacity)
         {
             Direction = direction;
             DisplayName = displayName;
             PortType = portType;
             Tooltip = tooltip;
+            Capacity = capacity;
         }
     }
 }

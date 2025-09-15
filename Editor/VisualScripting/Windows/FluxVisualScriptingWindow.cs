@@ -8,9 +8,10 @@ namespace FluxFramework.VisualScripting.Editor
 {
     public class FluxVisualScriptingWindow : EditorWindow
     {
-        private FluxGraphView _graphView;
         private FluxInspectorView _inspectorView;
         private Label _graphNameLabel;
+
+        public FluxGraphView GraphView { get; private set; } 
 
         [MenuItem("Flux/Visual Scripting/Visual Scripting Editor")]
         public static void OpenWindow()
@@ -51,8 +52,8 @@ namespace FluxFramework.VisualScripting.Editor
             var splitView = new TwoPaneSplitView(0, 1000, TwoPaneSplitViewOrientation.Horizontal);
             root.Add(splitView);
 
-            _graphView = new FluxGraphView(this);
-            splitView.Add(_graphView);
+            GraphView = new FluxGraphView(this);
+            splitView.Add(GraphView);
 
             _inspectorView = new FluxInspectorView();
             splitView.Add(_inspectorView);
@@ -108,15 +109,15 @@ namespace FluxFramework.VisualScripting.Editor
         {
             // When a FluxVisualGraph asset is selected in the Project window, load it.
             var graph = Selection.activeObject as FluxVisualGraph;
-            if (graph != null && _graphView != null)
+            if (graph != null && GraphView != null)
             {
-                _graphView.PopulateView(graph);
+                GraphView.PopulateView(graph);
                 _graphNameLabel.text = $"Editing: {graph.name}";
             }
             else
             {
                 // Clear the graph view if no valid graph is selected
-                _graphView?.PopulateView(null);
+                GraphView?.PopulateView(null);
                 _graphNameLabel.text = "No Graph Loaded";
             }
         }

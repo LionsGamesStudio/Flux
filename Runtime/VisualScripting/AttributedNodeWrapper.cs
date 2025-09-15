@@ -35,7 +35,7 @@ namespace FluxFramework.VisualScripting
         public FluxNodeBase GetConnectedNode(string portName)
         {
             if (_parentGraph == null) return null;
-            
+
             var connection = _parentGraph.Connections.FirstOrDefault(c => c.FromNodeId == NodeId && c.FromPortName == portName);
             if (connection == null) return null;
 
@@ -59,25 +59,27 @@ namespace FluxFramework.VisualScripting
             
             GeneratePortsFromLogic();
 
-            if (_nodeLogic is IPortConfiguration configurator)
+            if (_nodeLogic is IPortPostConfiguration postConfigurator)
             {
-                configurator.ConfigurePorts(this);
+                postConfigurator.PostConfigurePorts(this);
             }
         }
         
         /// <summary>
-        /// Scans the hosted INode logic for [Port] attributes and creates the
-        /// corresponding FluxNodePort entries in this wrapper's data model.
+        /// Scans the hosted INode logic for both static [Port] attributes on fields
+        /// and dynamic port definitions from the IPortConfiguration interface, then
+        /// creates the corresponding FluxNodePort entries in this wrapper's data model.
         /// </summary>
         private void GeneratePortsFromLogic()
         {
             if (_nodeLogic == null) return;
             
-            ClearPorts();
+            ClearPorts(); // Start with a clean slate
             
             var logicType = _nodeLogic.GetType();
-            var fields = logicType.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
 
+            // --- 1. Add STATIC ports defined by [Port] attributes on fields ---
+            var fields = logicType.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
             foreach (var field in fields)
             {
                 var portAttr = field.GetCustomAttribute<PortAttribute>();
@@ -86,6 +88,7 @@ namespace FluxFramework.VisualScripting
                 string portName = field.Name;
                 string displayName = portAttr.DisplayName ?? GenerateDisplayName(portName);
                 Type valueType = field.FieldType;
+                var capacity = portAttr.Capacity;
                 
                 if (portAttr.PortType == FluxPortType.Execution)
                 {
@@ -94,14 +97,58 @@ namespace FluxFramework.VisualScripting
 
                 if (portAttr.Direction == FluxPortDirection.Input)
                 {
-                    AddInputPort(portName, displayName, portAttr.PortType, valueType); 
+                    AddInputPort(portName, displayName, portAttr.PortType, valueType, capacity);
                 }
-                else
+                else // Output
                 {
-                    AddOutputPort(portName, displayName, portAttr.PortType, valueType);
+                    AddOutputPort(portName, displayName, portAttr.PortType, valueType, capacity);
+                }
+            }
+            
+            // --- 2. Add DYNAMIC ports if the node implements the configuration interface ---
+            if (_nodeLogic is IPortConfiguration configurator)
+            {
+                var dynamicPorts = configurator.GetDynamicPorts();
+                if (dynamicPorts == null) return;
+
+                foreach (var portDef in dynamicPorts)
+                {
+                    // The ValueTypeName from the definition is an AssemblyQualifiedName. We need to convert it back to a Type.
+                    var type = Type.GetType(portDef.ValueTypeName) ?? typeof(object);
+                    
+                    if (portDef.Direction == FluxPortDirection.Input)
+                    {
+                        AddInputPort(portDef.PortName, portDef.PortName, portDef.PortType, type, portDef.Capacity);
+                    }
+                    else // Output
+                    {
+                        AddOutputPort(portDef.PortName, portDef.PortName, portDef.PortType, type, portDef.Capacity);
+                    }
                 }
             }
         }
+
+#if UNITY_EDITOR
+        /// <summary>
+        /// (Editor-only) Completely rebuilds the node's ports based on its current logic and configuration.
+        /// This is essential for dynamic nodes like GraphInput/Output.
+        /// </summary>
+        public void RebuildPorts()
+        {
+            if (_nodeLogic == null) return;
+            
+            // This sequence ensures everything is regenerated correctly.
+            GeneratePortsFromLogic();
+
+            if (_nodeLogic is IPortPostConfiguration postConfigurator)
+            {
+                postConfigurator.PostConfigurePorts(this);
+            }
+            
+            // Mark the asset as dirty so the changes to the port lists are saved.
+            UnityEditor.EditorUtility.SetDirty(this);
+        }
+#endif
 
         public FluxNodePort FindPort(string name)
         {

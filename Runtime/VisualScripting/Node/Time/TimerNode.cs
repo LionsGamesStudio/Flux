@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using FluxFramework.Attributes.VisualScripting;
 using FluxFramework.VisualScripting.Execution;
+using FluxFramework.VisualScripting;
 
 namespace FluxFramework.VisualScripting.Node
 {
@@ -15,22 +16,22 @@ namespace FluxFramework.VisualScripting.Node
 
         public bool Loop = false;
 
-        [Port(FluxPortDirection.Input, "Start", portType: FluxPortType.Execution)]
+        [Port(FluxPortDirection.Input, "Start", portType: FluxPortType.Execution, PortCapacity.Single)]
         public ExecutionPin Start;
         
-        [Port(FluxPortDirection.Input, "Stop", portType: FluxPortType.Execution)]
+        [Port(FluxPortDirection.Input, "Stop", portType: FluxPortType.Execution, PortCapacity.Single )]
         public ExecutionPin Stop;
         
-        [Port(FluxPortDirection.Input, "Duration (s)")]
+        [Port(FluxPortDirection.Input, "Duration (s)", PortCapacity.Single)]
         public float Duration = 1f;
         
-        [Port(FluxPortDirection.Output, "On Tick", portType: FluxPortType.Execution)]
+        [Port(FluxPortDirection.Output, "On Tick", portType: FluxPortType.Execution, PortCapacity.Multi)]
         public ExecutionPin OnTick;
 
-        [Port(FluxPortDirection.Output, "On Complete", portType: FluxPortType.Execution)]
+        [Port(FluxPortDirection.Output, "On Complete", portType: FluxPortType.Execution, PortCapacity.Multi)]
         public ExecutionPin OnComplete;
 
-        [Port(FluxPortDirection.Output, "Progress (0-1)")]
+        [Port(FluxPortDirection.Output, "Progress (0-1)", PortCapacity.Multi)]
         public float Progress;
 
         public void Execute(FluxGraphExecutor executor, AttributedNodeWrapper wrapper, string triggeredPortName)

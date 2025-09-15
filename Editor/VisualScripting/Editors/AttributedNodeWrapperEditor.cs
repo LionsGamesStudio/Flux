@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 using FluxFramework.Attributes.VisualScripting;
 using FluxFramework.VisualScripting.Node;
 
@@ -29,59 +30,95 @@ namespace FluxFramework.VisualScripting.Editor
             }
             EditorGUILayout.Space();
 
-            // Create a SerializedObject for the wrapper to handle Undo/Redo correctly
+            // Use a SerializedObject to get proper Undo/Redo and prefab support.
             var wrapperSO = new SerializedObject(wrapper);
-            // Get the serialized property for our INode instance
             var logicProp = wrapperSO.FindProperty("_nodeLogic");
 
             // --- Configuration Fields ---
             EditorGUILayout.LabelField("Configuration", EditorStyles.boldLabel);
+            
+            // Track if any changes were made to trigger a port rebuild.
+            EditorGUI.BeginChangeCheck();
 
             // Iterate through all serialized fields of the INode object
             if (logicProp.hasVisibleChildren)
             {
                 var childProp = logicProp.Copy();
                 var endProp = logicProp.GetEndProperty();
-                childProp.NextVisible(true); // Enter the fist child
+                childProp.NextVisible(true);
 
                 while (!SerializedProperty.EqualContents(childProp, endProp))
                 {
-                    // Check if the field corresponding to this property has a [Port] attribute.
                     FieldInfo field = logicType.GetField(childProp.name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
                     if (field != null && field.GetCustomAttribute<PortAttribute>() == null)
                     {
-                        // If it's NOT a port, it's a configuration field. Draw it.
                         EditorGUILayout.PropertyField(childProp, true);
                     }
                     if (!childProp.NextVisible(false)) break;
                 }
             }
 
-            wrapperSO.ApplyModifiedProperties();
+            if (EditorGUI.EndChangeCheck())
+            {
+                wrapperSO.ApplyModifiedProperties();
+            }
+
+            // --- DYNAMIC PORT MANAGEMENT ---
+            if (logic is IPortConfiguration)
+            {
+                EditorGUILayout.Space();
+                EditorGUILayout.HelpBox("This node has dynamic ports. Click 'Update Ports' after modifying its configuration.", MessageType.Info);
+
+                if (GUILayout.Button("Update Ports"))
+                {
+                    // 1. Update the data model in memory.
+                    wrapper.RebuildPorts();
+                    
+                    // 2. Force Unity to save the changes made to this ScriptableObject asset to disk.
+                    // This is the most important step.
+                    EditorUtility.SetDirty(wrapper);
+                    AssetDatabase.SaveAssets();
+                    AssetDatabase.Refresh();
+
+                    // 3. Now that the data on disk is correct, tell the graph view to reload.
+                    // When it reloads, it will read the FRESH version of the asset from disk,
+                    // which includes the new ports.
+                    var window = EditorWindow.GetWindow<FluxVisualScriptingWindow>();
+                    window.GraphView?.Refresh();
+                }
+            }
             
             EditorGUILayout.Space();
 
-            var outputExecutionPorts = wrapper.OutputPorts.Where(p => p.PortType == FluxPortType.Execution).ToList();
-            if (outputExecutionPorts.Any())
+            // --- EXECUTION OUTPUT WEIGHTS ---
+            var nodeSO = new SerializedObject(wrapper);
+            var outPortsProp = nodeSO.FindProperty("_outputPorts");
+            
+            // Find all execution output ports to display their weights.
+            var outputExecutionPorts = new List<(SerializedProperty prop, string name)>();
+            for(int i = 0; i < outPortsProp.arraySize; i++)
+            {
+                var portProp = outPortsProp.GetArrayElementAtIndex(i);
+                var portTypeProp = portProp.FindPropertyRelative("_portType");
+                if (portTypeProp.enumValueIndex == (int)FluxPortType.Execution)
+                {
+                    outputExecutionPorts.Add((portProp, portProp.FindPropertyRelative("_displayName").stringValue));
+                }
+            }
+
+            if (outputExecutionPorts.Count > 1) // Only show weights if there's a choice to be made.
             {
                 EditorGUILayout.LabelField("Execution Output Weights", EditorStyles.boldLabel);
-                // We need to use a SerializedObject on the node itself to edit the port list.
-                var nodeSO = new SerializedObject(wrapper);
-                var outPortsProp = nodeSO.FindProperty("_outputPorts");
-
-                for (int i = 0; i < outputExecutionPorts.Count; i++)
+                
+                foreach (var (prop, name) in outputExecutionPorts)
                 {
-                    var port = outputExecutionPorts[i];
-                    var portProp = outPortsProp.GetArrayElementAtIndex(i); // This is risky if order changes.
-                    if (portProp != null)
+                    var weightProp = prop.FindPropertyRelative("_probabilityWeight");
+                    if (weightProp != null)
                     {
-                        var weightProp = portProp.FindPropertyRelative("_probabilityWeight");
-                        if (weightProp != null)
-                        {
-                            EditorGUILayout.PropertyField(weightProp, new GUIContent(port.DisplayName));
-                        }
+                        EditorGUILayout.PropertyField(weightProp, new GUIContent(name));
                     }
                 }
+                
                 nodeSO.ApplyModifiedProperties();
             }
         }

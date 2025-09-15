@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 
 namespace FluxFramework.VisualScripting.Execution
 {
@@ -20,9 +21,27 @@ namespace FluxFramework.VisualScripting.Execution
         /// </summary>
         private Dictionary<string, object> _localData;
 
+        /// <summary>
+        /// The call stack for this token, used to manage sub-graph execution.
+        /// Each entry is the SubGraphNode that was called to enter the current graph level.
+        /// </summary>
+        public Stack<AttributedNodeWrapper> CallStack { get; }
+
         public ExecutionToken(FluxNodeBase startNode)
         {
             TargetNode = startNode;
+            CallStack = new Stack<AttributedNodeWrapper>();
+        }
+
+        /// <summary>
+        /// Creates a new token that inherits the state (like the call stack) of a parent token.
+        /// </summary>
+        public ExecutionToken(FluxNodeBase startNode, ExecutionToken parentToken)
+        {
+            TargetNode = startNode;
+            // The new token gets a COPY of the parent's call stack.
+            CallStack = new Stack<AttributedNodeWrapper>(parentToken.CallStack.Reverse());
+            // We also could copy local data if needed in the future.
         }
         
         /// <summary>

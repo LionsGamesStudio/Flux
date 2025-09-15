@@ -3,6 +3,7 @@ using System.Collections;
 using UnityEngine;
 using FluxFramework.Attributes.VisualScripting;
 using FluxFramework.VisualScripting.Execution;
+using FluxFramework.VisualScripting;
 
 namespace FluxFramework.VisualScripting.Node
 {
@@ -10,13 +11,13 @@ namespace FluxFramework.VisualScripting.Node
     [FluxNode("Delay", Category = "Time", Description = "Pauses the execution flow for a specified duration in seconds.")]
     public class DelayNode : INode
     {
-        [Port(FluxPortDirection.Input, portType: FluxPortType.Execution)]
+        [Port(FluxPortDirection.Input, portType: FluxPortType.Execution, PortCapacity.Single)]
         public ExecutionPin In;
 
-        [Port(FluxPortDirection.Input, "Seconds")]
+        [Port(FluxPortDirection.Input, "Seconds", PortCapacity.Single)]
         public float duration = 1f;
 
-        [Port(FluxPortDirection.Output, "Out", portType: FluxPortType.Execution)]
+        [Port(FluxPortDirection.Output, "Out", portType: FluxPortType.Execution, PortCapacity.Multi)]
         public ExecutionPin Out;
         
         // This method starts a background process and returns nothing, ending the current execution path.

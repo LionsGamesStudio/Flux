@@ -20,7 +20,7 @@ namespace FluxFramework.VisualScripting.Editor
         public FluxNodeView(FluxNodeBase node) : base()
         {
             this.Node = node;
-            
+
             if (node is AttributedNodeWrapper wrapper && wrapper.NodeLogic != null)
             {
                 var attr = wrapper.NodeLogic.GetType().GetCustomAttribute<FluxNodeAttribute>();
@@ -41,15 +41,19 @@ namespace FluxFramework.VisualScripting.Editor
 
             CreateInputPorts();
             CreateOutputPorts();
+            
+            ApplyCategoryColor();
         }
 
         private void CreateInputPorts()
         {
             foreach (var portData in Node.InputPorts)
             {
-                var portView = InstantiatePort(Orientation.Horizontal, Direction.Input, Port.Capacity.Single, GetPortType(portData));
+                var capacity = (portData.Capacity == PortCapacity.Multi) ? Port.Capacity.Multi : Port.Capacity.Single;
+                var portView = InstantiatePort(Orientation.Horizontal, Direction.Input, capacity, GetPortType(portData));
                 portView.portName = portData.DisplayName;
                 portView.name = portData.Name; // Used for querying
+                portView.userData = portData; // Store the port data for later use
                 inputContainer.Add(portView);
             }
         }
@@ -58,10 +62,11 @@ namespace FluxFramework.VisualScripting.Editor
         {
             foreach (var portData in Node.OutputPorts)
             {
-                // Output ports can have multiple connections
-                var portView = InstantiatePort(Orientation.Horizontal, Direction.Output, Port.Capacity.Multi, GetPortType(portData));
+                var capacity = (portData.Capacity == PortCapacity.Multi) ? Port.Capacity.Multi : Port.Capacity.Single;
+                var portView = InstantiatePort(Orientation.Horizontal, Direction.Output, capacity, GetPortType(portData));
                 portView.portName = portData.DisplayName;
                 portView.name = portData.Name; // Used for querying
+                portView.userData = portData; // Store the port data for later use
                 outputContainer.Add(portView);
             }
         }
@@ -108,6 +113,35 @@ namespace FluxFramework.VisualScripting.Editor
                 label.RemoveFromHierarchy();
             }
             _debugLabels.Clear();
+        }
+
+        private void ApplyCategoryColor()
+        {
+            // Find the first theme asset in the project.
+            var themeGuids = AssetDatabase.FindAssets("t:FluxGraphTheme");
+            if (themeGuids.Length == 0) return; // No theme asset found.
+            if(themeGuids.Length > 1)
+            {
+                Debug.LogWarning("Multiple FluxGraphTheme assets found. Using the first one.");
+            }
+            
+            var themePath = AssetDatabase.GUIDToAssetPath(themeGuids[0]);
+            var theme = AssetDatabase.LoadAssetAtPath<FluxGraphTheme>(themePath);
+            if (theme == null) return;
+            
+            string category = "";
+            if (Node is AttributedNodeWrapper wrapper && wrapper.NodeLogic != null)
+            {
+                var attr = wrapper.NodeLogic.GetType().GetCustomAttribute<FluxNodeAttribute>();
+                if (attr != null)
+                {
+                    category = attr.Category;
+                }
+            }
+            
+            // Get the color from the theme and apply it to the node's title container.
+            var headerColor = theme.GetColorForCategory(category);
+            titleContainer.style.backgroundColor = headerColor;
         }
 
         private System.Type GetPortType(FluxNodePort portData)
