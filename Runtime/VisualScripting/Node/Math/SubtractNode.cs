@@ -1,15 +1,15 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using FluxFramework.Attributes.VisualScripting;
 using FluxFramework.VisualScripting;
 using FluxFramework.VisualScripting.Node;
-using Microsoft.CSharp;
 
 namespace FluxFramework.VisualScripting.Node
 {
     [Serializable]
     [FluxNode("Subtract", Category = "Math", Description = "Subtracts two numbers.")]
-    public class SubtractNode : INode
+    public class SubtractNode : IExecutableNode
     {
         [Port(FluxPortDirection.Input, "A", PortCapacity.Single)]
         public object A;
@@ -20,7 +20,7 @@ namespace FluxFramework.VisualScripting.Node
         [Port(FluxPortDirection.Output, "Result", PortCapacity.Multi)]
         public object Result;
 
-        public void Execute()
+        public void Execute(Execution.FluxGraphExecutor executor, AttributedNodeWrapper wrapper, string triggeredPortName, Dictionary<string, object> dataInputs)
         {
             try
             {

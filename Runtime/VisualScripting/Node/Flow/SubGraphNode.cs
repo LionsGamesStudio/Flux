@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using System.Collections.Generic;
@@ -8,12 +9,12 @@ namespace FluxFramework.VisualScripting.Node
 {
     [Serializable]
     [FluxNode("Sub-Graph", Category = "Flow", Description = "Executes another graph asset as a function.")]
-    public class SubGraphNode : INode, IPortConfiguration
+    public class SubGraphNode : IExecutableNode, IPortConfiguration
     {
         [Tooltip("The graph asset to execute.")]
         public FluxVisualGraph subGraph;
 
-        public void Execute(Execution.FluxGraphExecutor executor, AttributedNodeWrapper wrapper, Execution.ExecutionToken incomingToken) { }
+        public void Execute(Execution.FluxGraphExecutor executor, AttributedNodeWrapper wrapper, string triggeredPortName, Dictionary<string, object> dataInputs) { }
 
         public IEnumerable<CustomPortDefinition> GetDynamicPorts()
         {

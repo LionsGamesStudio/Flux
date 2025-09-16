@@ -55,6 +55,16 @@ namespace FluxFramework.VisualScripting.Execution
         public void Start()
         {
             _executionQueue.Clear();
+
+            // Call OnGraphAwake on all nodes that implement IGraphAwakeNode
+            foreach (var node in _mainGraph.Nodes)
+            {
+                if (node is AttributedNodeWrapper wrapper && wrapper.NodeLogic is IGraphAwakeNode awakeNode)
+                {
+                    awakeNode.OnGraphAwake(this, wrapper);
+                }
+            }
+
             foreach (var node in FindEntryNodes(_mainGraph))
             {
                 _executionQueue.Enqueue(new ExecutionToken(node));
@@ -109,9 +119,9 @@ namespace FluxFramework.VisualScripting.Execution
             var node = token.TargetNode;
             if (node == null) yield break;
 
-            #if UNITY_EDITOR
+#if UNITY_EDITOR
             GraphDebugger.NodeEnter(node);
-            #endif
+#endif
 
             if (node is AttributedNodeWrapper wrapper && wrapper.NodeLogic is INode logic)
             {
@@ -130,17 +140,17 @@ namespace FluxFramework.VisualScripting.Execution
                         var subGraphToken = new ExecutionToken(entryPointNode, token);
                         subGraphToken.CallStack.Push(wrapper);
                         subGraphToken.SetData("_triggeredPortName", triggeredPortName);
-                        
+
                         foreach (var (key, value) in dataInputs)
                         {
                             subGraphToken.SetData(key, value);
                         }
-                        
+
                         yield return subGraphToken;
                     }
-                    #if UNITY_EDITOR
+#if UNITY_EDITOR
                     GraphDebugger.NodeExit(node);
-                    #endif
+#endif
                     yield break;
                 }
 
@@ -150,7 +160,7 @@ namespace FluxFramework.VisualScripting.Execution
                     if (token.CallStack.TryPop(out var parentSubGraphNode))
                     {
                         var nextNodeInParent = parentSubGraphNode.GetConnectedNode(triggeredPortName);
-                        
+
                         if (nextNodeInParent != null)
                         {
                             var parentToken = new ExecutionToken(nextNodeInParent, token);
@@ -161,44 +171,56 @@ namespace FluxFramework.VisualScripting.Execution
                             yield return parentToken;
                         }
                     }
-                    #if UNITY_EDITOR
+#if UNITY_EDITOR
                     GraphDebugger.NodeExit(node);
-                    #endif
+#endif
                     yield break;
                 }
 
                 // --- CASE 3: REGULAR NODE EXECUTION ---
                 ApplyDataToLogic(logic, node, token, dataInputs);
-                
-                var executeMethod = logic.GetType().GetMethod("Execute");
-                var executionResult = executeMethod?.Invoke(logic, new object[] { this, wrapper, triggeredPortName });
 
-                #if UNITY_EDITOR
+                if (logic is IExecutableNode executableLogic)
+                {
+                    // This is the direct, safe call that passes the crucial dataInputs dictionary.
+                    executableLogic.Execute(this, wrapper, triggeredPortName, dataInputs);
+                }
+
+#if UNITY_EDITOR
                 var dataSnapshot = BuildDataSnapshot(logic, node);
                 GraphDebugger.UpdateNodeData(node, dataSnapshot);
                 GraphDebugger.NodeExit(node);
-                #endif
-
-                if (executionResult is IEnumerable<ExecutionToken> resultingTokens)
+#endif
+                
+                var outputPortToFollow = node.OutputPorts.FirstOrDefault(p => p.PortType == FluxPortType.Execution);
+                if (outputPortToFollow != null)
                 {
-                    // Case A: The node is a flow controller (like ForEach) and returns its own tokens.
-                    foreach (var resultToken in resultingTokens) yield return resultToken;
-                }
-                else
-                {
-                    // Case B: The node is synchronous (returns void). The executor is responsible for continuing the flow.
-                    // We find the output port that logically follows the input port that was triggered.
-                    // By convention, if the input is "In", the output is "Out". Or if input is "Start", output might be "OnStarted".
-                    // For now, a simple rule: find the first execution output.
-                    var outputPortToFollow = node.OutputPorts.FirstOrDefault(p => p.PortType == FluxPortType.Execution);
-                    if (outputPortToFollow != null)
+                    foreach (var nextToken in FindNextTokensFromPorts(node, activeGraph, outputPortToFollow.Name))
                     {
-                        foreach (var nextToken in FindNextTokensFromPorts(node, activeGraph, outputPortToFollow.Name))
-                        {
-                            yield return nextToken;
-                        }
+                        yield return nextToken;
                     }
                 }
+
+                // if (executionResult is IEnumerable<ExecutionToken> resultingTokens)
+                // {
+                //     // Case A: The node is a flow controller (like ForEach) and returns its own tokens.
+                //     foreach (var resultToken in resultingTokens) yield return resultToken;
+                // }
+                // else
+                // {
+                //     // Case B: The node is synchronous (returns void). The executor is responsible for continuing the flow.
+                //     // We find the output port that logically follows the input port that was triggered.
+                //     // By convention, if the input is "In", the output is "Out". Or if input is "Start", output might be "OnStarted".
+                //     // For now, a simple rule: find the first execution output.
+                //     var outputPortToFollow = node.OutputPorts.FirstOrDefault(p => p.PortType == FluxPortType.Execution);
+                //     if (outputPortToFollow != null)
+                //     {
+                //         foreach (var nextToken in FindNextTokensFromPorts(node, activeGraph, outputPortToFollow.Name))
+                //         {
+                //             yield return nextToken;
+                //         }
+                //     }
+                // }
             }
         }
 
@@ -288,12 +310,33 @@ namespace FluxFramework.VisualScripting.Execution
                 return value;
             }
 
-            // For any other data node, we execute it to calculate its values.
-            var tempToken = new ExecutionToken(node);
-            ExecuteNode(tempToken).ToList();
+            // We need to execute data nodes to get their output.
+            // A simplified execution call that doesn't generate new flow tokens.
+            if (node is AttributedNodeWrapper dataWrapper && dataWrapper.NodeLogic is IExecutableNode executableDataNode)
+            {
+                var dataInputs = PullDataForNode(node, requestingToken, currentGraph);
+                ApplyDataToLogic(executableDataNode, node, requestingToken, dataInputs);
+                executableDataNode.Execute(this, dataWrapper, null, dataInputs);
 
-            _nodeOutputCache.TryGetValue(cacheKey, out var finalValue);
-            return finalValue;
+                // After execution, the output value should be in one of the fields of the logic object.
+                var logicType = executableDataNode.GetType();
+                var outputField = logicType.GetField(portName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                if (outputField != null)
+                {
+                    var finalValue = outputField.GetValue(executableDataNode);
+                    _nodeOutputCache[cacheKey] = finalValue;
+                    return finalValue;
+                }
+            }
+            
+            return null;
+
+            // For any other data node, we execute it to calculate its values.
+            // var tempToken = new ExecutionToken(node);
+            // ExecuteNode(tempToken).ToList();
+
+            // _nodeOutputCache.TryGetValue(cacheKey, out var finalValue);
+            // return finalValue;
         }
 
         /// <summary>

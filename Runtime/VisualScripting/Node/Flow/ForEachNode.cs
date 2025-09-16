@@ -34,40 +34,60 @@ namespace FluxFramework.VisualScripting.Node
         public int index;
 
         // This node takes control of the execution flow by returning a list of tokens.
-        public IEnumerable<ExecutionToken> Execute(FluxGraphExecutor executor, AttributedNodeWrapper wrapper, ExecutionToken incomingToken)
+        public void Execute(Execution.FluxGraphExecutor executor, AttributedNodeWrapper wrapper, string triggeredPortName, Dictionary<string, object> dataInputs)
         {
             // The logic of this node is to generate NEW tokens.
             
             if (collection != null)
             {
                 int currentIndex = 0;
+                var loopBodyNode = wrapper.GetConnectedNode(nameof(LoopBody));
+
                 foreach (var currentItem in collection)
                 {
-                    // Find the node connected to the "Loop Body" output port.
-                    var loopBodyNode = wrapper.GetConnectedNode(nameof(LoopBody));
                     if (loopBodyNode != null)
                     {
-                        // Create a new token destined for the start of the loop body.
                         var loopToken = new ExecutionToken(loopBodyNode);
-                        
-                        // Store the item and index data *inside this specific token*.
-                        // We use the port name as the key for consistency.
                         loopToken.SetData(nameof(item), currentItem);
                         loopToken.SetData(nameof(index), currentIndex);
                         
-                        // Yield this token to the executor.
-                        yield return loopToken;
+                        // Queue the token for the loop body directly.
+                        executor.ContinueFlow(loopToken);
                     }
                     currentIndex++;
                 }
             }
             
+            // if (collection != null)
+            // {
+            //     int currentIndex = 0;
+            //     foreach (var currentItem in collection)
+            //     {
+            //         // Find the node connected to the "Loop Body" output port.
+            //         var loopBodyNode = wrapper.GetConnectedNode(nameof(LoopBody));
+            //         if (loopBodyNode != null)
+            //         {
+            //             // Create a new token destined for the start of the loop body.
+            //             var loopToken = new ExecutionToken(loopBodyNode);
+
+            //             // Store the item and index data *inside this specific token*.
+            //             // We use the port name as the key for consistency.
+            //             loopToken.SetData(nameof(item), currentItem);
+            //             loopToken.SetData(nameof(index), currentIndex);
+
+            //             // Yield this token to the executor.
+            //             yield return loopToken;
+            //         }
+            //         currentIndex++;
+            //     }
+            // }
+
             // After all loop tokens have been yielded, yield a final token for the "Completed" path.
-            var completedNode = wrapper.GetConnectedNode(nameof(Completed));
-            if (completedNode != null)
-            {
-                yield return new ExecutionToken(completedNode);
-            }
+            // var completedNode = wrapper.GetConnectedNode(nameof(Completed));
+            // if (completedNode != null)
+            // {
+            //     yield return new ExecutionToken(completedNode);
+            // }
         }
     }
 }

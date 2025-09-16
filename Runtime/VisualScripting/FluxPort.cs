@@ -14,19 +14,19 @@ namespace FluxFramework.VisualScripting
     public class FluxNodePort
     {
         [SerializeField] private string _name;
+        [SerializeField] private string _displayName;
         [SerializeField] private FluxPortType _portType;
         [SerializeField] private FluxPortDirection _direction;
-        [SerializeField] private PortCapacity _capacity;
         [SerializeField] private string _valueTypeName; // Stores the AssemblyQualifiedName of the data type.
-        [SerializeField] private string _displayName;
+        [SerializeField] private PortCapacity _capacity;
         [SerializeField] private float _probabilityWeight = 1.0f;
 
         public string Name => _name;
+        public string DisplayName => _displayName;
         public FluxPortType PortType => _portType;
         public FluxPortDirection Direction => _direction;
-        public PortCapacity Capacity => _capacity;
         public string ValueTypeName => _valueTypeName;
-        public string DisplayName => _displayName;
+        public PortCapacity Capacity => _capacity;
         public float ProbabilityWeight { get => _probabilityWeight; set => _probabilityWeight = value; }
 
         // Public constructor

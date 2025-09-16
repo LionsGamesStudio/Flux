@@ -8,13 +8,13 @@ namespace FluxFramework.VisualScripting.Node
 {
     [Serializable]
     [FluxNode("Graph Output", Category = "Sub-Graphs", Description = "Defines an exit point and return values for a sub-graph.")]
-    public class GraphOutputNode : INode, IPortConfiguration
+    public class GraphOutputNode : IExecutableNode, IPortConfiguration
     {
         [Tooltip("Define the input ports for this exit point.")]
         public List<CustomPortDefinition> Inputs = new List<CustomPortDefinition>();
 
         // This node acts as a signal to the executor to return to the parent graph.
-        public void Execute(Execution.FluxGraphExecutor executor, AttributedNodeWrapper wrapper, Execution.ExecutionToken incomingToken) { }
+        public void Execute(Execution.FluxGraphExecutor executor, AttributedNodeWrapper wrapper, string triggeredPortName, Dictionary<string, object> dataInputs) { }
 
         /// <summary>
         /// Defines the ports visible ON THIS NODE.

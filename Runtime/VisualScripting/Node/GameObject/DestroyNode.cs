@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using FluxFramework.Attributes.VisualScripting;
 using FluxFramework.VisualScripting.Execution;
@@ -7,7 +8,7 @@ namespace FluxFramework.VisualScripting.Node
 { 
     [Serializable]
     [FluxNode("Destroy", Category = "GameObject", Description = "Destroys a GameObject, optionally after a delay.")]
-    public class DestroyNode : INode
+    public class DestroyNode : IExecutableNode
     {
         [Port(FluxPortDirection.Input, "In", portType: FluxPortType.Execution, PortCapacity.Single)]
         public ExecutionPin In;
@@ -21,7 +22,7 @@ namespace FluxFramework.VisualScripting.Node
         [Port(FluxPortDirection.Output, "Out", portType: FluxPortType.Execution, PortCapacity.Multi)]
         public ExecutionPin Out;
         
-        public void Execute()
+        public void Execute(Execution.FluxGraphExecutor executor, AttributedNodeWrapper wrapper, string triggeredPortName, Dictionary<string, object> dataInputs)
         {
             if (Target != null)
             {

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using FluxFramework.Attributes.VisualScripting;
 using FluxFramework.VisualScripting;
@@ -8,7 +9,7 @@ namespace FluxFramework.VisualScripting.Node
 {
     [Serializable]
     [FluxNode("Sqrt", Category = "Math", Description = "Calculates the square root of a number.")]
-    public class SqrtNode : INode
+    public class SqrtNode : IExecutableNode
     {
         [Port(FluxPortDirection.Input, "Value", PortCapacity.Single)]
         public float Value;
@@ -16,6 +17,6 @@ namespace FluxFramework.VisualScripting.Node
         [Port(FluxPortDirection.Output, "Result", PortCapacity.Multi)]
         public float Result;
 
-        public void Execute() => Result = Mathf.Sqrt(Value);
+        public void Execute(Execution.FluxGraphExecutor executor, AttributedNodeWrapper wrapper, string triggeredPortName, Dictionary<string, object> dataInputs) => Result = Mathf.Sqrt(Value);
     }
 }

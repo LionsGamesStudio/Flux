@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using FluxFramework.Attributes.VisualScripting;
 using FluxFramework.VisualScripting.Execution;
@@ -7,7 +8,7 @@ namespace FluxFramework.VisualScripting.Node
 { 
     [Serializable]
     [FluxNode("Set Position", Category = "Transform", Description = "Sets the world or local position of a Transform.")]
-    public class SetPositionNode : INode
+    public class SetPositionNode : IExecutableNode
     {
         public Space space = Space.World;
 
@@ -16,7 +17,7 @@ namespace FluxFramework.VisualScripting.Node
         [Port(FluxPortDirection.Input, "Position", PortCapacity.Single)] public Vector3 position;
         [Port(FluxPortDirection.Output, "Out", portType: FluxPortType.Execution, PortCapacity.Multi)] public ExecutionPin Out;
         
-        public void Execute()
+        public void Execute(Execution.FluxGraphExecutor executor, AttributedNodeWrapper wrapper, string triggeredPortName, Dictionary<string, object> dataInputs)
         {
             if (target != null)
             {

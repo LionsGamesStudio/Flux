@@ -10,7 +10,7 @@ namespace FluxFramework.VisualScripting.Node
 {
     [Serializable]
     [FluxNode("Timer", Category = "Time", Description = "Triggers an output every frame for a duration, then a completion output.")]
-    public class TimerNode : INode
+    public class TimerNode : IExecutableNode
     {
         private static readonly Dictionary<int, Coroutine> _runningTimers = new Dictionary<int, Coroutine>();
 
@@ -34,7 +34,7 @@ namespace FluxFramework.VisualScripting.Node
         [Port(FluxPortDirection.Output, "Progress (0-1)", PortCapacity.Multi)]
         public float Progress;
 
-        public void Execute(FluxGraphExecutor executor, AttributedNodeWrapper wrapper, string triggeredPortName)
+        public void Execute(Execution.FluxGraphExecutor executor, AttributedNodeWrapper wrapper, string triggeredPortName, Dictionary<string, object> dataInputs)
         {
             var runnerMono = executor.Runner as MonoBehaviour;
             if (runnerMono == null) return;

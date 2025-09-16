@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using FluxFramework.Attributes.VisualScripting;
@@ -10,7 +11,7 @@ namespace FluxFramework.VisualScripting.Node
 {
     [Serializable]
     [FluxNode("Add Flux Component", Category = "Framework/Components", Description = "Adds a FluxMonoBehaviour of a specific type to a GameObject.")]
-    public class AddFluxComponentNode : INode
+    public class AddFluxComponentNode : IExecutableNode
     {
         [Tooltip("Specify the component type to add by dragging a component asset or a prefab with the component here.")]
         public FluxMonoBehaviour componentTypeReference;
@@ -27,7 +28,7 @@ namespace FluxFramework.VisualScripting.Node
         [Port(FluxPortDirection.Output, "Component", PortCapacity.Multi)]
         public FluxMonoBehaviour component;
         
-        public void Execute(AttributedNodeWrapper wrapper)
+        public void Execute(Execution.FluxGraphExecutor executor, AttributedNodeWrapper wrapper, string triggeredPortName, Dictionary<string, object> dataInputs)
         {
             this.component = null;
             if (target == null || componentTypeReference == null) return;

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -10,7 +11,7 @@ namespace FluxFramework.VisualScripting.Node
 {
     [Serializable]
     [FluxNode("Set Button Interactable", Category = "Framework/UI", Description = "Enables or disables a UI Button.")]
-    public class SetButtonInteractableNode : INode
+    public class SetButtonInteractableNode : IExecutableNode
     {
         [Port(FluxPortDirection.Input, "In", portType: FluxPortType.Execution, PortCapacity.Single)]
         public ExecutionPin In;
@@ -24,7 +25,7 @@ namespace FluxFramework.VisualScripting.Node
         [Port(FluxPortDirection.Output, "Out", portType: FluxPortType.Execution, PortCapacity.Multi)]
         public ExecutionPin Out;
 
-        public void Execute()
+        public void Execute(Execution.FluxGraphExecutor executor, AttributedNodeWrapper wrapper, string triggeredPortName, Dictionary<string, object> dataInputs)
         {
             if (Target != null)
             {

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using FluxFramework.Attributes.VisualScripting;
 using FluxFramework.VisualScripting;
@@ -8,7 +9,7 @@ namespace FluxFramework.VisualScripting.Node
 {
     [Serializable]
     [FluxNode("Add", Category = "Math", Description = "Adds two numbers together.")]
-    public class AddNode : INode
+    public class AddNode : IExecutableNode
     {
         [Port(FluxPortDirection.Input, "A", PortCapacity.Single)]
         public object A;
@@ -16,10 +17,10 @@ namespace FluxFramework.VisualScripting.Node
         [Port(FluxPortDirection.Input, "B", PortCapacity.Single)]
         public object B;
 
-        [Port(FluxPortDirection.Output, "Result", FluxPortType.Data, PortCapacity.Multi)]
-        public double Result;
+        [Port(FluxPortDirection.Output, "Result", PortCapacity.Multi)]
+        public object Result;
 
-        public void Execute()
+        public void Execute(Execution.FluxGraphExecutor executor, AttributedNodeWrapper wrapper, string triggeredPortName, Dictionary<string, object> dataInputs)
         {
             try
             {

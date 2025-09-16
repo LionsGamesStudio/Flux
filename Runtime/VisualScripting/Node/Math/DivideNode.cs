@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using FluxFramework.Attributes.VisualScripting;
 using FluxFramework.VisualScripting;
@@ -8,7 +9,7 @@ namespace FluxFramework.VisualScripting.Node
 {
     [Serializable]
     [FluxNode("Divide", Category = "Math", Description = "Divides two numbers.")]
-    public class DivideNode : INode
+    public class DivideNode : IExecutableNode
     {
         [Port(FluxPortDirection.Input, "A", PortCapacity.Single)]
         public object A;
@@ -19,7 +20,7 @@ namespace FluxFramework.VisualScripting.Node
         [Port(FluxPortDirection.Output, "Result", PortCapacity.Multi)]
         public object Result;
 
-        public void Execute()
+        public void Execute(Execution.FluxGraphExecutor executor, AttributedNodeWrapper wrapper, string triggeredPortName, Dictionary<string, object> dataInputs)
         {
             try
             {

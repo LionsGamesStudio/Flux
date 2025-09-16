@@ -59,11 +59,12 @@ namespace FluxFramework.VisualScripting
         /// <summary>
         /// (Editor-only) Creates a connection between two ports.
         /// </summary>
-        public void AddConnection(FluxNodePort fromPort, FluxNodeBase fromNode, FluxNodePort toPort, FluxNodeBase toNode)
+        public FluxNodeConnection AddConnection(FluxNodePort fromPort, FluxNodeBase fromNode, FluxNodePort toPort, FluxNodeBase toNode)
         {
             var newConnection = new FluxNodeConnection(fromNode.NodeId, fromPort.Name, toNode.NodeId, toPort.Name);
             _connections.Add(newConnection);
             UnityEditor.EditorUtility.SetDirty(this);
+            return newConnection;
         }
 
         /// <summary>

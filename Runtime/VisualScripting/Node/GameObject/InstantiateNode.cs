@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using FluxFramework.Attributes.VisualScripting;
 using FluxFramework.VisualScripting.Execution;
@@ -7,7 +8,7 @@ namespace FluxFramework.VisualScripting.Node
 { 
     [Serializable]
     [FluxNode("Instantiate", Category = "GameObject", Description = "Creates an instance of a Prefab.")]
-    public class InstantiateNode : INode
+    public class InstantiateNode : IExecutableNode
     {
         [Port(FluxPortDirection.Input, "In", portType: FluxPortType.Execution, PortCapacity.Single)]
         public ExecutionPin In;
@@ -30,7 +31,7 @@ namespace FluxFramework.VisualScripting.Node
         [Port(FluxPortDirection.Output, "Instance", PortCapacity.Multi)]
         public GameObject Instance;
         
-        public void Execute(AttributedNodeWrapper wrapper)
+        public void Execute(Execution.FluxGraphExecutor executor, AttributedNodeWrapper wrapper, string triggeredPortName, Dictionary<string, object> dataInputs)
         {
             if (Prefab == null)
             {

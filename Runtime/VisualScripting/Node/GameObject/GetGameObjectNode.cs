@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using FluxFramework.Attributes.VisualScripting;
 using FluxFramework.VisualScripting.Execution;
@@ -7,7 +8,7 @@ namespace FluxFramework.VisualScripting.Node
 { 
     [Serializable]
     [FluxNode("Get GameObject", Category = "GameObject", Description = "Finds a GameObject in the current scene by its name or tag.")]
-    public class GetGameObjectNode : INode
+    public class GetGameObjectNode : IExecutableNode
     {
         public enum FindBy { Name, Tag }
 
@@ -19,7 +20,7 @@ namespace FluxFramework.VisualScripting.Node
         [Port(FluxPortDirection.Output, "GameObject", PortCapacity.Multi)]
         public GameObject result;
 
-        public void Execute(AttributedNodeWrapper wrapper)
+        public void Execute(Execution.FluxGraphExecutor executor, AttributedNodeWrapper wrapper, string triggeredPortName, Dictionary<string, object> dataInputs)
         {
             if (string.IsNullOrEmpty(identifier))
             {

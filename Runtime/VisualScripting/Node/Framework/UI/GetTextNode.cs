@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -10,7 +11,7 @@ namespace FluxFramework.VisualScripting.Node
 {
     [Serializable]
     [FluxNode("Get UI Text", Category = "Framework/UI", Description = "Gets the text from a Text or TextMeshProUGUI component.")]
-    public class GetTextNode : INode
+    public class GetTextNode : IExecutableNode
     {
         [Port(FluxPortDirection.Input, "Target", "The Text or TextMeshProUGUI component to read from.", PortCapacity.Single)]
         public Component Target;
@@ -18,7 +19,7 @@ namespace FluxFramework.VisualScripting.Node
         [Port(FluxPortDirection.Output, "Text", PortCapacity.Multi)]
         public string Text;
         
-        public void Execute(AttributedNodeWrapper wrapper)
+        public void Execute(Execution.FluxGraphExecutor executor, AttributedNodeWrapper wrapper, string triggeredPortName, Dictionary<string, object> dataInputs)
         {
             this.Text = string.Empty;
             if (Target == null) return;

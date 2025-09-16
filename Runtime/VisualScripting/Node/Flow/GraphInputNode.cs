@@ -8,14 +8,14 @@ namespace FluxFramework.VisualScripting.Node
 {
     [Serializable]
     [FluxNode("Graph Input", Category = "Sub-Graphs", Description = "Defines the entry point and input parameters for a sub-graph.")]
-    public class GraphInputNode : INode, IPortConfiguration
+    public class GraphInputNode : IExecutableNode, IPortConfiguration
     {
         [Tooltip("Define the output ports for this entry point.")]
         public List<CustomPortDefinition> Outputs = new List<CustomPortDefinition>();
 
         // This node's logic is to simply pass through the data it receives from the parent graph.
         // The executor will handle populating its fields before the sub-graph flow begins.
-        public void Execute(Execution.FluxGraphExecutor executor, AttributedNodeWrapper wrapper, Execution.ExecutionToken incomingToken) { }
+        public void Execute(Execution.FluxGraphExecutor executor, AttributedNodeWrapper wrapper, string triggeredPortName, Dictionary<string, object> dataInputs) { }
 
         /// <summary>
         /// Defines the ports visible ON THIS NODE.

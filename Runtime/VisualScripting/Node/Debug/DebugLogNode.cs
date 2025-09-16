@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using FluxFramework.Attributes.VisualScripting;
 using FluxFramework.VisualScripting.Execution;
@@ -8,7 +9,7 @@ namespace FluxFramework.VisualScripting.Node
 {
     [Serializable]
     [FluxNode("Debug Log", Category = "Debug", Description = "Logs a message to the Unity console.")]
-    public class DebugLogNode : INode
+    public class DebugLogNode : IExecutableNode
     {
         // --- Configuration Fields (visible in inspector) ---
         [Tooltip("The type of log message to display.")]
@@ -28,13 +29,14 @@ namespace FluxFramework.VisualScripting.Node
         [Port(FluxPortDirection.Output, "Out", portType: FluxPortType.Execution, PortCapacity.Multi)]
         public ExecutionPin Out;
         
+        
         // This is a synchronous node. Its Execute method has a void return type.
         // The executor will automatically continue the flow from its execution outputs.
-        public void Execute(FluxGraphExecutor executor, AttributedNodeWrapper wrapper, string triggeredPortName)
+        public void Execute(Execution.FluxGraphExecutor executor, AttributedNodeWrapper wrapper, string triggeredPortName, Dictionary<string, object> dataInputs)
         {
             var contextObject = executor.Runner.GetContextObject();
             string finalMessage = $"{prefix} {message?.ToString() ?? "null"}";
-            
+
             switch (logType)
             {
                 case LogType.Log:

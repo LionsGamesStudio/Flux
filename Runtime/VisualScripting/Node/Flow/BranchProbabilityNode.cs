@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using FluxFramework.Attributes.VisualScripting;
 using FluxFramework.VisualScripting.Execution;
@@ -10,7 +11,7 @@ namespace FluxFramework.VisualScripting.Node
     [Serializable]
     [FluxNode("Branch (Probability)", Category = "Flow", Description = "Splits the execution flow based on a configurable probability.")]
     // This node now implements the new interface.
-    public class BranchProbabilityNode : INode, IPortPostConfiguration
+    public class BranchProbabilityNode : IExecutableNode, IPortPostConfiguration
     {
         // --- Input Ports ---
         [Port(FluxPortDirection.Input, "In", FluxPortType.Execution, PortCapacity.Single)]
@@ -28,7 +29,7 @@ namespace FluxFramework.VisualScripting.Node
         public ExecutionPin False;
         
         // The Execute method is trivial because the executor handles the probabilistic branching.
-        public void Execute(FluxGraphExecutor executor, AttributedNodeWrapper wrapper, string triggeredPortName) {}
+        public void Execute(Execution.FluxGraphExecutor executor, AttributedNodeWrapper wrapper, string triggeredPortName, Dictionary<string, object> dataInputs) {}
 
         /// <summary>
         /// This method is called by the wrapper AFTER the 'True' and 'False' ports have been created.
