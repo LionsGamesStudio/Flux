@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using FluxFramework.Attributes.VisualScripting;
 using FluxFramework.VisualScripting.Execution;
 using FluxFramework.VisualScripting;
@@ -9,7 +10,7 @@ namespace FluxFramework.VisualScripting.Node
 {
     [Serializable]
     [FluxNode("For Each", Category = "Flow", Description = "Executes a loop for each item in a collection, providing the item and its index.")]
-    public class ForEachNode : INode
+    public class ForEachNode : IFlowControlNode
     {
         // --- Input Ports ---
         [Port(FluxPortDirection.Input, portType: FluxPortType.Execution, PortCapacity.Single)]
@@ -34,60 +35,40 @@ namespace FluxFramework.VisualScripting.Node
         public int index;
 
         // This node takes control of the execution flow by returning a list of tokens.
-        public void Execute(Execution.FluxGraphExecutor executor, AttributedNodeWrapper wrapper, string triggeredPortName, Dictionary<string, object> dataInputs)
+        public void Execute(FluxGraphExecutor executor, AttributedNodeWrapper wrapper, string triggeredPortName, Dictionary<string, object> dataInputs)
         {
-            // The logic of this node is to generate NEW tokens.
-            
+            // Get the list of ALL nodes connected to the loop body port ONCE.
+            var loopBodyNodes = wrapper.GetConnectedNodes(nameof(LoopBody)).ToList();
+
             if (collection != null)
             {
                 int currentIndex = 0;
-                var loopBodyNode = wrapper.GetConnectedNode(nameof(LoopBody));
-
                 foreach (var currentItem in collection)
                 {
-                    if (loopBodyNode != null)
+                    // If there are nodes connected to "Loop Body"...
+                    if (loopBodyNodes.Any())
                     {
-                        var loopToken = new ExecutionToken(loopBodyNode);
-                        loopToken.SetData(nameof(item), currentItem);
-                        loopToken.SetData(nameof(index), currentIndex);
-                        
-                        // Queue the token for the loop body directly.
-                        executor.ContinueFlow(loopToken);
+                        // ...iterate through ALL of them.
+                        foreach (var loopNode in loopBodyNodes)
+                        {
+                            // Create a separate token for each connected node.
+                            var loopToken = new ExecutionToken(loopNode);
+                            loopToken.SetData(nameof(item), currentItem);
+                            loopToken.SetData(nameof(index), currentIndex);
+                            executor.ContinueFlow(loopToken);
+                        }
                     }
                     currentIndex++;
                 }
             }
             
-            // if (collection != null)
-            // {
-            //     int currentIndex = 0;
-            //     foreach (var currentItem in collection)
-            //     {
-            //         // Find the node connected to the "Loop Body" output port.
-            //         var loopBodyNode = wrapper.GetConnectedNode(nameof(LoopBody));
-            //         if (loopBodyNode != null)
-            //         {
-            //             // Create a new token destined for the start of the loop body.
-            //             var loopToken = new ExecutionToken(loopBodyNode);
-
-            //             // Store the item and index data *inside this specific token*.
-            //             // We use the port name as the key for consistency.
-            //             loopToken.SetData(nameof(item), currentItem);
-            //             loopToken.SetData(nameof(index), currentIndex);
-
-            //             // Yield this token to the executor.
-            //             yield return loopToken;
-            //         }
-            //         currentIndex++;
-            //     }
-            // }
-
-            // After all loop tokens have been yielded, yield a final token for the "Completed" path.
-            // var completedNode = wrapper.GetConnectedNode(nameof(Completed));
-            // if (completedNode != null)
-            // {
-            //     yield return new ExecutionToken(completedNode);
-            // }
+            // --- IMPORTANT ---
+            // The flow to the "Completed" output is now also handled by this node.
+            var completedNode = wrapper.GetConnectedNode(nameof(Completed));
+            if (completedNode != null)
+            {
+                executor.ContinueFlow(new ExecutionToken(completedNode));
+            }
         }
     }
 }

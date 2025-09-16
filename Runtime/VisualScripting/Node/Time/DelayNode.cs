@@ -10,7 +10,7 @@ namespace FluxFramework.VisualScripting.Node
 {
     [Serializable]
     [FluxNode("Delay", Category = "Time", Description = "Pauses the execution flow for a specified duration in seconds.")]
-    public class DelayNode : IExecutableNode
+    public class DelayNode : IFlowControlNode
     {
         [Port(FluxPortDirection.Input, portType: FluxPortType.Execution, PortCapacity.Single)]
         public ExecutionPin In;
@@ -36,12 +36,14 @@ namespace FluxFramework.VisualScripting.Node
 
         private IEnumerator DelayCoroutine(FluxGraphExecutor executor, AttributedNodeWrapper wrapper)
         {
-            yield return new WaitForSeconds(duration);
+            // We get the duration from the field, which has already been populated.
+            // The field is also named 'duration', but to avoid confusion, let's use this.duration
+            yield return new WaitForSeconds(this.duration);
             
-            var nextNode = wrapper.GetConnectedNode(nameof(Out));
-            if (nextNode != null)
+            // Use the new plural method.
+            var nextNodes = wrapper.GetConnectedNodes(nameof(Out));
+            foreach (var nextNode in nextNodes)
             {
-                // Create a new token and tell the executor to resume the flow with it.
                 executor.ContinueFlow(new ExecutionToken(nextNode));
             }
         }

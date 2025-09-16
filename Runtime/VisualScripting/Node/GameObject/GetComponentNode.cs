@@ -8,7 +8,7 @@ namespace FluxFramework.VisualScripting.Node
 { 
     [Serializable]
     [FluxNode("Get Component", Category = "GameObject", Description = "Gets a component of a specific type from a GameObject.")]
-    public class GetComponentNode : IExecutableNode
+    public class GetComponentNode : IVolatileNode
     {
         [Tooltip("Specify the component type by dragging an asset or prefab with the component here.")]
         public Component componentTypeReference;

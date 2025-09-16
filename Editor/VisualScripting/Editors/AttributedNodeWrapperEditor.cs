@@ -36,31 +36,34 @@ namespace FluxFramework.VisualScripting.Editor
 
             // --- Configuration Fields ---
             EditorGUILayout.LabelField("Configuration", EditorStyles.boldLabel);
-            
+
             // Track if any changes were made to trigger a port rebuild.
             EditorGUI.BeginChangeCheck();
 
-            // Iterate through all serialized fields of the INode object
-            if (logicProp.hasVisibleChildren)
-            {
-                var childProp = logicProp.Copy();
-                var endProp = logicProp.GetEndProperty();
-                childProp.NextVisible(true);
+            // Get the custom inspector for this node type, if any.
+            var customDrawer = NodeInspectorFactory.GetInspectorDrawer(logic);
 
-                while (!SerializedProperty.EqualContents(childProp, endProp))
-                {
-                    FieldInfo field = logicType.GetField(childProp.name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                    if (field != null && field.GetCustomAttribute<PortAttribute>() == null)
-                    {
-                        EditorGUILayout.PropertyField(childProp, true);
-                    }
-                    if (!childProp.NextVisible(false)) break;
-                }
+            if (customDrawer != null)
+            {
+                // We found a custom drawer, so we invoke it.
+                customDrawer.Invoke(null, new object[] { logicProp });
+            }
+            else
+            {
+                // No custom drawer, fall back to the default behavior of drawing all non-port fields.
+                DrawDefaultInspectorForLogic(logicProp, logic.GetType());
             }
 
             if (EditorGUI.EndChangeCheck())
             {
                 wrapperSO.ApplyModifiedProperties();
+                // If the node's configuration changes, it might affect its ports (e.g., probability branch).
+                // So we call PostConfigurePorts to update things like weights.
+                if (logic is IPortPostConfiguration postConfigurator)
+                {
+                    postConfigurator.PostConfigurePorts(wrapper);
+                    EditorUtility.SetDirty(wrapper); // Save the changes to the port data
+                }
             }
 
             // --- DYNAMIC PORT MANAGEMENT ---
@@ -73,7 +76,7 @@ namespace FluxFramework.VisualScripting.Editor
                 {
                     // 1. Update the data model in memory.
                     wrapper.RebuildPorts();
-                    
+
                     // 2. Force Unity to save the changes made to this ScriptableObject asset to disk.
                     // This is the most important step.
                     EditorUtility.SetDirty(wrapper);
@@ -87,16 +90,16 @@ namespace FluxFramework.VisualScripting.Editor
                     window.GraphView?.Refresh();
                 }
             }
-            
+
             EditorGUILayout.Space();
 
             // --- EXECUTION OUTPUT WEIGHTS ---
             var nodeSO = new SerializedObject(wrapper);
             var outPortsProp = nodeSO.FindProperty("_outputPorts");
-            
+
             // Find all execution output ports to display their weights.
             var outputExecutionPorts = new List<(SerializedProperty prop, string name)>();
-            for(int i = 0; i < outPortsProp.arraySize; i++)
+            for (int i = 0; i < outPortsProp.arraySize; i++)
             {
                 var portProp = outPortsProp.GetArrayElementAtIndex(i);
                 var portTypeProp = portProp.FindPropertyRelative("_portType");
@@ -109,7 +112,7 @@ namespace FluxFramework.VisualScripting.Editor
             if (outputExecutionPorts.Count > 1) // Only show weights if there's a choice to be made.
             {
                 EditorGUILayout.LabelField("Execution Output Weights", EditorStyles.boldLabel);
-                
+
                 foreach (var (prop, name) in outputExecutionPorts)
                 {
                     var weightProp = prop.FindPropertyRelative("_probabilityWeight");
@@ -118,8 +121,27 @@ namespace FluxFramework.VisualScripting.Editor
                         EditorGUILayout.PropertyField(weightProp, new GUIContent(name));
                     }
                 }
-                
+
                 nodeSO.ApplyModifiedProperties();
+            }
+        }
+        
+        private void DrawDefaultInspectorForLogic(SerializedProperty logicProp, Type logicType)
+        {
+            if (logicProp == null || !logicProp.hasVisibleChildren) return;
+
+            var childProp = logicProp.Copy();
+            var endProp = logicProp.GetEndProperty();
+            childProp.NextVisible(true);
+
+            while (!SerializedProperty.EqualContents(childProp, endProp))
+            {
+                FieldInfo field = logicType.GetField(childProp.name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                if (field != null && field.GetCustomAttribute<PortAttribute>() == null)
+                {
+                    EditorGUILayout.PropertyField(childProp, true);
+                }
+                if (!childProp.NextVisible(false)) break;
             }
         }
     }

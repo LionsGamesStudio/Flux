@@ -8,6 +8,7 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using UnityEditor;
 using FluxFramework.VisualScripting;
+using FluxFramework.VisualScripting.Node;
 using FluxFramework.VisualScripting.Execution;
 using FluxFramework.Attributes.VisualScripting;
 
@@ -312,7 +313,7 @@ namespace FluxFramework.VisualScripting.Editor
         /// <param name="nodeData"></param>
         private FluxNodeView CreateNodeView(FluxNodeBase nodeData)
         {
-            var nodeView = new FluxNodeView(nodeData, this);
+            var nodeView = NodeViewFactory.CreateNodeView(nodeData, this);
             AddElement(nodeView);
             return nodeView;
         }

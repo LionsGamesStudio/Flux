@@ -36,6 +36,11 @@ namespace FluxFramework.VisualScripting
             }
         }
 
+        void OnDestroy()
+        {
+            _executor?.Stop();
+        }
+
         /// <summary>
         /// Public method to manually trigger the graph's execution.
         /// </summary>

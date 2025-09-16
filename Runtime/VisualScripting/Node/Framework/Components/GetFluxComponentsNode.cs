@@ -11,7 +11,7 @@ namespace FluxFramework.VisualScripting.Node
 {
     [Serializable]
     [FluxNode("Get Flux Components", Category = "Framework/Components", Description = "Finds all components inheriting from FluxMonoBehaviour on a GameObject and its children.")]
-    public class GetFluxComponentsNode : IExecutableNode
+    public class GetFluxComponentsNode : IVolatileNode
     {
         [Tooltip("If true, the search will include inactive GameObjects in the hierarchy.")]
         public bool includeInactive = false;

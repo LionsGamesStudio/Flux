@@ -8,7 +8,7 @@ namespace FluxFramework.VisualScripting.Node
 {
     [Serializable]
     [FluxNode("Get Flux Property", Category = "Framework/Properties", Description = "Gets the value of a reactive property from the FluxPropertyManager.")]
-    public class GetFluxPropertyNode : IExecutableNode
+    public class GetFluxPropertyNode : IVolatileNode
     {
         [Tooltip("The unique key of the property to get.")]
         public string PropertyKey;

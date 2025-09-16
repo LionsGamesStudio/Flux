@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using FluxFramework.Attributes.VisualScripting;
 using FluxFramework.Core;
 using UnityEngine;
@@ -7,7 +8,7 @@ using UnityEngine;
 namespace FluxFramework.VisualScripting.Node
 {
     [Serializable]
-    [FluxNode("Set Flux Property", Category = "Framework/Properties", Description = "Sets the value of a reactive property in the FluxPropertyManager.")]
+    [FluxNode("Set Flux Property", Category = "Framework/Properties", Description = "Sets the value of a reactive property. Creates the property if it does not exist.")]
     public class SetFluxPropertyNode : IExecutableNode
     {
         [Tooltip("The unique key of the property to set.")]
@@ -21,7 +22,6 @@ namespace FluxFramework.VisualScripting.Node
         public ExecutionPin Out;
 
         // --- Data Input Port ---
-        // The value type is 'object' to accept any kind of data.
         [Port(FluxPortDirection.Input, "Value", "The value to set the property to.", PortCapacity.Single)]
         public object Value;
 
@@ -31,17 +31,45 @@ namespace FluxFramework.VisualScripting.Node
             {
                 return;
             }
-
-            var property = Flux.Manager.Properties.GetProperty(PropertyKey);
-            if (property != null)
+            
+            // The 'Value' field is populated by the executor before this method is called.
+            if (this.Value == null)
             {
-                // The 'Value' field has already been populated by the executor
-                // from the connected data port before this method was called.
+                // We can't create a property without knowing its type.
+                // We could try to set an existing property to null, however.
+                var existingProp = Flux.Manager.Properties.GetProperty(PropertyKey);
+                if(existingProp != null)
+                {
+                    existingProp.SetValue(null);
+                }
+                else
+                {
+                    Debug.LogWarning($"[SetFluxPropertyNode] Input 'Value' is null for key '{PropertyKey}'. Cannot create a new property without a type.", wrapper);
+                }
+                return;
+            }
+
+            try
+            {
+                var properties = Flux.Manager.Properties;
+                var valueType = this.Value.GetType();
+                
+                // Use reflection to find the generic GetOrCreateProperty<T> method.
+                var getOrCreateMethod = typeof(IFluxPropertyManager)
+                    .GetMethod("GetOrCreateProperty")
+                    .MakeGenericMethod(valueType);
+                
+                // Invoke the method to get or create the property.
+                // The second argument is the default value, which will be used only if the property is created for the first time.
+                var property = (IReactiveProperty)getOrCreateMethod.Invoke(properties, new object[] { this.PropertyKey, this.Value });
+                
+                // Now that we are sure the property exists, set its value.
+                // This ensures it's updated even if it already existed.
                 property.SetValue(this.Value);
             }
-            else
+            catch (Exception e)
             {
-                Debug.LogWarning($"[SetFluxPropertyNode] Property with key '{PropertyKey}' not found.", wrapper);
+                Debug.LogError($"[SetFluxPropertyNode] Failed to get or create property '{PropertyKey}' with value of type '{this.Value.GetType().Name}'. Error: {e.Message}", wrapper);
             }
         }
     }

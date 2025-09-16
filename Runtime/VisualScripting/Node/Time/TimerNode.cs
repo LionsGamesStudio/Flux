@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using FluxFramework.Attributes.VisualScripting;
 using FluxFramework.VisualScripting.Execution;
@@ -10,7 +11,7 @@ namespace FluxFramework.VisualScripting.Node
 {
     [Serializable]
     [FluxNode("Timer", Category = "Time", Description = "Triggers an output every frame for a duration, then a completion output.")]
-    public class TimerNode : IExecutableNode
+    public class TimerNode : IFlowControlNode
     {
         private static readonly Dictionary<int, Coroutine> _runningTimers = new Dictionary<int, Coroutine>();
 
@@ -64,8 +65,10 @@ namespace FluxFramework.VisualScripting.Node
         private IEnumerator TimerCoroutine(FluxGraphExecutor executor, AttributedNodeWrapper wrapper)
         {
             var runnerGO = (executor.Runner as MonoBehaviour).gameObject;
-            var onTickNode = wrapper.GetConnectedNode(nameof(OnTick));
-            var onCompleteNode = wrapper.GetConnectedNode(nameof(OnComplete));
+            
+            // We get the list of ALL nodes connected to the output ports ONCE.
+            var onTickNodes = wrapper.GetConnectedNodes(nameof(OnTick)).ToList();
+            var onCompleteNode = wrapper.GetConnectedNode(nameof(OnComplete)); // OnComplete is usually single connection
 
             do
             {
@@ -77,22 +80,32 @@ namespace FluxFramework.VisualScripting.Node
                     elapsedTime += Time.deltaTime;
                     this.Progress = Mathf.Clamp01(elapsedTime / Duration);
 
-                    if (onTickNode != null)
+                    // If there are nodes connected to "On Tick"...
+                    if (onTickNodes.Any())
                     {
-                        var tickToken = new ExecutionToken(onTickNode);
-                        tickToken.SetData(nameof(Progress), this.Progress);
-                        executor.ContinueFlow(tickToken);
+                        // ...iterate through ALL of them.
+                        foreach (var tickNode in onTickNodes)
+                        {
+                            // Create a separate token for each connected node.
+                            var tickToken = new ExecutionToken(tickNode);
+                            tickToken.SetData(nameof(Progress), this.Progress);
+                            executor.ContinueFlow(tickToken);
+                        }
                     }
                     
                     yield return null;
                 }
 
                 this.Progress = 1f;
-                if (onTickNode != null)
+                // Do the same for the final tick
+                if (onTickNodes.Any())
                 {
-                    var finalTickToken = new ExecutionToken(onTickNode);
-                    finalTickToken.SetData(nameof(Progress), this.Progress);
-                    executor.ContinueFlow(finalTickToken);
+                    foreach (var tickNode in onTickNodes)
+                    {
+                        var finalTickToken = new ExecutionToken(tickNode);
+                        finalTickToken.SetData(nameof(Progress), this.Progress);
+                        executor.ContinueFlow(finalTickToken);
+                    }
                 }
                 
                 if (onCompleteNode != null)

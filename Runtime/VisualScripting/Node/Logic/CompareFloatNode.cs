@@ -21,14 +21,16 @@ namespace FluxFramework.VisualScripting.Node
 
         private bool PerformComparison(float a, float b)
         {
-            return Operation switch {
+            return Operation switch
+            {
                 ComparisonOperation.Equal => a == b,
                 ComparisonOperation.NotEqual => a != b,
                 ComparisonOperation.Greater => a > b,
                 ComparisonOperation.GreaterEqual => a >= b,
                 ComparisonOperation.Less => a < b,
                 ComparisonOperation.LessEqual => a <= b,
-                _ => false };
+                _ => false
+            };
         }
     }
 }

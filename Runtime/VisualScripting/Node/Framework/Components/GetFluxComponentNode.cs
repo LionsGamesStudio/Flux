@@ -11,7 +11,7 @@ namespace FluxFramework.VisualScripting.Node
 {
     [Serializable]
     [FluxNode("Get Flux Component", Category = "Framework/Components", Description = "Finds a specific component that inherits from FluxMonoBehaviour on a GameObject.")]
-    public class GetFluxComponentNode : IExecutableNode
+    public class GetFluxComponentNode : IVolatileNode
     {
         [Tooltip("Specify the component type by dragging a component asset or a prefab with the component here.")]
         public FluxMonoBehaviour componentTypeReference;

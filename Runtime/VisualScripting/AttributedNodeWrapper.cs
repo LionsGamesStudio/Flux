@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
@@ -19,7 +20,7 @@ namespace FluxFramework.VisualScripting
     {
         [SerializeReference]
         private INode _nodeLogic;
-        
+
         // This non-serialized reference to the parent graph is crucial for nodes
         // that need to query their connections (like ForEach).
         [NonSerialized]
@@ -27,7 +28,7 @@ namespace FluxFramework.VisualScripting
 
         public INode NodeLogic => _nodeLogic;
         public FluxVisualGraph ParentGraph { get => _parentGraph; set => _parentGraph = value; }
-        
+
         /// <summary>
         /// Finds the first node connected to a specific output port of this wrapper.
         /// This is a vital helper for flow-control nodes like ForEach and Branch.
@@ -40,6 +41,26 @@ namespace FluxFramework.VisualScripting
             if (connection == null) return null;
 
             return _parentGraph.Nodes.FirstOrDefault(n => n.NodeId == connection.ToNodeId);
+        }
+        
+        
+        /// <summary>
+        /// Finds ALL nodes connected to a specific output port of this wrapper.
+        /// This is essential for nodes with PortCapacity.Multi execution outputs.
+        /// </summary>
+        public IEnumerable<FluxNodeBase> GetConnectedNodes(string portName)
+        {
+            if (_parentGraph == null) yield break;
+
+            var connections = _parentGraph.Connections.Where(c => c.FromNodeId == NodeId && c.FromPortName == portName);
+            foreach (var connection in connections)
+            {
+                var node = _parentGraph.Nodes.FirstOrDefault(n => n.NodeId == connection.ToNodeId);
+                if (node != null)
+                {
+                    yield return node;
+                }
+            }
         }
 
         #if UNITY_EDITOR
@@ -163,7 +184,7 @@ namespace FluxFramework.VisualScripting
             // This is a more robust way to "nicify" camelCase and PascalCase names.
             return Regex.Replace(fieldName, "(\\B[A-Z])", " $1");
         }
-        #endif
+#endif
     }
     
     /// <summary>
