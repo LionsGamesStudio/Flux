@@ -51,7 +51,7 @@ namespace FluxFramework.UI
 
             // Register it with the central system with default options.
             // A more advanced version could expose BindingOptions in the inspector.
-            ReactiveBindingSystem.Bind(_propertyKey, _binding, new BindingOptions { Mode = _bindingMode });
+            Flux.Manager.BindingSystem.Bind(_propertyKey, _binding, new BindingOptions { Mode = _bindingMode });
 
             // Track the binding for automatic cleanup.
             TrackBinding(_binding);

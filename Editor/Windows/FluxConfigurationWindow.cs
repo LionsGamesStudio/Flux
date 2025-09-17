@@ -16,10 +16,18 @@ namespace FluxFramework.Editor
         private Vector2 _scrollPosition;
         private Dictionary<string, bool> _categoryFoldouts = new Dictionary<string, bool>();
 
+        private IFluxConfigurationManager _configManager;
+
         [MenuItem("Flux/Configuration/Configuration Manager")]
         public static void ShowWindow()
         {
             GetWindow<FluxConfigurationWindow>("Flux Configurations");
+        }
+        
+        private void OnEnable()
+        {
+            _configManager = new FluxConfigurationManager();
+            _configManager.Initialize();
         }
 
         private void OnGUI()
@@ -29,15 +37,16 @@ namespace FluxFramework.Editor
 
             if (GUILayout.Button("Refresh Configurations"))
             {
-                FluxConfigurationManager.Initialize();
+                _configManager = new FluxConfigurationManager();
+                _configManager.Initialize();
                 Repaint();
             }
 
             if (GUILayout.Button("Validate All Configurations"))
             {
-                bool allValid = FluxConfigurationManager.ValidateAllConfigurations();
-                EditorUtility.DisplayDialog("Validation Result", 
-                    allValid ? "All configurations are valid!" : "Some configurations have errors. Check the console.", 
+                bool allValid = _configManager.ValidateAllConfigurations();
+                EditorUtility.DisplayDialog("Validation Result",
+                    allValid ? "All configurations are valid!" : "Some configurations have errors. Check the console.",
                     "OK");
             }
 
@@ -52,7 +61,7 @@ namespace FluxFramework.Editor
 
         private void DrawConfigurationsByCategory()
         {
-            var configTypes = FluxConfigurationManager.GetConfigurationTypes();
+            var configTypes = _configManager.GetConfigurationTypes();
             var categorizedTypes = configTypes.GroupBy(kvp => kvp.Value.Category)
                                              .OrderBy(group => group.Key);
 
@@ -97,7 +106,7 @@ namespace FluxFramework.Editor
             }
 
             // Configuration status
-            var loadedConfig = FluxConfigurationManager.GetConfiguration(configType);
+            var loadedConfig = _configManager.GetConfiguration(configType);
             bool isLoaded = loadedConfig != null;
 
             EditorGUILayout.BeginHorizontal();
@@ -185,8 +194,8 @@ namespace FluxFramework.Editor
                 Selection.activeObject = asset;
                 EditorGUIUtility.PingObject(asset);
 
-                FluxConfigurationManager.RegisterConfiguration(asset as FluxConfigurationAsset);
-                FluxConfigurationManager.Initialize(); // Re-initialize to load the new asset
+                _configManager.RegisterConfiguration(asset as FluxConfigurationAsset);
+                _configManager.Initialize(); // Re-initialize to load the new asset
             }
         }
     }

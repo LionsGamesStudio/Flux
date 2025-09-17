@@ -63,7 +63,7 @@ namespace FluxFramework.Extensions
                 }
 
                 var key = ((FluxManager)Flux.Manager).Properties.GetKey(this);
-                EventBus.Publish(new ValidationEvent(errorMessages.Length == 0, key, errorMessages));
+                Flux.Manager.EventBus.Publish(new ValidationEvent(errorMessages.Length == 0, key, errorMessages));
             }
         }
 

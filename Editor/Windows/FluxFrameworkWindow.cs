@@ -47,8 +47,8 @@ namespace FluxFramework.Editor
             if (isInitialized)
             {
                 EditorGUILayout.LabelField("Registered Properties:", $"{Flux.Manager.Properties.PropertyCount}");
-                EditorGUILayout.LabelField("Event Subscriptions:", $"{EventBus.GetTotalSubscriberCount()}");
-                EditorGUILayout.LabelField("Active UI Bindings:", $"{ReactiveBindingSystem.GetActiveBindingCount()}");
+                EditorGUILayout.LabelField("Event Subscriptions:", $"{Flux.Manager.EventBus.GetTotalSubscriberCount()}");
+                EditorGUILayout.LabelField("Active UI Bindings:", $"{Flux.Manager.BindingSystem.GetActiveBindingCount()}");
             }
             else
             {

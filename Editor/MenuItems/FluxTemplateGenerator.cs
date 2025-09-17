@@ -260,6 +260,7 @@ namespace MyGame.Settings
 using FluxFramework.UI;
 using FluxFramework.Attributes;
 using FluxFramework.Binding;
+using FluxFramework.Core;
 
 // TODO: Change this to your project's namespace
 namespace MyGame.UI
@@ -294,7 +295,7 @@ namespace MyGame.UI
         {{
             // Example:
             // var myBinding = new MyCustomBinding(""some.key"", someComponent);
-            // ReactiveBindingSystem.Bind(""some.key"", myBinding);
+            // Flux.Manager.BindingSystem.Bind(""some.key"", myBinding)
             // TrackBinding(myBinding); // Important for automatic cleanup!
         }}
 

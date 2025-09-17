@@ -284,7 +284,7 @@ namespace FluxFramework.Core
 
             // Optionally, raise a PropertyChangedEvent here if needed.
             var key = ((FluxManager)Flux.Manager).Properties.GetKey(this);
-            EventBus.Publish(new PropertyChangedEvent(key, oldValue, newValue, typeof(T)));
+            Flux.Manager.EventBus.Publish(new PropertyChangedEvent(key, oldValue, newValue, typeof(T)));
         }
 
         public static implicit operator T(ReactiveProperty<T> property)

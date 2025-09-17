@@ -55,7 +55,7 @@ namespace FluxFramework.UI
             };
 
             // Register it with the central system.
-            ReactiveBindingSystem.Bind(_propertyKey, _binding, options);
+            Flux.Manager.BindingSystem.Bind(_propertyKey, _binding, options);
 
             // Track the binding for automatic cleanup.
             TrackBinding(_binding);

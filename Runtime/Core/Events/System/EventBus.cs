@@ -8,22 +8,29 @@ namespace FluxFramework.Core
     /// <summary>
     /// Thread-safe event bus for decoupled communication
     /// </summary>
-    public static class EventBus
+    public class EventBus : IEventBus
     {
-        private static readonly ConcurrentDictionary<Type, ConcurrentBag<(Delegate handler, int priority)>> _subscribers = new();
-        private static readonly object _initLock = new object();
-        private static bool _isInitialized = false;
+        private readonly ConcurrentDictionary<Type, ConcurrentBag<(Delegate handler, int priority)>> _subscribers = new();
+        private readonly object _initLock = new object();
+        private bool _isInitialized = false;
+
+        private readonly IFluxThreadManager _threadManager;
 
         /// <summary>
         /// A global event that is fired whenever any event is published.
         /// This is primarily intended for debugging and monitoring tools.
         /// </summary>
-        public static event Action<IFluxEvent> OnEventPublished;
+        public event Action<IFluxEvent> OnEventPublished;
+
+        public EventBus(IFluxThreadManager threadManager)
+        {
+            _threadManager = threadManager ?? throw new ArgumentNullException(nameof(threadManager));
+        }
 
         /// <summary>
         /// Initializes the event bus
         /// </summary>
-        public static void Initialize()
+        public void Initialize()
         {
             if (_isInitialized) return;
 
@@ -43,14 +50,14 @@ namespace FluxFramework.Core
         /// <param name="handler"></param>
         /// <param name="priority"></param>
         /// <returns></returns>
-        public static IDisposable Subscribe<T>(Action<T> handler, int priority = 0) where T : IFluxEvent
+        public IDisposable Subscribe<T>(Action<T> handler, int priority = 0) where T : IFluxEvent
         {
             var eventType = typeof(T);
             var subscribers = _subscribers.GetOrAdd(eventType, _ => new ConcurrentBag<(Delegate, int)>());
             var subscriptionTuple = (handler as Delegate, priority);
             subscribers.Add(subscriptionTuple);
 
-            return new EventSubscription<T>(handler);
+            return new EventSubscription<T>(this, handler);
         }
 
         /// <summary>
@@ -59,7 +66,7 @@ namespace FluxFramework.Core
         /// </summary>
         /// <typeparam name="T">The event type.</typeparam>
         /// <param name="handler">The event handler to remove.</param>
-        public static void Unsubscribe<T>(Action<T> handler) where T : IFluxEvent
+        public void Unsubscribe<T>(Action<T> handler) where T : IFluxEvent
         {
             var eventType = typeof(T);
             if (!_subscribers.TryGetValue(eventType, out var currentSubscribers))
@@ -95,7 +102,7 @@ namespace FluxFramework.Core
         /// Unsubscribes a specific object from ALL event types it has subscribed to.
         /// </summary>
         /// <param name="target">The subscriber object to remove (e.g., 'this' from a MonoBehaviour).</param>
-        public static void Unsubscribe(object target)
+        public void Unsubscribe(object target)
         {
             if (target == null) return;
 
@@ -121,7 +128,7 @@ namespace FluxFramework.Core
         /// </summary>
         /// <typeparam name="T">Event type</typeparam>
         /// <param name="eventArgs">Event data</param>
-        public static void Publish<T>(T eventArgs) where T : IFluxEvent
+        public void Publish<T>(T eventArgs) where T : IFluxEvent
         {
             // Fire the global monitoring event first.
             // We do this outside of the main thread execution to ensure the monitor
@@ -147,7 +154,7 @@ namespace FluxFramework.Core
                 // 2. Execute on the main thread
                 if (Flux.Manager != null)
                 {
-                    Flux.Manager.Threading.ExecuteOnMainThread(() =>
+                    _threadManager.ExecuteOnMainThread(() =>
                     {
                         foreach (var sub in sortedHandlers)
                         {
@@ -176,7 +183,7 @@ namespace FluxFramework.Core
         /// <summary>
         /// Clears all subscribers
         /// </summary>
-        public static void Clear()
+        public void Clear()
         {
             _subscribers.Clear();
         }
@@ -186,7 +193,7 @@ namespace FluxFramework.Core
         /// </summary>
         /// <typeparam name="T">Event type</typeparam>
         /// <returns>Number of subscribers</returns>
-        public static int GetSubscriberCount<T>() where T : IFluxEvent
+        public int GetSubscriberCount<T>() where T : IFluxEvent
         {
             var eventType = typeof(T);
             return _subscribers.TryGetValue(eventType, out var subscribers) ? subscribers.Count : 0;
@@ -196,7 +203,7 @@ namespace FluxFramework.Core
         /// Gets the total number of subscriptions across all event types.
         /// </summary>
         /// <returns>The total count of active event subscriptions.</returns>
-        public static int GetTotalSubscriberCount()
+        public int GetTotalSubscriberCount()
         {
             if (!_isInitialized) return 0;
 
@@ -206,9 +213,10 @@ namespace FluxFramework.Core
         
         private sealed class EventSubscription<T> : IDisposable where T : IFluxEvent
         {
+            private EventBus _owner;
             private readonly Action<T> _handler;
-            public EventSubscription(Action<T> handler) { _handler = handler; }
-            public void Dispose() { EventBus.Unsubscribe(_handler); }
+            public EventSubscription(EventBus owner, Action<T> handler) { _owner = owner; _handler = handler; }
+            public void Dispose() { _owner?.Unsubscribe(_handler); _owner = null; }
         }
     }
 }

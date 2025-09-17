@@ -1,29 +1,72 @@
 using UnityEditor;
 using FluxFramework.Core;
+using System;
 
 namespace FluxFramework.Editor
 {
     /// <summary>
-    /// This editor-only class ensures that any open EventBusMonitorWindow is correctly
-    /// re-subscribed to the EventBus after a domain reload (e.g., when entering play mode
-    /// or after a script compilation). This solves the issue of the monitor not receiving
-    // events after the C# AppDomain is reset by Unity.
+    /// A bridge that connects the runtime EventBus (from Play Mode) to the editor-only
+    /// EventBus used by monitoring tools. It forwards all published events.
     /// </summary>
     [InitializeOnLoad]
     public static class EditorEventBusConnector
     {
-        // The static constructor is called by Unity automatically after a domain reload.
+        private static IDisposable _runtimeSubscription;
+
         static EditorEventBusConnector()
         {
-            // We don't need to do anything complex. The EventBusMonitorWindow's own OnEnable
-            // method already contains the logic to subscribe. When Unity reloads the domain,
-            // it will disable and then re-enable all open editor windows, which will trigger
-            // our existing subscription logic automatically.
+            // Subscribe to Unity's play mode state changes to know when to connect/disconnect.
+            EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
+            EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
+        }
 
-            // The one thing we MUST do is ensure that the EventBus itself is "awake"
-            // in the editor context so that the window has something to subscribe to.
-            // Calling a simple method on it is enough to trigger its static constructor if it hasn't run.
-            EventBus.Initialize();
+        private static void OnPlayModeStateChanged(PlayModeStateChange state)
+        {
+            switch (state)
+            {
+                case PlayModeStateChange.EnteredPlayMode:
+                    // The runtime FluxManager is now available.
+                    ConnectToRuntimeBus();
+                    break;
+                
+                case PlayModeStateChange.ExitingPlayMode:
+                    // The runtime FluxManager is about to be destroyed.
+                    DisconnectFromRuntimeBus();
+                    break;
+            }
+        }
+
+        private static void ConnectToRuntimeBus()
+        {
+            // Ensure we don't subscribe twice.
+            DisconnectFromRuntimeBus();
+
+            if (Flux.Manager?.EventBus != null)
+            {
+                // Subscribe to the global event publisher on the RUNTIME bus.
+                // For every event published in the game, we forward it to the EDITOR bus.
+                Flux.Manager.EventBus.OnEventPublished += ForwardEventToEditorBus;
+            }
+        }
+
+        private static void DisconnectFromRuntimeBus()
+        {
+            if (Flux.Manager?.EventBus != null)
+            {
+                // Unsubscribe to prevent errors when exiting play mode.
+                Flux.Manager.EventBus.OnEventPublished -= ForwardEventToEditorBus;
+            }
+        }
+        
+        private static void ForwardEventToEditorBus(IFluxEvent runtimeEvent)
+        {
+            // Take the event from the runtime bus and publish it on the editor bus.
+            // Any editor window (like EventBusMonitorWindow) listening to FluxEditorServices.EventBus
+            // will now receive it.
+            if (FluxEditorServices.EventBus != null && runtimeEvent != null)
+            {
+                FluxEditorServices.EventBus.Publish(runtimeEvent);
+            }
         }
     }
 }

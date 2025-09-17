@@ -57,7 +57,7 @@ namespace FluxFramework.Core
         /// </summary>
         public void ScanNow()
         {
-            FluxComponentRegistry.RegisterAllComponentsInScene();
+            Flux.Manager.Registry.RegisterAllComponentsInScene();
         }
         
         private IEnumerator ScanForNewComponents()
@@ -68,7 +68,7 @@ namespace FluxFramework.Core
                 
                 if (Flux.Manager != null)
                 {
-                    FluxComponentRegistry.RegisterAllComponentsInScene();
+                    Flux.Manager.Registry.RegisterAllComponentsInScene();
                 }
             }
         }

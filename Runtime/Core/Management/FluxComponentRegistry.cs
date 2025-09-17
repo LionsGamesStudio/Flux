@@ -12,29 +12,36 @@ namespace FluxFramework.Core
     /// Discovers and registers MonoBehaviours marked with the [FluxComponent] attribute.
     /// It orchestrates the initialization of properties, event handlers, and UI bindings for each component.
     /// </summary>
-    public static class FluxComponentRegistry
+    public class FluxComponentRegistry : IFluxComponentRegistry
     {
-        private static Dictionary<Type, FluxComponentAttribute> _discoveredComponents = new Dictionary<Type, FluxComponentAttribute>();
-        private static Dictionary<string, List<Type>> _componentsByCategory = new Dictionary<string, List<Type>>();
-        private static HashSet<Type> _registeredTypes = new HashSet<Type>();
-        private static HashSet<MonoBehaviour> _registeredInstances = new HashSet<MonoBehaviour>();
-        private static bool _isDiscovered = false;
-        private static bool _isInitialized = false;
+        private Dictionary<Type, FluxComponentAttribute> _discoveredComponents = new Dictionary<Type, FluxComponentAttribute>();
+        private Dictionary<string, List<Type>> _componentsByCategory = new Dictionary<string, List<Type>>();
+        private HashSet<Type> _registeredTypes = new HashSet<Type>();
+        private HashSet<MonoBehaviour> _registeredInstances = new HashSet<MonoBehaviour>();
+        private bool _isDiscovered = false;
+        private bool _isInitialized = false;
+
+        private readonly IFluxManager _manager;
 
         /// <summary>
         /// Event raised when a component type is discovered and registered with the registry.
         /// </summary>
-        public static event Action<Type, FluxComponentAttribute> OnComponentTypeRegistered;
+        public event Action<Type, FluxComponentAttribute> OnComponentTypeRegistered;
 
         /// <summary>
         /// Event raised when an instance of a component is registered with the framework.
         /// </summary>
-        public static event Action<MonoBehaviour, FluxComponentAttribute> OnComponentInstanceRegistered;
+        public event Action<MonoBehaviour, FluxComponentAttribute> OnComponentInstanceRegistered;
+
+        public FluxComponentRegistry(IFluxManager manager)
+        {
+            _manager = manager ?? throw new ArgumentNullException(nameof(manager));
+        }
 
         /// <summary>
         /// Initializes the component registry and discovers all FluxComponent types in the project.
         /// </summary>
-        public static void Initialize()
+        public void Initialize()
         {
             if (_isInitialized) return;
             DiscoverComponentTypes();
@@ -45,7 +52,7 @@ namespace FluxFramework.Core
         /// <summary>
         /// Scans all loaded assemblies for types marked with the [FluxComponent] attribute.
         /// </summary>
-        private static void DiscoverComponentTypes()
+        private void DiscoverComponentTypes()
         {
             if (_isDiscovered) return;
             _discoveredComponents.Clear();
@@ -83,7 +90,7 @@ namespace FluxFramework.Core
         /// Registers a specific instance of a MonoBehaviour with the framework.
         /// This is the master controller for component initialization.
         /// </summary>
-        public static void RegisterComponentInstance(MonoBehaviour component)
+        public void RegisterComponentInstance(MonoBehaviour component)
         {
             if (component == null || _registeredInstances.Contains(component)) return;
 
@@ -104,7 +111,7 @@ namespace FluxFramework.Core
             CallRegistrationMethods(component, attribute);
 
             // 1. Delegate all reactive property creation to the central factory.
-            FluxPropertyFactory.RegisterPropertiesFor(component);
+            _manager.PropertyFactory.RegisterPropertiesFor(component);
 
             // 2. Register event and property change handlers.
             RegisterEventHandlers(component);
@@ -123,7 +130,7 @@ namespace FluxFramework.Core
         /// <summary>
         /// Invokes any methods on the component that are marked with the [FluxOnRegister] attribute.
         /// </summary>
-        private static void CallRegistrationMethods(MonoBehaviour component, FluxComponentAttribute attribute)
+        private void CallRegistrationMethods(MonoBehaviour component, FluxComponentAttribute attribute)
         {
             var methods = component.GetType().GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
                 .Where(m => m.GetCustomAttribute<FluxOnRegisterAttribute>() != null)
@@ -144,7 +151,7 @@ namespace FluxFramework.Core
         /// <summary>
         /// Scans the component for methods marked with [FluxPropertyChangeHandler] and subscribes them.
         /// </summary>
-        private static void RegisterPropertyChangeHandlers(MonoBehaviour component)
+        private void RegisterPropertyChangeHandlers(MonoBehaviour component)
         {
             var methods = component.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             foreach (var method in methods)
@@ -165,7 +172,7 @@ namespace FluxFramework.Core
         /// <summary>
         /// A helper to create a deferred subscription for a property change handler.
         /// </summary>
-        private static IDisposable SubscribeHandlerToProperty(MonoBehaviour component, MethodInfo method, FluxPropertyChangeHandlerAttribute attribute)
+        private IDisposable SubscribeHandlerToProperty(MonoBehaviour component, MethodInfo method, FluxPropertyChangeHandlerAttribute attribute)
         {
             try
             {
@@ -241,7 +248,7 @@ namespace FluxFramework.Core
         /// <summary>
         /// Scans the component for methods marked with [FluxEventHandler] and subscribes them to the EventBus.
         /// </summary>
-        private static void RegisterEventHandlers(MonoBehaviour component)
+        private void RegisterEventHandlers(MonoBehaviour component)
         {
             var methods = component.GetType().GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
             foreach (var method in methods)
@@ -257,7 +264,7 @@ namespace FluxFramework.Core
         /// <summary>
         /// Registers a single event handler method with the EventBus.
         /// </summary>
-        private static void RegisterEventHandler(MonoBehaviour component, MethodInfo method, FluxEventHandlerAttribute attribute)
+        private void RegisterEventHandler(MonoBehaviour component, MethodInfo method, FluxEventHandlerAttribute attribute)
         {
             try
             {
@@ -288,18 +295,18 @@ namespace FluxFramework.Core
 
                 // --- Step 2: Find the correct 'Subscribe' method overload using reflection ---
                 // We need to find the generic Subscribe<T>(Action<T> handler, int priority) method.
-                var subscribeMethodInfo = typeof(EventBus)
-                    .GetMethods(BindingFlags.Public | BindingFlags.Static)
+                var subscribeMethodInfo = typeof(IEventBus)
+                    .GetMethods(BindingFlags.Public | BindingFlags.Instance)
                     .FirstOrDefault(m => 
                         m.Name == "Subscribe" && 
                         m.IsGenericMethodDefinition &&
-                        m.GetParameters().Length == 2 && // Must have 2 parameters (handler, priority)
+                        m.GetParameters().Length == 2 && 
                         m.GetParameters()[0].ParameterType.GetGenericTypeDefinition() == typeof(Action<>) &&
                         m.GetParameters()[1].ParameterType == typeof(int));
 
                 if (subscribeMethodInfo == null)
                 {
-                    Debug.LogError("[FluxFramework] Critical Error: Could not find the required 'EventBus.Subscribe<T>(Action<T>, int)' method via reflection.", component);
+                    Debug.LogError("[FluxFramework] Critical Error: Could not find the required 'IEventBus.Subscribe<T>(Action<T>, int)' method via reflection.", component);
                     return;
                 }
 
@@ -313,7 +320,7 @@ namespace FluxFramework.Core
 
                 // --- Step 4: Invoke the Subscribe method ---
                 int priority = attribute.Priority;
-                genericSubscribeMethod.Invoke(null, new object[] { eventHandlerDelegate, priority });
+                genericSubscribeMethod.Invoke(_manager.EventBus, new object[] { eventHandlerDelegate, priority });
                 
                 Debug.Log($"[FluxFramework] Registered EventHandler '{method.Name}' for event '{eventType.Name}' with priority {priority} on '{component.GetType().Name}'.", component);
             }
@@ -327,7 +334,7 @@ namespace FluxFramework.Core
         /// <summary>
         /// Registers all qualifying MonoBehaviours in the currently active scene.
         /// </summary>
-        public static void RegisterAllComponentsInScene()
+        public void RegisterAllComponentsInScene()
         {
             if (!_isInitialized) Initialize();
             var allComponents = UnityEngine.Object.FindObjectsOfType<MonoBehaviour>();
@@ -350,7 +357,7 @@ namespace FluxFramework.Core
         /// <summary>
         /// A filter to avoid scanning system and Unity assemblies.
         /// </summary>
-        private static bool IsSystemAssembly(string assemblyName)
+        private bool IsSystemAssembly(string assemblyName)
         {
             return assemblyName.StartsWith("System.") || assemblyName.StartsWith("Microsoft.") || assemblyName.StartsWith("Unity.") || 
                    assemblyName.StartsWith("UnityEngine") || assemblyName.StartsWith("UnityEditor") || 
@@ -361,7 +368,7 @@ namespace FluxFramework.Core
         /// Clears the cache of registered component instances.
         /// This MUST be called on scene load to prevent memory leaks.
         /// </summary>
-        public static void ClearInstanceCache()
+        public void ClearInstanceCache()
         {
             _registeredInstances.Clear();
             _registeredTypes.Clear(); 
@@ -370,7 +377,7 @@ namespace FluxFramework.Core
         /// <summary>
         /// Clears all cached data and forces reinitialization. (For Editor use)
         /// </summary>
-        public static void ClearCache()
+        public void ClearCache()
         {
             _discoveredComponents.Clear();
             _componentsByCategory.Clear();
@@ -378,14 +385,5 @@ namespace FluxFramework.Core
             _isDiscovered = false;
             _isInitialized = false;
         }
-
-#if UNITY_EDITOR
-        [UnityEditor.MenuItem("Flux/Tools/Refresh Component Registry")]
-        public static void EditorRefreshRegistry()
-        {
-            ClearCache();
-            Initialize();
-        }
-#endif
     }
 }
