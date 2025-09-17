@@ -1,7 +1,11 @@
 using FluxFramework.Core;
 using FluxFramework.Binding;
 using FluxFramework.Configuration;
+using FluxFramework.Attributes;
+using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace FluxFramework.Testing
@@ -67,6 +71,7 @@ namespace FluxFramework.Testing
         private class MockPersistenceManager : IFluxPersistenceManager
         {
             public void RegisterPersistentProperty(string key, IReactiveProperty property) { }
+            public void LoadAllRegisteredProperties() { }
             public void SaveAll() { }
             public void Shutdown() { }
         }
@@ -75,8 +80,22 @@ namespace FluxFramework.Testing
         private class MockConfigurationManager : IFluxConfigurationManager
         {
             public void Initialize() { }
+
             public T GetConfiguration<T>() where T : FluxConfigurationAsset => null;
+
+            public FluxConfigurationAsset GetConfiguration(Type configurationType) => null;
+
+            public List<FluxConfigurationAsset> GetConfigurationsByCategory(string category) => new List<FluxConfigurationAsset>();
+
+            public void RegisterConfiguration(FluxConfigurationAsset configuration) { }
+
             public void ApplyAllConfigurations(IFluxManager manager) { }
+
+            public bool ValidateAllConfigurations() => true;
+
+            public Dictionary<Type, FluxConfigurationAttribute> GetConfigurationTypes() => new Dictionary<Type, FluxConfigurationAttribute>();
+
+            public void ClearCache() { }
         }
     }
 }
