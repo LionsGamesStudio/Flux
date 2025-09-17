@@ -146,10 +146,16 @@ namespace FluxFramework.Core
             if (_subscribers.TryGetValue(eventType, out var subscribers))
             {
                 // 1. Copy and sort subscribers by priority (descending order)
-                var sortedHandlers = subscribers
-                    .OfType<(Action<T> handler, int priority)>()
-                    .OrderByDescending(sub => sub.priority)
-                    .ToList();
+                var handlersToInvoke = new List<(Action<T> handler, int priority)>();
+                foreach (var sub in subscribers)
+                {
+                    if (sub.handler is Action<T> typedHandler)
+                    {
+                        handlersToInvoke.Add((typedHandler, sub.priority));
+                    }
+                }
+
+                var sortedHandlers = handlersToInvoke.OrderByDescending(sub => sub.priority);
 
                 // 2. Execute on the main thread
                 if (Flux.Manager != null)

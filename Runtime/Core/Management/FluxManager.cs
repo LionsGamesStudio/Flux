@@ -9,6 +9,8 @@ using FluxFramework.Configuration;
 using FluxFramework.Events;
 using FluxFramework.Binding;
 
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("FluxFramework.Testing")]
+
 namespace FluxFramework.Core
 {
     /// <summary>
@@ -131,6 +133,8 @@ namespace FluxFramework.Core
             DontDestroyOnLoad(go);
             _instance = go.AddComponent<FluxManager>();
 
+            Flux.Manager = _instance;
+
             // Add the auto-registrar for runtime component detection
             go.AddComponent<FluxComponentAutoRegistrar>();
 
@@ -212,7 +216,7 @@ namespace FluxFramework.Core
             // After cleaning, re-register any components that are in the newly loaded scene.
             _registry.RegisterAllComponentsInScene();
         }
-        
+
         private void OnApplicationPause(bool pauseStatus)
         {
             // Save data when the game is backgrounded on mobile devices

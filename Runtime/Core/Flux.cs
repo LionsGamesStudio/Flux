@@ -13,7 +13,7 @@ namespace FluxFramework.Core
         /// Provides access to the core framework manager through its interface.
         /// All framework interactions should go through this property.
         /// </summary>
-        public static IFluxManager Manager => FluxManager.Instance;
+        public static IFluxManager Manager { get; internal set; }
 
         /// <summary>
         /// A global event that is fired once the Flux Framework is fully initialized.
