@@ -19,7 +19,7 @@ MonoBehaviour:
   - CategoryName: Time
     HeaderColor: {r: 0.28235295, g: 0.6627451, b: 0.6509804, a: 1}
   - CategoryName: Lifecycle
-    HeaderColor: {r: 0.35686275, g: 0.40392157, b: 0.49019608, a: 1}
+    HeaderColor: {r: 0.78039217, g: 0.49019608, b: 1, a: 1}
   - CategoryName: Data/Constants
     HeaderColor: {r: 0.32156864, g: 0.7176471, b: 0.53333336, a: 1}
   - CategoryName: Logic
