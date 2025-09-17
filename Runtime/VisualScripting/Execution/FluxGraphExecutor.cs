@@ -1,298 +1,415 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using UnityEngine;
-using FluxFramework.VisualScripting.Graphs;
+using FluxFramework.VisualScripting.Node;
 
 namespace FluxFramework.VisualScripting.Execution
 {
     /// <summary>
-    /// The engine that executes a visual scripting graph. It manages the flow of execution,
-    /// resolves data dependencies, and caches node outputs for a single run. An instance of this class
-    /// represents one execution instance of a graph.
+    /// The engine responsible for interpreting and executing a FluxVisualGraph at runtime.
+    /// It operates as an asynchronous command processor, using a coroutine to process
+    /// a queue of ExecutionTokens over multiple frames.
     /// </summary>
     public class FluxGraphExecutor
     {
-        private readonly FluxVisualGraph _graph;
-        private readonly Dictionary<string, object> _nodeOutputCache = new Dictionary<string, object>();
-        private readonly HashSet<FluxNodeBase> _executedNodes = new HashSet<FluxNodeBase>();
-
-        /// <summary>
-        /// The runner (e.g., a MonoBehaviour) that provides the context for this execution.
-        /// Nodes can access this to interact with the scene (e.g., GetContextObject).
-        /// </summary>
+        private readonly FluxVisualGraph _mainGraph;
         public IGraphRunner Runner { get; }
 
-        /// <summary>
-        /// Creates a new executor for a specific graph and runner context.
-        /// </summary>
-        /// <param name="graph">The graph asset to execute.</param>
-        /// <param name="runner">The context that is running this graph.</param>
+        private readonly Queue<ExecutionToken> _executionQueue = new Queue<ExecutionToken>();
+        private readonly Dictionary<string, object> _nodeOutputCache = new Dictionary<string, object>();
+        private Coroutine _executionCoroutine;
+
         public FluxGraphExecutor(FluxVisualGraph graph, IGraphRunner runner)
         {
-            _graph = graph ?? throw new ArgumentNullException(nameof(graph));
+            _mainGraph = graph ?? throw new ArgumentNullException(nameof(graph));
             Runner = runner ?? throw new ArgumentNullException(nameof(runner));
+            InitializeNodeGraphReferences(_mainGraph);
         }
 
         /// <summary>
-        /// Begins execution of the graph from its default entry points (e.g., Start nodes).
+        /// Recursively sets the ParentGraph property on all AttributedNodeWrappers.
+        /// This is crucial for nodes to find their connections at runtime.
         /// </summary>
-        public void Execute()
+        private void InitializeNodeGraphReferences(FluxVisualGraph graph)
         {
-            _nodeOutputCache.Clear();
-            _executedNodes.Clear();
-
-            var entryNodes = FindEntryNodes();
-            
-            if (entryNodes.Count == 0)
+            if (graph == null) return;
+            foreach(var node in graph.Nodes)
             {
-                // If there are no execution-based entry points, run all pure data nodes to pre-calculate values.
-                ExecuteDataNodes();
-            }
-            else
-            {
-                // Start the flow from the identified execution entry points.
-                foreach (var entryNode in entryNodes)
+                if(node is AttributedNodeWrapper wrapper)
                 {
-                    ExecuteNodeFlow(entryNode);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Executes a new, separate execution flow starting from a specified node.
-        /// This is used to implement functions or sub-routines within a graph.
-        /// </summary>
-        public void ExecuteSubFlow(FluxNodeBase startNode)
-        {
-            if (startNode == null) return;
-            // Note: We do NOT clear the executed nodes or cache here, as it's a sub-flow
-            // that might need to access data from the main flow.
-            ExecuteNodeFlow(startNode);
-        }
-
-        /// <summary>
-        /// Continues an existing execution flow from a specific output port of a node.
-        /// This is the callback mechanism for asynchronous nodes like event listeners or timers.
-        /// </summary>
-        public void ContinueFromPort(IFluxNode node, string portName, Dictionary<string, object> initialOutputs)
-        {
-            var startNode = node as FluxNodeBase;
-            if (startNode == null) return;
-
-            // Cache the outputs provided by the event/callback so connected nodes can use them.
-            if (initialOutputs != null)
-            {
-                CacheOutputValues(startNode, initialOutputs);
-            }
-            
-            // Find all execution connections from the specified port and continue the flow.
-            var executionConnections = _graph.GetOutputConnections(startNode)
-                .Where(c => c.FromPort == portName && 
-                            startNode.OutputPorts.Any(p => p.Name == c.FromPort && p.PortType == FluxPortType.Execution));
-
-            foreach (var connection in executionConnections)
-            {
-                ExecuteNodeFlow(connection.ToNode);
-            }
-        }
-
-        /// <summary>
-        /// Executes a single node for debugging purposes.
-        /// This does not trigger any subsequent execution flow.
-        /// </summary>
-        public Dictionary<string, object> ExecuteSingleNodeForDebug(FluxNodeBase node)
-        {
-            if (node == null || !node.CanExecute) return new Dictionary<string, object>();
-
-            try
-            {
-                var inputs = GatherInputValues(node);
-                node.Execute(this, inputs, out var outputs);
-                // We do NOT cache or mark as executed in a debug run.
-                return outputs;
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"Error during debug execution of node {node.NodeName}: {ex.Message}\n{ex.StackTrace}", node);
-                return new Dictionary<string, object>();
-            }
-        }
-
-        /// <summary>
-        /// Finds nodes that can serve as starting points for an execution flow.
-        /// These are typically nodes with an execution input that is not connected to anything.
-        /// </summary>
-        private List<FluxNodeBase> FindEntryNodes()
-        {
-            var entryNodes = new List<FluxNodeBase>();
-            foreach (var node in _graph.Nodes)
-            {
-                var executionInputs = node.InputPorts.Where(p => p.PortType == FluxPortType.Execution);
-                if (executionInputs.Any())
-                {
-                    // An entry node is one whose required execution input is not connected.
-                    bool isConnected = _graph.GetInputConnections(node).Any(c => c.ToPort == executionInputs.First().Name);
-                    if (!isConnected)
+                    wrapper.ParentGraph = graph;
+                    if(wrapper.NodeLogic is SubGraphNode subGraphNode && subGraphNode.subGraph != null)
                     {
-                        entryNodes.Add(node);
+                        InitializeNodeGraphReferences(subGraphNode.subGraph);
                     }
                 }
             }
-            return entryNodes;
+        }
+
+        /// <summary>
+        /// Starts the graph by launching the execution loop coroutine.
+        /// </summary>
+        public void Start()
+        {
+            if (Runner is not MonoBehaviour runnerMono)
+            {
+                Debug.LogError("Graph Runner must be a MonoBehaviour to start execution.", (UnityEngine.Object)Runner);
+                return;
+            }
+            Stop(); // Stop any previous execution
+            _executionCoroutine = runnerMono.StartCoroutine(ExecutionLoop());
+        }
+
+        /// <summary>
+        /// Stops the graph execution coroutine and clears the queue.
+        /// </summary>
+        public void Stop()
+        {
+            if (_executionCoroutine != null && Runner is MonoBehaviour runnerMono)
+            {
+                runnerMono.StopCoroutine(_executionCoroutine);
+            }
+            _executionCoroutine = null;
+            _executionQueue.Clear();
+        }
+
+        /// <summary>
+        /// The main execution loop, running as a coroutine. It processes a batch of tokens
+        /// each frame, preventing infinite loops and allowing for asynchronous operations.
+        /// </summary>
+        private IEnumerator ExecutionLoop()
+        {
+            _executionQueue.Clear();
+            
+            // Call OnGraphAwake on all nodes that need initialization.
+            foreach (var node in _mainGraph.Nodes)
+            {
+                if (node is AttributedNodeWrapper wrapper && wrapper.NodeLogic is IGraphAwakeNode awakeNode)
+                {
+                    awakeNode.OnGraphAwake(this, wrapper);
+                }
+            }
+            
+            // Enqueue initial tokens from all entry point nodes.
+            foreach (var node in FindEntryNodes(_mainGraph))
+            {
+                _executionQueue.Enqueue(new ExecutionToken(node));
+            }
+
+            // This loop runs for the lifetime of the graph execution.
+            while (true)
+            {
+                // Process all tokens that are currently in the queue for this frame.
+                int tokensToProcess = _executionQueue.Count;
+                if (tokensToProcess > 0)
+                {
+                    // Clear the data cache at the start of each new "tick" or "wave" of execution.
+                    // This ensures state changes from one token are visible to the next.
+                    _nodeOutputCache.Clear(); 
+                    
+                    for (int i = 0; i < tokensToProcess; i++)
+                    {
+                        if (_executionQueue.Count == 0) break;
+                        
+                        var token = _executionQueue.Dequeue();
+                        if (token?.TargetNode != null)
+                        {
+                            ExecuteNode(token); // This method is now void and enqueues new tokens.
+                        }
+                    }
+                }
+                
+                // Wait for the next frame before checking the queue again.
+                yield return null; 
+            }
         }
         
         /// <summary>
-        /// Executes all pure data nodes in the graph in the correct dependency order.
+        /// (Public API for Nodes) Enqueues a new token for the executor to process.
         /// </summary>
-        private void ExecuteDataNodes()
+        public void ContinueFlow(ExecutionToken token, FluxNodeBase sourceNode)
         {
-            var dataNodes = _graph.Nodes.Where(n => !n.InputPorts.Any(p => p.PortType == FluxPortType.Execution) && 
-                                                    !n.OutputPorts.Any(p => p.PortType == FluxPortType.Execution)).ToList();
-            var sortedNodes = TopologicalSort(dataNodes);
-            foreach (var node in sortedNodes)
+            if (token != null)
             {
-                ExecuteNode(node);
+                #if UNITY_EDITOR
+                // If we know which node is currently running, we can find the connection to the new token's target.
+                if(sourceNode != null)
+                {
+                    var connection = FindConnectionBetween(sourceNode, token.TargetNode);
+                    if(connection != null) 
+                    {
+                        GraphDebugger.TokenTraverse(connection.FromNodeId, connection.FromPortName, connection.ToNodeId, connection.ToPortName);
+                    }
+                }
+#endif
+
+                _executionQueue.Enqueue(token);
             }
         }
 
         /// <summary>
-        /// Recursively executes a node and all subsequent nodes connected via execution ports.
+        /// Executes a single node's logic and enqueues any subsequent tokens. This method is now void
+        /// and acts as a command generator for the main execution loop.
         /// </summary>
-        private void ExecuteNodeFlow(FluxNodeBase node)
+        private void ExecuteNode(ExecutionToken token)
         {
-            if (node == null || _executedNodes.Contains(node))
-                return;
+            var node = token.TargetNode;
+            if (node == null) return;
 
-            ExecuteNode(node);
+#if UNITY_EDITOR
+            GraphDebugger.NodeEnter(node);
+#endif
 
-            var executionOutputs = _graph.GetOutputConnections(node)
-                .Where(c => node.OutputPorts.Any(p => p.Name == c.FromPort && p.PortType == FluxPortType.Execution));
-
-            foreach (var connection in executionOutputs)
+            if (node is AttributedNodeWrapper wrapper && wrapper.NodeLogic is INode logic)
             {
-                ExecuteNodeFlow(connection.ToNode);
+                var activeGraph = wrapper.ParentGraph;
+                var dataInputs = PullDataForNode(node, token, activeGraph);
+                string triggeredPortName = token.GetData<string>("_triggeredPortName");
+
+                // --- Sub-graph logic ---
+                if (logic is SubGraphNode subGraphNode && subGraphNode.subGraph != null)
+                {
+                    var entryPointNode = subGraphNode.subGraph.Nodes.OfType<AttributedNodeWrapper>().FirstOrDefault(w => w.NodeLogic is GraphInputNode);
+                    if (entryPointNode != null)
+                    {
+                        var subGraphToken = new ExecutionToken(entryPointNode, token);
+                        subGraphToken.CallStack.Push(wrapper);
+                        subGraphToken.SetData("_triggeredPortName", triggeredPortName);
+                        foreach (var (key, value) in dataInputs) { subGraphToken.SetData(key, value); }
+                        ContinueFlow(subGraphToken, wrapper);
+                    }
+                }
+                else if (logic is GraphOutputNode)
+                {
+                    if (token.CallStack.TryPop(out var parentSubGraphNode))
+                    {
+                        var nextNodeInParent = parentSubGraphNode.GetConnectedNode(triggeredPortName);
+                        if (nextNodeInParent != null)
+                        {
+                            var parentToken = new ExecutionToken(nextNodeInParent, token);
+                            foreach (var (key, value) in dataInputs) { parentToken.SetData(key, value); }
+                            ContinueFlow(parentToken, wrapper);
+                        }
+                    }
+                }
+                else if (logic is IExecutableNode executableLogic)
+                {
+                    ApplyDataToLogic(executableLogic, node, token, dataInputs);
+                    executableLogic.Execute(this, wrapper, triggeredPortName, dataInputs);
+                }
+
+#if UNITY_EDITOR
+                var dataSnapshot = BuildDataSnapshot(logic, node);
+                GraphDebugger.UpdateNodeData(node, dataSnapshot);
+                GraphDebugger.NodeExit(node);
+#endif
+
+                // --- FLOW CONTINUATION LOGIC ---
+                if (logic is IFlowControlNode)
+                {
+                    return; // The node is responsible for queuing new tokens itself.
+                }
+
+                var executionOutputPorts = node.OutputPorts.Where(p => p.PortType == FluxPortType.Execution);
+                foreach (var outputPort in executionOutputPorts)
+                {
+                    foreach (var nextToken in FindNextTokensFromPorts(node, activeGraph, outputPort.Name))
+                    {
+                        ContinueFlow(nextToken, node);
+                    }
+                }
             }
         }
 
         /// <summary>
-        /// Executes a single node by gathering its inputs and calling its Execute method.
+        /// Applies data inputs to a node's logic by setting its fields.
+        /// Priority: 1. Direct port connections, 2. Pushed data from the execution token.
         /// </summary>
-        private void ExecuteNode(FluxNodeBase node)
+        private void ApplyDataToLogic(INode logic, FluxNodeBase node, ExecutionToken token, Dictionary<string, object> dataInputs)
         {
-            if (_executedNodes.Contains(node) || !node.CanExecute)
-                return;
+            var logicType = logic.GetType();
 
-            try
+            foreach (var (portName, portValue) in dataInputs)
             {
-                var inputs = GatherInputValues(node);
-                // The executor passes a reference to itself ('this') to the node, providing the execution context.
-                node.Execute(this, inputs, out var outputs);
-                CacheOutputValues(node, outputs);
-                _executedNodes.Add(node);
+                var field = logicType.GetField(portName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                field?.SetValue(logic, portValue);
             }
-            catch (Exception ex)
+
+            var fields = logicType.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            foreach (var field in fields)
             {
-                Debug.LogError($"Error executing node {node.NodeName}: {ex.Message}\n{ex.StackTrace}", node);
+                object tokenData = token.GetData<object>(field.Name);
+                if (tokenData != null)
+                {
+                    var isInputPort = node.InputPorts.Any(p => p.Name == field.Name);
+                    if (!isInputPort || !dataInputs.ContainsKey(field.Name))
+                    {
+                        try
+                        {
+                            var convertedValue = Convert.ChangeType(tokenData, field.FieldType);
+                            field.SetValue(logic, convertedValue);
+                        }
+                        catch (Exception e)
+                        {
+                            Debug.LogWarning($"[FluxExecutor] Could not apply token data '{field.Name}' to node. Type mismatch? Error: {e.Message}", (UnityEngine.Object)node);
+                        }
+                    }
+                }
             }
         }
 
         /// <summary>
-        /// Gathers all necessary data inputs for a node by looking at its connections
-        /// and retrieving values from the output cache of previously executed nodes.
+        /// Gathers data inputs for a node by recursively traversing its connected data input ports.
         /// </summary>
-        private Dictionary<string, object> GatherInputValues(FluxNodeBase node)
+        private Dictionary<string, object> PullDataForNode(FluxNodeBase node, ExecutionToken token, FluxVisualGraph activeGraph)
         {
-            var inputs = new Dictionary<string, object>();
-            foreach (var inputPort in node.InputPorts)
+            var dataInputs = new Dictionary<string, object>();
+            foreach (var inputPort in node.InputPorts.Where(p => p.PortType == FluxPortType.Data))
             {
-                if (inputPort.PortType == FluxPortType.Execution) continue;
-
-                var connection = _graph.GetInputConnections(node).FirstOrDefault(c => c.ToPort == inputPort.Name);
+                var connection = activeGraph.Connections.FirstOrDefault(c => c.ToNodeId == node.NodeId && c.ToPortName == inputPort.Name);
                 if (connection != null)
                 {
-                    // A unique key for the output port of the source node.
-                    string cacheKey = $"{connection.FromNode.NodeId}.{connection.FromPort}";
-                    if (_nodeOutputCache.TryGetValue(cacheKey, out object value))
+                    var sourceNode = activeGraph.Nodes.FirstOrDefault(n => n.NodeId == connection.FromNodeId);
+                    if (sourceNode != null)
                     {
-                        inputs[inputPort.Name] = value;
-                    }
-                    else
-                    {
-                        // If the source node hasn't been executed yet (e.g., a pure data node), execute it now.
-                        if (!_executedNodes.Contains(connection.FromNode))
-                        {
-                            ExecuteNode(connection.FromNode);
-                        }
-                        // Try getting the value from the cache again after execution.
-                        if (_nodeOutputCache.TryGetValue(cacheKey, out value))
-                        {
-                            inputs[inputPort.Name] = value;
-                        }
+                        object value = GetOutputValue(sourceNode, connection.FromPortName, activeGraph, token);
+                        dataInputs[inputPort.Name] = value;
                     }
                 }
             }
-            return inputs;
+            return dataInputs;
         }
 
         /// <summary>
-        /// Stores the output values of an executed node in a cache for later use by other nodes.
+        /// Retrieves the output value from a source node's specified port.
+        /// Uses "Just-In-Time Execution" to compute the value if it's not already cached for this step.
         /// </summary>
-        private void CacheOutputValues(FluxNodeBase node, Dictionary<string, object> outputs)
+        private object GetOutputValue(FluxNodeBase node, string portName, FluxVisualGraph currentGraph, ExecutionToken requestingToken)
         {
-            foreach (var kvp in outputs)
+            bool isVolatile = (node as AttributedNodeWrapper)?.NodeLogic is IVolatileNode;
+            string cacheKey = $"{node.NodeId}.{portName}";
+            if (!isVolatile && _nodeOutputCache.TryGetValue(cacheKey, out object cachedValue))
             {
-                // Execution ports are signals, not data, so they are not cached.
-                if (node.OutputPorts.Any(p => p.Name == kvp.Key && p.PortType == FluxPortType.Execution)) continue;
-                
-                string cacheKey = $"{node.NodeId}.{kvp.Key}";
-                _nodeOutputCache[cacheKey] = kvp.Value;
+                return cachedValue;
+            }
+
+            if (node is AttributedNodeWrapper wrapper && wrapper.NodeLogic is INode logic)
+            {
+                if (logic is GraphInputNode)
+                {
+                    var value = requestingToken.GetData<object>(portName);
+                    if(!isVolatile) _nodeOutputCache[cacheKey] = value;
+                    return value;
+                }
+
+                if (logic is IFlowControlNode)
+                {
+                    var field = logic.GetType().GetField(portName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                    if (field != null)
+                    {
+                        var value = field.GetValue(logic);
+                        if(!isVolatile) _nodeOutputCache[cacheKey] = value;
+                        return value;
+                    }
+                    return null;
+                }
+            }
+            
+            if (node is AttributedNodeWrapper dataWrapper && dataWrapper.NodeLogic is IExecutableNode executableDataNode)
+            {
+                var dataInputsForSourceNode = PullDataForNode(node, requestingToken, currentGraph);
+                ApplyDataToLogic(executableDataNode, node, requestingToken, dataInputsForSourceNode);
+                executableDataNode.Execute(this, dataWrapper, null, dataInputsForSourceNode);
+
+                var outputField = executableDataNode.GetType().GetField(portName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                if (outputField != null)
+                {
+                    var finalValue = outputField.GetValue(executableDataNode);
+                    if(!isVolatile) _nodeOutputCache[cacheKey] = finalValue;
+                    return finalValue;
+                }
+            }
+            
+            return null;
+        }
+
+        /// <summary>
+        /// Finds new execution tokens based on connections from a specific output port name.
+        /// </summary>
+        private IEnumerable<ExecutionToken> FindNextTokensFromPorts(FluxNodeBase completedNode, FluxVisualGraph activeGraph, string outputPortName)
+        {
+            var outputPort = completedNode.OutputPorts.FirstOrDefault(p => p.Name == outputPortName && p.PortType == FluxPortType.Execution);
+            if (outputPort == null) yield break;
+
+            var connections = activeGraph.Connections.Where(c => c.FromNodeId == completedNode.NodeId && c.FromPortName == outputPort.Name);
+            foreach (var connection in connections)
+            {
+                var nextNode = activeGraph.Nodes.FirstOrDefault(n => n.NodeId == connection.ToNodeId);
+                if (nextNode != null)
+                {
+                    var newToken = new ExecutionToken(nextNode);
+                    newToken.SetData("_triggeredPortName", connection.ToPortName);
+                    yield return newToken;
+                }
             }
         }
         
         /// <summary>
-        /// Performs a topological sort on a list of nodes to determine a safe execution order
-        /// where dependencies are always executed before the nodes that depend on them.
+        /// Finds all entry point nodes in the graph.
         /// </summary>
-        private List<FluxNodeBase> TopologicalSort(List<FluxNodeBase> nodes)
+        private IEnumerable<FluxNodeBase> FindEntryNodes(FluxVisualGraph graph)
         {
-            var sorted = new List<FluxNodeBase>();
-            var visited = new HashSet<FluxNodeBase>();
-            foreach (var node in nodes)
+            var connectedInputPorts = graph.Connections
+                .Select(c => (c.ToNodeId, c.ToPortName))
+                .ToHashSet();
+
+            foreach (var node in graph.Nodes)
             {
-                if (!visited.Contains(node))
+                var logic = (node as AttributedNodeWrapper)?.NodeLogic;
+                if(logic is null) continue;
+                
+                var executionInputs = node.InputPorts.Where(p => p.PortType == FluxPortType.Execution).ToList();
+                if (!executionInputs.Any())
                 {
-                    TopologicalSortVisit(node, nodes, visited, new HashSet<FluxNodeBase>(), sorted);
+                     if (logic is not IGraphAwakeNode)
+                     {
+                        yield return node;
+                     }
+                }
+                else if (!executionInputs.Any(p => connectedInputPorts.Contains((node.NodeId, p.Name))))
+                {
+                    yield return node;
                 }
             }
-            return sorted;
         }
-
-        private void TopologicalSortVisit(FluxNodeBase node, List<FluxNodeBase> allNodes, 
-                                          HashSet<FluxNodeBase> visited, HashSet<FluxNodeBase> visiting, 
-                                          List<FluxNodeBase> sorted)
+        
+        #if UNITY_EDITOR
+        private FluxNodeConnection FindConnectionBetween(FluxNodeBase from, FluxNodeBase to)
         {
-            if (visiting.Contains(node))
-            {
-                Debug.LogWarning($"Circular dependency detected in data graph involving node {node.NodeName}", _graph);
-                return;
-            }
-            if (visited.Contains(node)) return;
-
-            visiting.Add(node);
-
-            var dependencies = _graph.GetInputConnections(node)
-                .Where(c => allNodes.Contains(c.FromNode))
-                .Select(c => c.FromNode);
-
-            foreach (var dependency in dependencies)
-            {
-                TopologicalSortVisit(dependency, allNodes, visited, visiting, sorted);
-            }
-
-            visiting.Remove(node);
-            visited.Add(node);
-            sorted.Add(node);
+            if (from == null || to == null) return null;
+            var fromGraph = (from as AttributedNodeWrapper)?.ParentGraph;
+            if (fromGraph == null) return null;
+            return fromGraph.Connections.FirstOrDefault(c => c.FromNodeId == from.NodeId && c.ToNodeId == to.NodeId);
         }
+
+        private Dictionary<string, string> BuildDataSnapshot(INode logic, FluxNodeBase node)
+        {
+            var dataSnapshot = new Dictionary<string, string>();
+            var logicType = logic.GetType();
+            foreach (var port in node.InputPorts.Concat(node.OutputPorts).Where(p => p.PortType == FluxPortType.Data))
+            {
+                var field = logicType.GetField(port.Name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                if (field != null)
+                {
+                    object value = field.GetValue(logic);
+                    dataSnapshot[port.Name] = (value == null) ? "null" : value.ToString();
+                }
+            }
+            return dataSnapshot;
+        }
+        #endif
     }
 }

@@ -3,7 +3,11 @@
     "rootNamespace": "FluxFramework.Editor",
     "references": [
         "FluxFramework.Runtime",
-        "Unity.TextMeshPro"
+        "Unity.TextMeshPro",
+        "Unity.VisualScripting",
+        "Unity.GraphView.Editor",
+        "UnityEditor.UI",
+        "Unity.UI.Builder.Editor"
     ],
     "includePlatforms": [
         "Editor"

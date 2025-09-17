@@ -90,7 +90,7 @@ namespace FluxFramework.Editor
             EditorGUILayout.BeginHorizontal();
             if (GUILayout.Button(new GUIContent("Visual Scripting Editor", "Open the graph editor for visual scripting."), GUILayout.Height(30)))
             {
-                FluxVisualScriptingWindow.ShowWindow();
+                FluxVisualScriptingWindow.OpenWindow();
             }
             if (GUILayout.Button(new GUIContent("Configuration Manager", "Manage all configuration assets like settings, themes, and definitions."), GUILayout.Height(30)))
             {

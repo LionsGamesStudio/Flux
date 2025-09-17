@@ -3,7 +3,8 @@
     "rootNamespace": "FluxFramework",
     "references": [
         "Unity.TextMeshPro",
-        "Newtonsoft.Json"
+        "Newtonsoft.Json",
+        "Unity.mathematics"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

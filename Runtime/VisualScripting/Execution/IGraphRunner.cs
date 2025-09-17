@@ -1,18 +1,16 @@
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace FluxFramework.VisualScripting.Execution
 {
     /// <summary>
-    /// Defines the contract for an object that can run a visual script graph.
-    /// This interface provides nodes with the necessary context about their execution environment,
-    /// enabling asynchronous operations and interaction with the scene.
+    /// Defines the contract for any MonoBehaviour that can host and execute a FluxVisualGraph.
+    /// It provides the execution engine with a necessary link to the Unity scene context.
     /// </summary>
     public interface IGraphRunner
     {
         /// <summary>
-        /// Gets the GameObject that is the primary context for this graph execution.
-        /// This is used for operations like GetComponent, managing subscription lifecycles, etc.
+        /// Gets the GameObject that is the primary context for this graph's execution.
+        /// This is crucial for operations like starting coroutines or accessing other components.
         /// </summary>
         /// <returns>The context GameObject.</returns>
         GameObject GetContextObject();

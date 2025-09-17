@@ -1,128 +1,115 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using UnityEditor;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine;
-using FluxFramework.VisualScripting.Nodes;
+using FluxFramework.Attributes.VisualScripting;
+using FluxFramework.VisualScripting.Node;
 
 namespace FluxFramework.VisualScripting.Editor
 {
-    /// <summary>
-    /// Provides hierarchical search functionality for creating nodes in the visual scripting editor.
-    /// </summary>
     public class FluxSearchWindowProvider : ScriptableObject, ISearchWindowProvider
     {
         private FluxGraphView _graphView;
-        private FluxVisualScriptingWindow _window;
+        private EditorWindow _window;
+        
+        // This will hold the port the user is dragging from. It will be null
+        // if the user is just right-clicking on the canvas.
+        private Port _originPort;
 
-        public void Initialize(FluxGraphView graphView, FluxVisualScriptingWindow window)
+        /// <summary>
+        /// Initializes the provider with the necessary context.
+        /// </summary>
+        /// <param name="graphView">The target graph view.</param>
+        /// <param name="window">The parent editor window.</param>
+        /// <param name="originPort">The port from which a connection is being dragged, if any.</param>
+        public void Initialize(FluxGraphView graphView, EditorWindow window, Port originPort = null)
         {
             _graphView = graphView;
             _window = window;
+            _originPort = originPort;
         }
 
-        /// <summary>
-        /// Creates the hierarchical search tree for node creation.
-        /// </summary>
         public List<SearchTreeEntry> CreateSearchTree(SearchWindowContext context)
         {
             var tree = new List<SearchTreeEntry>
             {
-                new SearchTreeGroupEntry(new GUIContent("Create Node"), 0)
+                new SearchTreeGroupEntry(new GUIContent("Create Node"), 0),
             };
 
-            var nodeTypes = TypeCache.GetTypesDerivedFrom<FluxNodeBase>()
-                .Where(t => !t.IsAbstract && !t.IsGenericTypeDefinition);
+            // Get all valid INode types with the [FluxNode] attribute.
+            var nodeTypes = TypeCache.GetTypesWithAttribute<FluxNodeAttribute>()
+                .Where(t => typeof(INode).IsAssignableFrom(t) && !t.IsAbstract);
 
-            // --- HIERARCHICAL SORTING LOGIC ---
+            // If we are dragging from a port, we can filter this list to only show compatible nodes.            
+            var sortedCategories = new SortedDictionary<string, List<Type>>();
+            // if (_originPort != null)
+            // {
+            //     if (_originPort.userData is FluxNodePort originFluxPort)
+            //     {
+            //         nodeTypes = nodeTypes.Where(t =>
+            //         {
+            //             var ports = FluxNodeHelper.GetNodePorts(t);
+            //             return ports.Any(p => originFluxPort.CanConnectTo(p));
+            //         });
+            //     }
+            // }
 
-            // 1. Group all node types by their full category path.
-            // Using a SortedDictionary ensures that top-level categories are alphabetical.
-            var nodesByCategory = new SortedDictionary<string, List<Type>>();
             foreach (var type in nodeTypes)
             {
-                var instance = CreateInstance(type) as FluxNodeBase;
-                if (instance != null)
+                var attr = type.GetCustomAttribute<FluxNodeAttribute>();
+                var category = string.IsNullOrEmpty(attr.Category) ? "General" : attr.Category;
+                if (!sortedCategories.ContainsKey(category))
                 {
-                    string category = string.IsNullOrEmpty(instance.Category) ? "General" : instance.Category;
-                    if (!nodesByCategory.ContainsKey(category))
-                    {
-                        nodesByCategory[category] = new List<Type>();
-                    }
-                    nodesByCategory[category].Add(type);
-                    DestroyImmediate(instance);
+                    sortedCategories[category] = new List<Type>();
                 }
+                sortedCategories[category].Add(type);
             }
-
-            // 2. We now build the tree in a single pass.
-            // This ensures that nodes are added immediately after their parent groups.
+            
             var createdGroups = new HashSet<string>();
-            foreach (var categoryEntry in nodesByCategory)
+            foreach (var (categoryPath, types) in sortedCategories)
             {
-                var categoryPath = categoryEntry.Key;
-                var typesInCat = categoryEntry.Value;
                 var pathParts = categoryPath.Split('/');
+                var cumulativePath = string.Empty;
 
-                // 2a. Create the folder structure for the current category if it doesn't exist yet.
-                var cumulativePath = "";
-                for (int i = 0; i < pathParts.Length; i++)
+                for (var i = 0; i < pathParts.Length; i++)
                 {
                     cumulativePath = string.Join("/", pathParts.Take(i + 1));
-                    if (!createdGroups.Contains(cumulativePath))
+                    if (createdGroups.Add(cumulativePath))
                     {
                         tree.Add(new SearchTreeGroupEntry(new GUIContent(pathParts[i]), i + 1));
-                        createdGroups.Add(cumulativePath);
                     }
                 }
-
-                // 2b. Add the nodes for this category immediately after creating its folder structure.
-                int indentLevel = pathParts.Length + 1;
-                var sortedTypes = typesInCat.OrderBy(t => GetNodeName(t));
-                foreach (var type in sortedTypes)
+                
+                foreach (var type in types.OrderBy(t => t.GetCustomAttribute<FluxNodeAttribute>().DisplayName))
                 {
-                    var entry = new SearchTreeEntry(new GUIContent(GetNodeName(type)))
+                    var attr = type.GetCustomAttribute<FluxNodeAttribute>();
+                    tree.Add(new SearchTreeEntry(new GUIContent(attr.DisplayName))
                     {
-                        level = indentLevel,
-                        userData = type
-                    };
-                    tree.Add(entry);
+                        userData = type,
+                        level = pathParts.Length + 1
+                    });
                 }
             }
-
+            
             return tree;
         }
 
         /// <summary>
-        /// Called when the user selects an entry from the search window.
+        /// Called when the user selects a node type from the search window.
         /// </summary>
         public bool OnSelectEntry(SearchTreeEntry searchTreeEntry, SearchWindowContext context)
         {
-            if (searchTreeEntry.userData is Type nodeType)
+            if (searchTreeEntry.userData is Type nodeLogicType)
             {
-                _graphView.CreateNodeAtScreenPosition(nodeType, context.screenMousePosition);
+                // We call the single, unified method on the GraphView.
+                // It will handle both cases (originPort is null or not null) correctly.
+                _graphView.CreateNodeAndConnect(nodeLogicType, context.screenMousePosition, _originPort);
                 return true;
             }
             return false;
         }
-
-        #region Helper Methods
-
-        private string GetNodeName(Type nodeType)
-        {
-            var instance = CreateInstance(nodeType) as FluxNodeBase;
-            if (instance != null)
-            {
-                string name = instance.NodeName;
-                DestroyImmediate(instance);
-                if (!string.IsNullOrEmpty(name))
-                {
-                    return name;
-                }
-            }
-            return ObjectNames.NicifyVariableName(nodeType.Name.Replace("Node", ""));
-        }
-        
-        #endregion
     }
 }

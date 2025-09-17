@@ -25,9 +25,6 @@ namespace FluxFramework.Editor
         
         [MenuItem(MENU_ROOT + "Tools/Refresh Component Registry", false, 40)]
         public static void RefreshComponentRegistry() => FluxComponentRegistry.EditorRefreshRegistry();
-        
-        [MenuItem(MENU_ROOT + "Tools/Refresh Event Types", false, 41)]
-        public static void RefreshEventTypes() => FluxFramework.VisualScripting.Editor.FluxEventTypeDiscovery.EditorRefreshEventTypes();
 
         // --- Debug Submenu ---
         [MenuItem(MENU_ROOT + "Debug/Reactive Properties Inspector...", false, 0)]
