@@ -1,0 +1,53 @@
+name: Flux Framework CI
+
+# Triggers the workflow on every push to the 'main' branch or on pull requests to 'main'
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Run Flux Tests
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Checkout your repository code
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Step 2: Cache Unity Library files
+      # Speeds up future runs considerably
+      - name: Cache Unity Library
+        uses: actions/cache@v3
+        with:
+          path: Library
+          key: Library-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: |
+            Library-
+
+      # Step 3: Run Unity tests via GameCI
+      - name: Run Unity Tests
+        uses: game-ci/unity-test-runner@v3
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        with:
+          # Specify the Unity version of your project
+          unityVersion: '2022.3.58f1' # <-- IMPORTANT: Put your exact Unity version here
+          
+          # This is where the magic happens for our custom Test Runner
+          customCommand: |
+            -quit
+            -batchmode
+            -nographics
+            -logFile -
+            -executeMethod FluxFramework.Testing.FluxTestRunnerCli.RunTests
+
+      # Step 4: Publish test results (optional but recommended)
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: Test Results
+          path:
+            ./*.xml # GameCI generates results in NUnit format
