@@ -14,31 +14,39 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   DefaultHeaderColor: {r: 0.2, g: 0.2, b: 0.2, a: 1}
   CategoryColors:
-  - CategoryName: Math
-    HeaderColor: {r: 0.04999975, g: 0.7075472, b: 0, a: 1}
   - CategoryName: Flow
     HeaderColor: {r: 0.22745098, g: 0.45882353, b: 0.76862746, a: 1}
   - CategoryName: Time
     HeaderColor: {r: 0.28235295, g: 0.6627451, b: 0.6509804, a: 1}
-  - CategoryName: Data/Constant
+  - CategoryName: Lifecycle
+    HeaderColor: {r: 0.35686275, g: 0.40392157, b: 0.49019608, a: 1}
+  - CategoryName: Data/Constants
     HeaderColor: {r: 0.32156864, g: 0.7176471, b: 0.53333336, a: 1}
   - CategoryName: Logic
     HeaderColor: {r: 0.96862745, g: 0.6156863, b: 0.39607844, a: 1}
+  - CategoryName: Logic/Comparison
+    HeaderColor: {r: 0.90588236, g: 0.43529412, b: 0.31764707, a: 1}
+  - CategoryName: Math
+    HeaderColor: {r: 0.9137255, g: 0.76862746, b: 0.41568628, a: 1}
+  - CategoryName: Math/Vector
+    HeaderColor: {r: 0.95686275, g: 0.63529414, b: 0.38039216, a: 1}
   - CategoryName: GameObject
     HeaderColor: {r: 0, g: 0.37254903, b: 0.4509804, a: 1}
-  - CategoryName: Debug
-    HeaderColor: {r: 0.5529412, g: 0.6, b: 0.68235296, a: 1}
-  - CategoryName: Utility
-    HeaderColor: {r: 0.21960784, g: 0.21960784, b: 0.21960784, a: 1}
-  - CategoryName: Framework
-    HeaderColor: {r: 0.2901961, g: 0.34117648, b: 0.47058824, a: 1}
+  - CategoryName: Transform
+    HeaderColor: {r: 0.16470589, g: 0.6156863, b: 0.56078434, a: 1}
   - CategoryName: Framework/UI
     HeaderColor: {r: 0.41960785, g: 0.47843137, b: 0.6, a: 1}
-  - CategoryName: Framework/Events
-    HeaderColor: {r: 0.6156863, g: 0.30588236, b: 0.8666667, a: 1}
   - CategoryName: Framework/Properties
     HeaderColor: {r: 0.2901961, g: 0.34117648, b: 0.47058824, a: 1}
   - CategoryName: Framework/Components
     HeaderColor: {r: 0.22745098, g: 0.2784314, b: 0.40784314, a: 1}
   - CategoryName: Framework/Validation
     HeaderColor: {r: 0.35686275, g: 0.40392157, b: 0.49019608, a: 1}
+  - CategoryName: Framework/Data
+    HeaderColor: {r: 0.25882354, g: 0.5058824, b: 0.47843137, a: 1}
+  - CategoryName: Framework/Events
+    HeaderColor: {r: 0.6156863, g: 0.30588236, b: 0.8666667, a: 1}
+  - CategoryName: Debug
+    HeaderColor: {r: 0.5529412, g: 0.6, b: 0.68235296, a: 1}
+  - CategoryName: Utility
+    HeaderColor: {r: 0.21960784, g: 0.21960784, b: 0.21960784, a: 1}
