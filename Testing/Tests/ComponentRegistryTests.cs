@@ -38,16 +38,6 @@ namespace FluxFramework.Testing.Tests
         
         private GameObject _testGameObject;
 
-        // We override TearDown to ensure our GameObject is always destroyed.
-        public override void TearDown()
-        {
-            if (_testGameObject != null)
-            {
-                Object.DestroyImmediate(_testGameObject);
-            }
-            base.TearDown();
-        }
-
         // --- Tests ---
 
         [FluxTest]
@@ -55,7 +45,7 @@ namespace FluxFramework.Testing.Tests
         {
             // --- ARRANGE ---
             const string propertyKey = "test.component.value";
-            _testGameObject = new GameObject("TestObject");
+            _testGameObject = CreateTestGameObject("TestObjectWithProperty");
 
             // --- ACT ---
             // Add the component. Its Awake/OnFluxAwake should trigger the registration.
@@ -74,7 +64,7 @@ namespace FluxFramework.Testing.Tests
         public void RegisterComponent_WhenComponentIsCreated_EventHandlerIsSubscribed()
         {
             // --- ARRANGE ---
-            _testGameObject = new GameObject("TestObject");
+            _testGameObject = CreateTestGameObject("TestObject");
             var testComponent = _testGameObject.AddComponent<ComponentWithHandler>();
             Manager.Registry.RegisterAllComponentsInScene();
 
@@ -89,7 +79,7 @@ namespace FluxFramework.Testing.Tests
         public void UnregisterComponent_WhenGameObjectIsDestroyed_EventHandlerIsUnsubscribed()
         {
             // --- ARRANGE ---
-            _testGameObject = new GameObject("TestObject");
+            _testGameObject = CreateTestGameObject("TestObject");
             var testComponent = _testGameObject.AddComponent<ComponentWithHandler>();
             Manager.Registry.RegisterAllComponentsInScene();
 

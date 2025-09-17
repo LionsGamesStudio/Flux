@@ -1,5 +1,7 @@
 using FluxFramework.Testing.Attributes;
 using FluxFramework.Core;
+using UnityEngine;
+using System.Collections.Generic;
 
 namespace FluxFramework.Testing
 {
@@ -16,6 +18,8 @@ namespace FluxFramework.Testing
         /// </summary>
         protected IFluxManager Manager { get; private set; }
 
+        private List<GameObject> _createdGameObjects;
+
         [FluxSetUp]
         public virtual void SetUp()
         {
@@ -24,6 +28,7 @@ namespace FluxFramework.Testing
             Manager = new MockFluxManager();
 
             Flux.Manager = Manager;
+            _createdGameObjects = new List<GameObject>();
         }
 
         [FluxTearDown]
@@ -32,11 +37,33 @@ namespace FluxFramework.Testing
             // After each test, simply discard the manager.
             // The garbage collector will handle the cleanup.
             // All services (EventBus, Properties, etc.) will be destroyed with it.
+            for (int i = _createdGameObjects.Count - 1; i >= 0; i--)
+            {
+                if (_createdGameObjects[i] != null)
+                {
+                    Object.DestroyImmediate(_createdGameObjects[i]);
+                }
+            }
+            _createdGameObjects.Clear();
+            
+            Flux.Manager = null;
             Manager = null;
+        }
+        
+        /// <summary>
+        /// Helper to create a GameObject that will be automatically cleaned up after the test.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        protected GameObject CreateTestGameObject(string name = "TestObject")
+        {
+            var go = new GameObject(name);
+            _createdGameObjects.Add(go);
+            return go;
         }
 
         // We can now add our custom assertion methods here.
-        
+
         /// <summary>
         /// Asserts that a condition is true. If not, the test will fail.
         /// </summary>

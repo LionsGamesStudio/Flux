@@ -5,7 +5,7 @@
 [![Unity Version](https://img.shields.io/badge/Unity-2021.3%2B-blue.svg)](https://unity3d.com/get-unity/download)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/Version-3.0.0-orange.svg)](package.json)
-[![CI Status](https://github.com/VOTRE_NOM/VOTRE_REPO/actions/workflows/main.yml/badge.svg)](https://github.com/VOTRE_NOM/VOTRE_REPO/actions/workflows/main.yml)
+[![CI Status](https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME/actions/workflows/main.yml/badge.svg)](https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME/actions/workflows/main.yml)
 
 FluxFramework provides a powerful, attribute-driven workflow to build scalable and maintainable applications in Unity. It enforces a clean separation between your game's state/logic and its presentation layer, eliminating "spaghetti code" and making your project easier to debug, test, and expand.
 
