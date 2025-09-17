@@ -55,7 +55,7 @@ namespace FluxFramework.VisualScripting.Node
                             var loopToken = new ExecutionToken(loopNode);
                             loopToken.SetData(nameof(item), currentItem);
                             loopToken.SetData(nameof(index), currentIndex);
-                            executor.ContinueFlow(loopToken);
+                            executor.ContinueFlow(loopToken, wrapper);
                         }
                     }
                     currentIndex++;
@@ -67,7 +67,7 @@ namespace FluxFramework.VisualScripting.Node
             var completedNode = wrapper.GetConnectedNode(nameof(Completed));
             if (completedNode != null)
             {
-                executor.ContinueFlow(new ExecutionToken(completedNode));
+                executor.ContinueFlow(new ExecutionToken(completedNode), wrapper);
             }
         }
     }

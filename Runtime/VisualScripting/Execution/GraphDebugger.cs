@@ -40,8 +40,8 @@ namespace FluxFramework.VisualScripting.Execution
 
         public static void NodeEnter(FluxNodeBase node) => OnNodeEnter?.Invoke(node.NodeId);
         public static void NodeExit(FluxNodeBase node) => OnNodeExit?.Invoke(node.NodeId);
-        public static void TokenTraverse(FluxNodeConnection connection) => 
-            OnTokenTraverse?.Invoke(connection.FromNodeId, connection.FromPortName, connection.ToNodeId, connection.ToPortName);
+        public static void TokenTraverse(string fromNodeId, string fromPortName, string toNodeId, string toPortName) => 
+            OnTokenTraverse?.Invoke(fromNodeId, fromPortName, toNodeId, toPortName);
         public static void UpdateNodeData(FluxNodeBase node, Dictionary<string, string> portValues) => 
             OnNodeDataUpdate?.Invoke(node.NodeId, portValues);
         

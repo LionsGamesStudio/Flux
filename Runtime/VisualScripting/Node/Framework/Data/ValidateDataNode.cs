@@ -33,17 +33,17 @@ namespace FluxFramework.VisualScripting.Node
         {
             if (container == null)
             {
-                executor.ContinueFlow(new ExecutionToken(wrapper.GetConnectedNode(nameof(OnInvalid))));
+                executor.ContinueFlow(new ExecutionToken(wrapper.GetConnectedNode(nameof(OnInvalid))), wrapper);
                 return;
             }
 
             if (container.ValidateData(out this.errorMessages))
             {
-                executor.ContinueFlow(new ExecutionToken(wrapper.GetConnectedNode(nameof(OnValid))));
+                executor.ContinueFlow(new ExecutionToken(wrapper.GetConnectedNode(nameof(OnValid))), wrapper);
             }
             else
             {
-                executor.ContinueFlow(new ExecutionToken(wrapper.GetConnectedNode(nameof(OnInvalid))));
+                executor.ContinueFlow(new ExecutionToken(wrapper.GetConnectedNode(nameof(OnInvalid))), wrapper);
             }
         }
     }

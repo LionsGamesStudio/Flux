@@ -4,7 +4,10 @@
     "references": [
         "FluxFramework.Runtime",
         "Unity.TextMeshPro",
-        "Unity.VisualScripting"
+        "Unity.VisualScripting",
+        "Unity.GraphView.Editor",
+        "UnityEditor.UI",
+        "Unity.UI.Builder.Editor"
     ],
     "includePlatforms": [
         "Editor"

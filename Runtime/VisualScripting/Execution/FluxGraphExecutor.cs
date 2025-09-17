@@ -130,14 +130,26 @@ namespace FluxFramework.VisualScripting.Execution
         /// <summary>
         /// (Public API for Nodes) Enqueues a new token for the executor to process.
         /// </summary>
-        public void ContinueFlow(ExecutionToken token)
+        public void ContinueFlow(ExecutionToken token, FluxNodeBase sourceNode)
         {
             if (token != null)
             {
+                #if UNITY_EDITOR
+                // If we know which node is currently running, we can find the connection to the new token's target.
+                if(sourceNode != null)
+                {
+                    var connection = FindConnectionBetween(sourceNode, token.TargetNode);
+                    if(connection != null) 
+                    {
+                        GraphDebugger.TokenTraverse(connection.FromNodeId, connection.FromPortName, connection.ToNodeId, connection.ToPortName);
+                    }
+                }
+#endif
+
                 _executionQueue.Enqueue(token);
             }
         }
-        
+
         /// <summary>
         /// Executes a single node's logic and enqueues any subsequent tokens. This method is now void
         /// and acts as a command generator for the main execution loop.
@@ -147,9 +159,9 @@ namespace FluxFramework.VisualScripting.Execution
             var node = token.TargetNode;
             if (node == null) return;
 
-            #if UNITY_EDITOR
+#if UNITY_EDITOR
             GraphDebugger.NodeEnter(node);
-            #endif
+#endif
 
             if (node is AttributedNodeWrapper wrapper && wrapper.NodeLogic is INode logic)
             {
@@ -167,7 +179,7 @@ namespace FluxFramework.VisualScripting.Execution
                         subGraphToken.CallStack.Push(wrapper);
                         subGraphToken.SetData("_triggeredPortName", triggeredPortName);
                         foreach (var (key, value) in dataInputs) { subGraphToken.SetData(key, value); }
-                        ContinueFlow(subGraphToken);
+                        ContinueFlow(subGraphToken, wrapper);
                     }
                 }
                 else if (logic is GraphOutputNode)
@@ -179,7 +191,7 @@ namespace FluxFramework.VisualScripting.Execution
                         {
                             var parentToken = new ExecutionToken(nextNodeInParent, token);
                             foreach (var (key, value) in dataInputs) { parentToken.SetData(key, value); }
-                            ContinueFlow(parentToken);
+                            ContinueFlow(parentToken, wrapper);
                         }
                     }
                 }
@@ -189,12 +201,12 @@ namespace FluxFramework.VisualScripting.Execution
                     executableLogic.Execute(this, wrapper, triggeredPortName, dataInputs);
                 }
 
-                #if UNITY_EDITOR
+#if UNITY_EDITOR
                 var dataSnapshot = BuildDataSnapshot(logic, node);
                 GraphDebugger.UpdateNodeData(node, dataSnapshot);
                 GraphDebugger.NodeExit(node);
-                #endif
-                
+#endif
+
                 // --- FLOW CONTINUATION LOGIC ---
                 if (logic is IFlowControlNode)
                 {
@@ -206,7 +218,7 @@ namespace FluxFramework.VisualScripting.Execution
                 {
                     foreach (var nextToken in FindNextTokensFromPorts(node, activeGraph, outputPort.Name))
                     {
-                        ContinueFlow(nextToken);
+                        ContinueFlow(nextToken, node);
                     }
                 }
             }

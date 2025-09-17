@@ -27,7 +27,7 @@ namespace FluxFramework.VisualScripting.Node
                 var connectedNodes = wrapper.GetConnectedNodes(portName);
                 foreach (var node in connectedNodes)
                 {
-                    executor.ContinueFlow(new ExecutionToken(node));
+                    executor.ContinueFlow(new ExecutionToken(node), wrapper);
                 }
             }
         }

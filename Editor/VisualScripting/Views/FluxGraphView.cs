@@ -1,16 +1,16 @@
 using System;
 using System.Collections.Generic;
-using System.Collections;
+using System.IO;
 using System.Linq;
 using System.Reflection;
+using UnityEditor;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using UnityEngine.UIElements;
-using UnityEditor;
-using FluxFramework.VisualScripting;
-using FluxFramework.VisualScripting.Node;
-using FluxFramework.VisualScripting.Execution;
+using FluxFramework.Editor;
 using FluxFramework.Attributes.VisualScripting;
+using FluxFramework.VisualScripting.Execution;
+using FluxFramework.VisualScripting.Node;
 
 namespace FluxFramework.VisualScripting.Editor
 {
@@ -26,6 +26,9 @@ namespace FluxFramework.VisualScripting.Editor
         {
             _window = window;
 
+            // Load stylesheets using the improved method
+            LoadStylesheets();
+
             // Add background grid
             Insert(0, new GridBackground());
 
@@ -34,17 +37,6 @@ namespace FluxFramework.VisualScripting.Editor
             this.AddManipulator(new ContentDragger());
             this.AddManipulator(new SelectionDragger());
             this.AddManipulator(new RectangleSelector());
-
-            // This is required to draw the lines for new connections
-            var styleSheet = AssetDatabase.LoadAssetAtPath<StyleSheet>("Packages/com.unity.visualscripting/Editor/Application/Graphs/Styles/GraphView.uss");
-            if (styleSheet != null)
-            {
-                styleSheets.Add(styleSheet);
-            }
-            else
-            {
-                Debug.LogWarning("[FluxGraphView] Could not find the default Visual Scripting stylesheet. Connection lines may be invisible.");
-            }
 
             _searchWindowProvider = ScriptableObject.CreateInstance<FluxSearchWindowProvider>();
 
@@ -124,13 +116,23 @@ namespace FluxFramework.VisualScripting.Editor
 
                     if (fromPortView != null && toPortView != null)
                     {
-                        var edge = fromPortView.ConnectTo(toPortView);
+                        // var edge = fromPortView.ConnectTo(toPortView);
+
+                        var edge = new AnimatedFluxEdge
+                        {
+                            output = fromPortView,
+                            input = toPortView
+                        };
+                        
+                        edge.output.Connect(edge);
+                        edge.input.Connect(edge);
+                        
                         AddElement(edge);
                     }
                 }
             }
         }
-        
+
         /// <summary>
         /// A robust way to refresh the entire view. This is less surgical but more reliable
         /// than trying to refresh a single node and its edges manually.
@@ -138,7 +140,7 @@ namespace FluxFramework.VisualScripting.Editor
         public void Refresh()
         {
             if (_graph == null) return;
-            
+
             // This forces a complete reload and redraw of the entire graph from the data model.
             // It's the most reliable way to ensure the view is in sync with the data.
             PopulateView(_graph);
@@ -161,7 +163,10 @@ namespace FluxFramework.VisualScripting.Editor
                     {
                         var fromNodeView = edge.output.node as FluxNodeView;
                         var toNodeView = edge.input.node as FluxNodeView;
-                        _graph.RemoveConnection(fromNodeView.Node, edge.output.name, toNodeView.Node, edge.input.name);
+                        if (fromNodeView != null && toNodeView != null)
+                        {
+                            _graph.RemoveConnection(fromNodeView.Node, edge.output.name, toNodeView.Node, edge.input.name);
+                        }
                     }
                 }
             }
@@ -198,7 +203,7 @@ namespace FluxFramework.VisualScripting.Editor
                     if (element is FluxNodeView nodeView)
                     {
                         nodeView.Node.Position = nodeView.GetPosition().position;
-                        EditorUtility.SetDirty(_graph); // Mark the graph as dirty to save the new position
+                        EditorUtility.SetDirty(nodeView.Node); // Mark the node sub-asset as dirty
                     }
                 }
             }
@@ -209,7 +214,6 @@ namespace FluxFramework.VisualScripting.Editor
         /// <summary>
         /// Called when the view transform (zoom/pan) changes.
         /// </summary>
-        /// <param name="view"></param>
         private void OnViewTransformChanged(GraphView view)
         {
             // This can be used to save the zoom and pan state later.
@@ -220,9 +224,6 @@ namespace FluxFramework.VisualScripting.Editor
         /// </summary>
         private void CheckSelectionChange()
         {
-            // By scheduling the check for the next editor frame, we guarantee
-            // that the GraphView's 'selection' property has been fully updated
-            // before we read it. This solves the race condition.
             schedule.Execute(() =>
             {
                 var selectedElement = selection.OfType<GraphElement>().LastOrDefault();
@@ -233,37 +234,20 @@ namespace FluxFramework.VisualScripting.Editor
         /// <summary>
         /// Determines which ports are compatible for connection when the user starts dragging a connection from a port.
         /// </summary>
-        /// <param name="startPort"></param>
-        /// <param name="nodeAdapter"></param>
-        /// <returns></returns>
         public override List<Port> GetCompatiblePorts(Port startPort, NodeAdapter nodeAdapter)
         {
             var compatiblePorts = new List<Port>();
-
-            // Get the data model of the port where the connection starts.
             var startPortData = startPort.userData as FluxNodePort;
-            if (startPortData == null)
-            {
-                // If the start port has no data, we can't determine compatibility.
-                return compatiblePorts;
-            }
+            if (startPortData == null) return compatiblePorts;
 
-            // Iterate through all other ports in the graph.
             ports.ForEach(portView =>
             {
-                // Basic checks: don't connect to the same node or the same port.
-                if (startPort.node == portView.node || startPort == portView)
-                {
-                    return;
-                }
+                if (startPort.node == portView.node || startPort == portView) return;
 
                 var endPortData = portView.userData as FluxNodePort;
-                if (endPortData != null)
+                if (endPortData != null && startPortData.CanConnectTo(endPortData))
                 {
-                    if (startPortData.CanConnectTo(endPortData))
-                    {
-                        compatiblePorts.Add(portView);
-                    }
+                    compatiblePorts.Add(portView);
                 }
             });
 
@@ -296,12 +280,19 @@ namespace FluxFramework.VisualScripting.Editor
                 {
                     var output = originPort.direction == Direction.Output ? originPort : targetPort;
                     var input = originPort.direction == Direction.Input ? originPort : targetPort;
-                    
-                    var edge = new Edge { output = output, input = input };
+
+                    // var edge = new Edge { output = output, input = input };
+                    // AddElement(edge);
+
+                    // var change = new GraphViewChange { edgesToCreate = new List<Edge> { edge } };
+                    // this.graphViewChanged(change);
+
+                    var edge = new AnimatedFluxEdge { output = output, input = input };
+
+                    edge.output.Connect(edge);
+                    edge.input.Connect(edge);
+
                     AddElement(edge);
-                    
-                    var change = new GraphViewChange { edgesToCreate = new List<Edge> { edge } };
-                    this.graphViewChanged(change);
                 }
             }
             return newNodeView;
@@ -310,7 +301,6 @@ namespace FluxFramework.VisualScripting.Editor
         /// <summary>
         /// Creates and adds a FluxNodeView to the GraphView for the given node data model.
         /// </summary>
-        /// <param name="nodeData"></param>
         private FluxNodeView CreateNodeView(FluxNodeBase nodeData)
         {
             var nodeView = NodeViewFactory.CreateNodeView(nodeData, this);
@@ -321,9 +311,6 @@ namespace FluxFramework.VisualScripting.Editor
         /// <summary>
         /// Finds a port on the given node that is compatible with the origin port.
         /// </summary>
-        /// <param name="nodeView"></param>
-        /// <param name="originPort"></param>
-        /// <returns></returns>
         private Port FindCompatiblePort(FluxNodeView nodeView, Port originPort)
         {
             var originPortData = originPort.userData as FluxNodePort;
@@ -357,74 +344,76 @@ namespace FluxFramework.VisualScripting.Editor
         }
 
         #region Visual Debugging Support
-        
+
         /// <summary>
-        /// Called when a node begins execution.
+        /// Called when a node begins execution. Applies a visual overlay.
         /// </summary>
-        /// <param name="nodeId"></param>
         private void OnNodeEnter(string nodeId)
         {
             var nodeView = GetNodeByGuid(nodeId) as FluxNodeView;
-            nodeView?.Flash(Color.yellow);
+            nodeView?.TriggerEnterAnimation();
         }
 
         /// <summary>
-        /// Called when a node finishes execution.
+        /// Called when a node finishes execution. Removes the visual overlay.
         /// </summary>
-        /// <param name="nodeId"></param>
         private void OnNodeExit(string nodeId)
         {
-            // Optional: Could add a different flash color for exit.
+            var nodeView = GetNodeByGuid(nodeId) as FluxNodeView;
+            nodeView?.TriggerExitAnimation();
         }
 
         /// <summary>
-        /// Called when an execution token traverses a connection.
+        /// Called when an execution token traverses a connection. Animates the edge.
         /// </summary>
-        /// <param name="fromNodeId"></param>
-        /// <param name="fromPortName"></param>
-        /// <param name="toNodeId"></param>
-        /// <param name="toPortName"></param>
         private void OnTokenTraverse(string fromNodeId, string fromPortName, string toNodeId, string toPortName)
         {
-            var edge = edges.ToList().FirstOrDefault(e =>
+            var matchingEdges = edges.ToList().Where(e =>
             {
-                var fromNode = e.output.node as FluxNodeView;
-                var toNode = e.input.node as FluxNodeView;
-                return fromNode?.Node.NodeId == fromNodeId && e.output.portName == fromPortName &&
-                    toNode?.Node.NodeId == toNodeId && e.input.portName == toPortName;
+                var fromNode = e.output?.node as FluxNodeView;
+                var toNode = e.input?.node as FluxNodeView;
+                return fromNode?.Node.NodeId == fromNodeId && e.output?.name == fromPortName &&
+                    toNode?.Node.NodeId == toNodeId && e.input?.name == toPortName;
             });
 
-            edge?.Flash(Color.cyan);
+            foreach (var edge in matchingEdges)
+            {
+                if (edge is AnimatedFluxEdge animatedEdge && !animatedEdge.Launched)
+                {
+                    schedule.Execute(() => animatedEdge.TriggerFlowAnimation());
+                    schedule.Execute(() => animatedEdge.ResetVisuals()).StartingIn(3000);
+                }
+            }
         }
 
         /// <summary>
         /// Called when a node updates its data ports during execution.
         /// </summary>
-        /// <param name="nodeId"></param>
-        /// <param name="portValues"></param>
         private void OnNodeDataUpdate(string nodeId, Dictionary<string, string> portValues)
         {
             var nodeView = GetNodeByGuid(nodeId) as FluxNodeView;
             nodeView?.SetPortDebugValues(portValues);
         }
-        
+
         /// <summary>
-        /// Called when the play mode state changes.
+        /// Called when the play mode state changes. Resets all visual debugging effects.
         /// </summary>
-        /// <param name="state"></param>
         private void OnPlayModeStateChanged(PlayModeStateChange state)
         {
-            // When we exit play mode, clear all the debug labels.
             if (state == PlayModeStateChange.ExitingPlayMode)
             {
+                // Clear all execution overlays and port debug values
                 foreach (var nodeView in nodes.OfType<FluxNodeView>())
                 {
-                    nodeView.ClearPortDebugValues();
+                    nodeView.ResetVisuals();
+                }
+
+                foreach (var edge in edges.OfType<AnimatedFluxEdge>())
+                {
+                    edge.ResetVisuals();
                 }
             }
         }
-
-
         #endregion
 
         #region Copy/Paste Support
@@ -436,26 +425,18 @@ namespace FluxFramework.VisualScripting.Editor
         private string OnSerializeGraphElements(IEnumerable<GraphElement> elements)
         {
             var selectedNodeViews = elements.OfType<FluxNodeView>().ToList();
-            if (!selectedNodeViews.Any())
-            {
-                return string.Empty;
-            }
+            if (!selectedNodeViews.Any()) return string.Empty;
 
             var clipboardData = new ClipboardData();
-
-            // 1. Create a set of the selected node IDs for quick lookups.
             var selectedNodeIds = new HashSet<string>(selectedNodeViews.Select(v => v.Node.NodeId));
 
-            // 2. Serialize all selected nodes.
             foreach (var nodeView in selectedNodeViews)
             {
                 clipboardData.NodesJson.Add(EditorJsonUtility.ToJson(nodeView.Node));
             }
 
-            // 3. Find and serialize all connections that are *internal* to the selection.
             foreach (var connection in _graph.Connections)
             {
-                // A connection is internal if both its source and destination nodes are in our selection set.
                 if (selectedNodeIds.Contains(connection.FromNodeId) && selectedNodeIds.Contains(connection.ToNodeId))
                 {
                     clipboardData.Connections.Add(new ConnectionData
@@ -467,7 +448,6 @@ namespace FluxFramework.VisualScripting.Editor
                     });
                 }
             }
-
             return JsonUtility.ToJson(clipboardData);
         }
 
@@ -482,62 +462,50 @@ namespace FluxFramework.VisualScripting.Editor
             var clipboardData = JsonUtility.FromJson<ClipboardData>(data);
             if (clipboardData == null) return;
 
-            // Start a single Undo group for the entire paste operation.
             Undo.RecordObject(_graph, "Paste Graph Elements");
 
             var newNodes = new List<FluxNodeView>();
-            // This dictionary is crucial to remap old connections to the newly created nodes.
             var oldIdToNewNodeMap = new Dictionary<string, FluxNodeBase>();
 
-            // --- 1. Recreate all the nodes ---
             foreach (var nodeJson in clipboardData.NodesJson)
             {
                 var tempNode = ScriptableObject.CreateInstance<AttributedNodeWrapper>();
                 EditorJsonUtility.FromJsonOverwrite(nodeJson, tempNode);
-                
+
                 string oldNodeId = tempNode.NodeId;
-                
-                // Create a new node in the graph asset. It will get a NEW, unique ID.
+
                 var newNode = _graph.CreateNode<AttributedNodeWrapper>(tempNode.Position + new Vector2(50, 50));
 
-                // Initialize its logic and copy the data.
                 var logicType = tempNode.NodeLogic.GetType();
                 newNode.Initialize(logicType, _graph);
                 EditorJsonUtility.FromJsonOverwrite(EditorJsonUtility.ToJson(tempNode.NodeLogic), newNode.NodeLogic);
                 newNode.name = tempNode.name;
-                
-                // Store the mapping from the old ID to the new node instance.
+
                 oldIdToNewNodeMap[oldNodeId] = newNode;
-                
+
                 var nodeView = CreateNodeView(newNode);
                 newNodes.Add(nodeView);
-                
-                ScriptableObject.DestroyImmediate(tempNode, true);
+
+                UnityEngine.Object.DestroyImmediate(tempNode, true);
             }
 
-            // --- 2. Recreate all the connections ---
             foreach (var connectionData in clipboardData.Connections)
             {
-                // Find the newly created source and destination nodes using our map.
                 if (oldIdToNewNodeMap.TryGetValue(connectionData.FromNodeId, out var newFromNode) &&
                     oldIdToNewNodeMap.TryGetValue(connectionData.ToNodeId, out var newToNode))
                 {
-                    // Find the corresponding port data on the new nodes.
                     var fromPortData = newFromNode.OutputPorts.FirstOrDefault(p => p.Name == connectionData.FromPortName);
                     var toPortData = newToNode.InputPorts.FirstOrDefault(p => p.Name == connectionData.ToPortName);
-                    
+
                     if (fromPortData != null && toPortData != null)
                     {
-                        // Add the connection to our data model.
                         _graph.AddConnection(fromPortData, newFromNode, toPortData, newToNode);
                     }
                 }
             }
 
-            // Repopulate the entire view to draw the new connections.
             PopulateView(_graph);
-            
-            // Select all the newly pasted nodes.
+
             ClearSelection();
             newNodes.ForEach(AddToSelection);
         }
@@ -550,15 +518,10 @@ namespace FluxFramework.VisualScripting.Editor
             try
             {
                 if (string.IsNullOrEmpty(data)) return false;
-                
                 var clipboardData = JsonUtility.FromJson<ClipboardData>(data);
-                
                 return clipboardData != null && clipboardData.NodesJson.Any();
             }
-            catch
-            {
-                return false;
-            }
+            catch { return false; }
         }
 
         /// <summary>
@@ -567,10 +530,7 @@ namespace FluxFramework.VisualScripting.Editor
         [Serializable]
         public class ClipboardData
         {
-            // We will store the full JSON of each node.
             public List<string> NodesJson = new List<string>();
-            
-            // We will store a serializable version of the connections.
             public List<ConnectionData> Connections = new List<ConnectionData>();
         }
 
@@ -585,7 +545,34 @@ namespace FluxFramework.VisualScripting.Editor
             public string ToNodeId;
             public string ToPortName;
         }
-        
+
+        #endregion
+
+        #region Helper Methods
+
+        private void LoadStylesheets()
+        {
+            // Load Unity's default stylesheet for essential visuals like connection lines.
+            var unityStyleSheet = AssetDatabase.LoadAssetAtPath<StyleSheet>("Packages/com.unity.visualscripting/Editor/Application/Graphs/Styles/GraphView.uss");
+            if (unityStyleSheet != null)
+            {
+                styleSheets.Add(unityStyleSheet);
+                Debug.Log("[FluxGraphView] Loaded Unity Visual Scripting stylesheet");
+            }
+            else
+            {
+                Debug.LogWarning("[FluxGraphView] Could not find the default Visual Scripting stylesheet. Connection lines may be invisible.");
+            }
+
+            // Debug: Log all loaded stylesheets
+            Debug.Log($"[FluxGraphView] Total stylesheets loaded: {styleSheets.count}");
+            for (int i = 0; i < styleSheets.count; i++)
+            {
+                var sheet = styleSheets[i];
+                Debug.Log($"[FluxGraphView] Stylesheet {i}: {sheet?.name ?? "null"}");
+            }
+        }
+ 
         #endregion
     }
 }

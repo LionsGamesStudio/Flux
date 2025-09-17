@@ -28,9 +28,6 @@ namespace FluxFramework.VisualScripting.Editor
         }
 
         /// <summary>
-        /// Updates the view to inspect a new node.
-        /// </summary>
-        /// <summary>
         /// Updates the view to inspect a graph element (Node or Edge).
         /// </summary>
         public void UpdateSelection(GraphElement element)

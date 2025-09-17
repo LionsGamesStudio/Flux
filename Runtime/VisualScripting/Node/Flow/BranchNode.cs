@@ -32,7 +32,7 @@ namespace FluxFramework.VisualScripting.Node
             var nextNodes = wrapper.GetConnectedNodes(portToFollow);
             foreach (var nextNode in nextNodes)
             {
-                executor.ContinueFlow(new ExecutionToken(nextNode));
+                executor.ContinueFlow(new ExecutionToken(nextNode), wrapper);
             }
         }
     }

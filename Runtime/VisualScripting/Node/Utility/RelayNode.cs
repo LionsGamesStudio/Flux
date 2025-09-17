@@ -4,7 +4,7 @@ using FluxFramework.Attributes.VisualScripting;
 namespace FluxFramework.VisualScripting.Node
 {
     [Serializable]
-    [FluxNode("Relay", Category = "Flow/Utility", Description = "A simple passthrough node. Useful for rerouting connections or merging execution paths.")]
+    [FluxNode("Relay", Category = "Utility", Description = "A simple passthrough node. Useful for rerouting connections or merging execution paths.")]
     public class RelayNode : IExecutableNode
     {
         // This input can receive multiple execution signals

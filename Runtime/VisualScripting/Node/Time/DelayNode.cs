@@ -44,7 +44,7 @@ namespace FluxFramework.VisualScripting.Node
             var nextNodes = wrapper.GetConnectedNodes(nameof(Out));
             foreach (var nextNode in nextNodes)
             {
-                executor.ContinueFlow(new ExecutionToken(nextNode));
+                executor.ContinueFlow(new ExecutionToken(nextNode), wrapper);
             }
         }
     }

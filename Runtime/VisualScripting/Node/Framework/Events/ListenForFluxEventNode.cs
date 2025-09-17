@@ -48,7 +48,7 @@ namespace FluxFramework.VisualScripting.Node
                 }
                 
                 // Tell the executor to process this new token.
-                executor.ContinueFlow(executionToken);
+                executor.ContinueFlow(executionToken, wrapper);
             };
 
             // Convert the handler to a delegate of the correct generic type

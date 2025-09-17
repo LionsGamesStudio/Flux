@@ -89,7 +89,7 @@ namespace FluxFramework.VisualScripting.Node
                             // Create a separate token for each connected node.
                             var tickToken = new ExecutionToken(tickNode);
                             tickToken.SetData(nameof(Progress), this.Progress);
-                            executor.ContinueFlow(tickToken);
+                            executor.ContinueFlow(tickToken, wrapper);
                         }
                     }
                     
@@ -104,13 +104,13 @@ namespace FluxFramework.VisualScripting.Node
                     {
                         var finalTickToken = new ExecutionToken(tickNode);
                         finalTickToken.SetData(nameof(Progress), this.Progress);
-                        executor.ContinueFlow(finalTickToken);
+                        executor.ContinueFlow(finalTickToken, wrapper);
                     }
                 }
                 
                 if (onCompleteNode != null)
                 {
-                    executor.ContinueFlow(new ExecutionToken(onCompleteNode));
+                    executor.ContinueFlow(new ExecutionToken(onCompleteNode), wrapper);
                 }
 
             } while (Loop && runnerGO != null);
