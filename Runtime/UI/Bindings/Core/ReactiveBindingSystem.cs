@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using FluxFramework.Extensions;
+using FluxFramework.Events;
 using FluxFramework.Binding;
 using FluxFramework.Core;
 
@@ -59,27 +60,28 @@ namespace FluxFramework.Binding
             Action<IReactiveProperty> finalizeBindingAction = (property) =>
             {
                 if (binding == null || binding.Component == null) return;
-                
+
                 if (property.ValueType == typeof(T))
                 {
                     // CASE 1: The property's type matches the binding's expected type (e.g., float -> float).
                     BindToProperty((ReactiveProperty<T>)property, binding, options);
+                    EventBus.Publish(new BindingCreatedEvent(propertyKey, binding.Component.GetType().Name, options.Mode.ToString(), binding.Component.GetInstanceID()));
                 }
                 else
                 {
                     // CASE 2: Type mismatch. We need to find and apply a converter.
                     var sourceValueType = property.ValueType;
                     var targetValueType = typeof(T);
-                    
+
                     // First, see if a converter was explicitly provided in the attribute's options.
                     Type converterType = options.ConverterType;
-                    
+
                     // If not, try to find a suitable one automatically in the registry.
                     if (converterType == null)
                     {
                         converterType = ValueConverterRegistry.FindConverterType(sourceValueType, targetValueType);
                     }
-                    
+
                     if (converterType != null)
                     {
                         try
@@ -87,6 +89,7 @@ namespace FluxFramework.Binding
                             var converterInstance = (IValueConverter)Activator.CreateInstance(converterType);
                             var transformedProp = property.Transform<T>(converterInstance, options);
                             BindToProperty(transformedProp, binding, options);
+                            EventBus.Publish(new BindingCreatedEvent(propertyKey, binding.Component.GetType().Name, options.Mode.ToString(), binding.Component.GetInstanceID()));
                         }
                         catch (Exception ex)
                         {
@@ -164,6 +167,9 @@ namespace FluxFramework.Binding
 
             // 4. Dispose the binding itself, allowing it to perform internal cleanup (e.g., remove UI event listeners).
             binding.Dispose();
+
+            // 5. Optionally, publish an event indicating the binding was removed.
+            EventBus.Publish(new BindingRemovedEvent(propertyKey, binding.Component.GetType().Name));
         }
 
         /// <summary>

@@ -111,6 +111,23 @@ namespace FluxFramework.Core
         }
 
         /// <summary>
+        /// Gets the key associated with a given reactive property
+        /// </summary>
+        /// <param name="property"></param>
+        /// <returns></returns>
+        public string GetKey(IReactiveProperty property)
+        {
+            foreach (var kvp in _properties)
+            {
+                if (kvp.Value.Property == property)
+                {
+                    return kvp.Key;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Unregisters a property
         /// </summary>
         /// <param name="key">Property key</param>

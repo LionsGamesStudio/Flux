@@ -63,6 +63,13 @@ namespace FluxFramework.Core
         bool UnregisterProperty(string key);
 
         /// <summary>
+        /// Gets the unique key associated with the given property instance.
+        /// </summary>
+        /// <param name="property"></param>
+        /// <returns></returns>
+        string GetKey(IReactiveProperty property);
+
+        /// <summary>
         /// Retrieves all registered property keys.
         /// </summary>
         /// <returns></returns>

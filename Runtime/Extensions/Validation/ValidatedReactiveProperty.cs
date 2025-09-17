@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using FluxFramework.Core;
+using FluxFramework.Events;
 using UnityEngine;
 
 namespace FluxFramework.Extensions
@@ -60,6 +61,9 @@ namespace FluxFramework.Extensions
                     OnValidationFailed?.Invoke(value, errorMessages);
                     Debug.LogWarning($"[FluxFramework] Value '{value}' for a ValidatedReactiveProperty was rejected. Errors: {string.Join(", ", errorMessages)}");
                 }
+
+                var key = ((FluxManager)Flux.Manager).Properties.GetKey(this);
+                EventBus.Publish(new ValidationEvent(errorMessages.Length == 0, key, errorMessages));
             }
         }
 

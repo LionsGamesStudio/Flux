@@ -6,6 +6,7 @@ using System.Threading;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using FluxFramework.Configuration;
+using FluxFramework.Events;
 using FluxFramework.Binding;
 
 namespace FluxFramework.Core
@@ -74,6 +75,8 @@ namespace FluxFramework.Core
         {
             if (_instance != null) return;
 
+            float startTime = Time.realtimeSinceStartup;
+
             var go = new GameObject("[FluxFramework]");
             DontDestroyOnLoad(go);
             _instance = go.AddComponent<FluxManager>();
@@ -82,6 +85,10 @@ namespace FluxFramework.Core
             go.AddComponent<FluxComponentAutoRegistrar>();
 
             _instance.Initialize();
+
+            float initTime = (Time.realtimeSinceStartup - startTime) * 1000f;
+
+            EventBus.Publish(new FrameworkInitializedEvent("2.0.0", true, (long)initTime));
         }
 
         private void Initialize()

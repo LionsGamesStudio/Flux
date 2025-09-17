@@ -6,11 +6,6 @@ namespace FluxFramework.Events
     public class ValidationEvent : FluxFramework.Core.FluxEventBase
     {
         /// <summary>
-        /// Name of the component being validated
-        /// </summary>
-        public string ComponentName { get; }
-
-        /// <summary>
         /// Validation result
         /// </summary>
         public bool IsValid { get; }
@@ -25,10 +20,9 @@ namespace FluxFramework.Events
         /// </summary>
         public string PropertyKey { get; }
 
-        public ValidationEvent(string componentName, bool isValid, string propertyKey, params string[] errorMessages)
+        public ValidationEvent(bool isValid, string propertyKey, params string[] errorMessages)
             : base("FluxFramework.Validation")
         {
-            ComponentName = componentName;
             IsValid = isValid;
             ErrorMessages = errorMessages ?? new string[0];
             PropertyKey = propertyKey;

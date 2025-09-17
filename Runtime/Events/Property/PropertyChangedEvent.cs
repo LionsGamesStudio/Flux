@@ -27,19 +27,13 @@ namespace FluxFramework.Events
         /// </summary>
         public Type ValueType { get; }
 
-        /// <summary>
-        /// Whether this change was triggered manually or automatically
-        /// </summary>
-        public bool IsManualChange { get; }
-
-        public PropertyChangedEvent(string propertyKey, object oldValue, object newValue, Type valueType, bool isManualChange = true)
+        public PropertyChangedEvent(string propertyKey, object oldValue, object newValue, Type valueType)
             : base("FluxFramework.Core.PropertyManager")
         {
             PropertyKey = propertyKey;
             OldValue = oldValue;
             NewValue = newValue;
             ValueType = valueType;
-            IsManualChange = isManualChange;
         }
     }
 }

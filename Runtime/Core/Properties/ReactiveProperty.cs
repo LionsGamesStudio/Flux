@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using FluxFramework.Core;
+using FluxFramework.Events;
 
 namespace FluxFramework.Core
 {
@@ -280,6 +281,10 @@ namespace FluxFramework.Core
             {
                 notificationAction();
             }
+
+            // Optionally, raise a PropertyChangedEvent here if needed.
+            var key = ((FluxManager)Flux.Manager).Properties.GetKey(this);
+            EventBus.Publish(new PropertyChangedEvent(key, oldValue, newValue, typeof(T)));
         }
 
         public static implicit operator T(ReactiveProperty<T> property)

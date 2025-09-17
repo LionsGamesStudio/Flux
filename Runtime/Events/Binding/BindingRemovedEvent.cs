@@ -17,17 +17,11 @@ namespace FluxFramework.Events
         /// </summary>
         public string ComponentName { get; }
 
-        /// <summary>
-        /// Reason for the binding removal
-        /// </summary>
-        public string Reason { get; }
-
-        public BindingRemovedEvent(string propertyKey, string componentName, string reason = "Manual")
+        public BindingRemovedEvent(string propertyKey, string componentName)
             : base("FluxFramework.Binding.ReactiveBindingSystem")
         {
             PropertyKey = propertyKey;
             ComponentName = componentName;
-            Reason = reason;
         }
     }
 }
