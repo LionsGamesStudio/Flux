@@ -72,7 +72,7 @@ jobs:
           sed -i "s/m_EditorVersion:.*/m_EditorVersion: ${{ matrix.unity-version }}/" TempProject/ProjectSettings/ProjectVersion.txt
 
       - name: Activate Unity License
-        uses: game-ci/unity-activate@v4
+        uses: game-ci/unity-activate@v3
         with:
           unityVersion: ${{ matrix.unity-version }}
           # Supply secrets for Unity activation
