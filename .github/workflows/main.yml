@@ -1,5 +1,4 @@
 name: Flux Framework CI
-
 on:
   push:
     branches: [ main ]
@@ -10,14 +9,14 @@ jobs:
   test:
     name: Run Flux Tests
     runs-on: ubuntu-latest
-    
+   
     steps:
       # Step 1: Checkout your repository code
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           lfs: true  # Enable Git LFS if your project uses it
-      
+     
       # Step 2: Cache Unity Library files
       - name: Cache Unity Library
         uses: actions/cache@v4
@@ -27,8 +26,8 @@ jobs:
           restore-keys: |
             Library-${{ runner.os }}-
             Library-
-      
-      # Step 3: Run custom test method
+
+      # Step 3: Run Unity in batch mode to execute tests
       - name: Run Flux Tests
         uses: game-ci/unity-builder@v4
         env:
@@ -38,20 +37,36 @@ jobs:
         with:
           # Specify Unity version
           unityVersion: '2022.3.10f1'
-          
+         
           # Explicitly specify the project path
           projectPath: .
-          
-          # Target platform
+         
+          # Use a dummy target platform (required by unity-builder but not used)
           targetPlatform: StandaloneLinux64
-          
-          # Use executeMethod to specify the method to run
-          executeMethod: FluxFramework.Testing.FluxTestRunnerCli.RunTests
-          
-          # Additional build arguments (removed -batchmode to avoid duplication)
-          customParameters: '-nographics -logFile -'
-      
-      # Step 4: Upload test logs on failure
+         
+          # Specify custom build method that just runs tests
+          buildMethod: FluxFramework.Testing.FluxTestRunnerCli.RunTests
+         
+          # Disable actual building since we just want to run tests
+          customBuildPath: ./test-results
+          customBuildName: FluxTests
+         
+          # Additional parameters for test execution
+          customParameters: '-nographics -logFile - -quit'
+     
+      # Step 4: Upload test results
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: flux-test-results
+          path: |
+            ./test-results/**
+            ./*.xml
+            ./TestResults/**
+          retention-days: 7
+     
+      # Step 5: Upload test logs on failure
       - name: Upload Test Logs
         uses: actions/upload-artifact@v4
         if: failure()
