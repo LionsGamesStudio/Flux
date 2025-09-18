@@ -8,6 +8,7 @@ This document provides a quick reference guide to the editor menus and the most 
 2.  [Core Framework Attributes](#2-core-framework-attributes)
 3.  [UI Binding Attributes](#3-ui-binding-attributes)
 4.  [Editor Enhancement Attributes](#4-editor-enhancement-attributes)
+5.  [Testing Framework Attributes](#5-testing-framework-attributes)
 
 ---
 
@@ -25,10 +26,11 @@ The FluxFramework integrates directly into the Unity editor through the main `Fl
 | `› Run Health Check...` | Opens the **Health Check** window to scan the project for broken bindings and other common configuration errors. |
 | `› Generate Static Keys...`| Opens the **Keys Generator** window, which scans for all `[ReactiveProperty]` attributes and creates the `FluxKeys.cs` file for type-safe access. |
 | `› Refresh Component Registry` | Manually forces the framework to re-scan all assemblies for `[FluxComponent]` attributes. Useful if automatic discovery seems out of sync. |
-| `› Refresh Event Types` | Manually forces a re-scan of all `IFluxEvent` types for the Visual Scripting editor. |
 | **Debug/** | Contains tools that are primarily used at runtime to monitor the application's state. |
 | `› Reactive Properties Inspector...` | Opens a window that displays all registered `ReactiveProperty` instances at runtime, allowing you to **view and modify their values live**. |
-| `› Event Bus Monitor...` | Opens a window that displays a real-time log of every event that passes through the global `EventBus`. |
+| `› Event Bus Monitor...` | Opens a window that displays a real-time log of every event that passes through the `EventBus`. |
+| **Testing/** | Contains tools for the integrated testing framework. |
+| `› Test Runner...` | Opens the **Flux Test Runner** window to execute all `[FluxTest]` methods in the project and view the results. |
 | **Configuration/** | Provides quick access to the framework's core configuration assets. |
 | `› Framework Settings...` | Selects the `FluxFrameworkSettings.asset` in the Project window. |
 | `› UI Theme...` | Selects the first `FluxUITheme.asset` found in the project. |
@@ -44,15 +46,17 @@ This menu allows you to quickly create new, pre-configured C# scripts based on t
 | Menu Path | Description |
 | :--- | :--- |
 | **Framework/** | For creating core logic and data classes. |
-| `› FluxMonoBehaviour` | Creates a new component that inherits from `FluxMonoBehaviour`, with the safe lifecycle methods already stubbed out. |
-| `› FluxDataContainer` | Creates a new `ScriptableObject` data container that inherits from `FluxDataContainer`. |
-| `› FluxSettings` | Creates a new `ScriptableObject` for game settings that inherits from `FluxSettings` (with auto-saving features). |
+| `› FluxMonoBehaviour` | Creates a new component that inherits from `FluxMonoBehaviour`. |
+| `› FluxDataContainer` | Creates a new `ScriptableObject` data container. |
+| `› FluxSettings` | Creates a new `ScriptableObject` for game settings. |
 | **UI/** | For creating new UI components. |
-| `› FluxUIComponent` | Creates a new UI component that inherits from `FluxUIComponent`, ready for data binding. |
+| `› FluxUIComponent` | Creates a new UI component ready for data binding. |
 | **Event/** | For creating new event types. |
-| `› Flux Event` | Creates a new class that inherits from `FluxEventBase`, ready to carry data. |
+| `› Flux Event` | Creates a new class that inherits from `FluxEventBase`. |
+| **Testing/** | For creating test classes. |
+| `› Flux Test Fixture` | Creates a new test class that inherits from `FluxTestBase`, ready to write `[FluxTest]` methods. |
 | **Visual Scripting/** | For extending the visual scripting system. |
-| `› New Node` | Creates a new class that inherits from `FluxNodeBase`, ready to implement custom logic. |
+| `› New Node` | Creates a new class that inherits from `FluxNodeBase`. |
 
 ### Context Menu: Inspector `Add Component`
 
@@ -66,14 +70,14 @@ These attributes are used to integrate your C# classes with the framework's core
 
 ### `[ReactiveProperty(string key, bool Persistent = false)]`
 -   **Target:** Field (`int`, `float`, `string`, `ReactiveProperty<T>`, etc.)
--   **Purpose:** Declares a field as a reactive property and registers it with the global `FluxManager`. This is the foundation of the state management system.
+-   **Purpose:** Declares a field as a reactive property and registers it with the central state manager, `Flux.Manager.Properties`.
 -   **Parameters:**
     -   `key`: The unique string identifier for this property (e.g., `"player.health"`).
     -   `Persistent`: If `true`, the property's value will be saved and reloaded between game sessions. Defaults to `false`.
 
 ### `[FluxEventHandler]`
 -   **Target:** Method
--   **Purpose:** Automatically subscribes the decorated method to the global `EventBus`. The event type is inferred from the method's single parameter. The framework automatically handles unsubscription.
+-   **Purpose:** Automatically subscribes the decorated method to the framework's `EventBus` (`Flux.Manager.EventBus`). The event type is inferred from the method's single parameter. The framework automatically handles unsubscription.
 -   **Example:** `[FluxEventHandler] private void OnPlayerDied(PlayerDiedEvent evt) { ... }`
 
 ### `[FluxPropertyChangeHandler(string propertyKey)]`
@@ -127,3 +131,21 @@ These attributes are used to improve the inspector experience for your custom co
 -   **Parameters:**
     -   `displayName`: The title for the action block.
     -   `buttonText`: The text for the invoke button.
+
+---
+
+## 5. Testing Framework Attributes
+
+These attributes are used to define tests for the built-in **Flux Test Runner**.
+
+### `[FluxTest]`
+-   **Target:** Method
+-   **Purpose:** Marks a method as a test case. The method must be in a class that inherits from `FluxTestBase`. The test runner will execute this method and report its success or failure.
+
+### `[FluxSetUp]`
+-   **Target:** Method
+-   **Purpose:** Marks a method to be executed **before** each `[FluxTest]` in the same class. Ideal for preparing the test environment.
+
+### `[FluxTearDown]`
+-   **Target:** Method
+-   **Purpose:** Marks a method to be executed **after** each `[FluxTest]` in the same class, even if the test fails. Ideal for cleaning up resources.

@@ -31,7 +31,6 @@ namespace FluxFramework.Editor
         private Vector2 _scrollPosition;
         private bool _hasScanned = false;
 
-        [MenuItem("Flux/Tools/Health Check")]
         public static void ShowWindow()
         {
             GetWindow<FluxHealthCheckWindow>("Flux Health Check");

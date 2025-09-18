@@ -95,7 +95,7 @@ To avoid typos when referencing our properties (like `"player.health"`), we'll u
 
 ## 4. Creating the Player Controller (The "Logic")
 
-This script's only job is to handle player input and physics. It doesn't own any data; it simply **sends update requests** to the global state manager.
+This script's only job is to handle player input and physics. It doesn't own any data; it simply **sends update requests** to the central state manager.
 
 ### Step 4.1: Create the `PlayerController` Script
 1.  Create a new `FluxMonoBehaviour` script named `PlayerController`.
@@ -273,7 +273,7 @@ public class Collectible : FluxMonoBehaviour
         if (!other.CompareTag("Player")) return;
 
         if (_inventoryManager == null)
-        .
+        {
             _inventoryManager = FindObjectOfType<InventoryManager>();
         }
 
@@ -320,5 +320,7 @@ public class AudioManager : FluxMonoBehaviour
     }
 }
 ```
+
+**Key Concept:** The `PlayerController` and `InventoryManager` publish events using the `PublishEvent()` helper method. This is a convenient shortcut provided by `FluxMonoBehaviour`. Under the hood, it simply calls **`Flux.Manager.EventBus.Publish()`**. This is how all systems communicate without needing direct references to each other.
 
 **🎉 Congratulations!** You have now built a small, complete game loop using FluxFramework, demonstrating a clean separation between Data (`PlayerData`), Logic (`PlayerController`, `InventoryManager`), and View (`PlayerHUD`).

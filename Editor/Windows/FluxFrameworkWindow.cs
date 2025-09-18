@@ -13,7 +13,7 @@ namespace FluxFramework.Editor
     /// </summary>
     public class FluxFrameworkWindow : EditorWindow
     {
-        [MenuItem("Flux/Control Panel...", false, 0)]
+        [MenuItem("Flux/Control Panel...", false, -1)]
         public static void ShowWindow()
         {
             GetWindow<FluxFrameworkWindow>("Flux Control Panel");

@@ -16,7 +16,6 @@ namespace FluxFramework.Editor
         private List<string> _foundKeys = new List<string>();
         private Vector2 _scrollPosition;
 
-        [MenuItem("Flux/Tools/Keys Generator")]
         public static void ShowWindow()
         {
             GetWindow<FluxKeysGeneratorWindow>("Flux Keys Generator");

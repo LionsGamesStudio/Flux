@@ -17,8 +17,7 @@ namespace FluxFramework.Editor
         private Dictionary<string, bool> _categoryFoldouts = new Dictionary<string, bool>();
 
         private IFluxConfigurationManager _configManager;
-
-        [MenuItem("Flux/Configuration/Configuration Manager")]
+        
         public static void ShowWindow()
         {
             GetWindow<FluxConfigurationWindow>("Flux Configurations");

@@ -13,6 +13,9 @@ namespace FluxFramework.Editor
         // This constant is not used, but kept as per original script.
         private const string TEMPLATES_FOLDER = "Assets/Scripts/Flux";
 
+        // --- Menu Items for Creating Templates ---
+
+        // --- Core Framework Templates ---
         [MenuItem("Assets/Create/Flux/Framework/FluxDataContainer", priority = 80)]
         public static void CreateFluxDataContainer()
         {
@@ -37,18 +40,25 @@ namespace FluxFramework.Editor
             CreateTemplateWithDialog("MyGameSettings", GenerateFluxSettingsTemplate);
         }
 
+        // --- UI Templates ---
         [MenuItem("Assets/Create/Flux/UI/FluxUIComponent", priority = 90)]
         public static void CreateFluxUIComponent()
         {
             CreateTemplateWithDialog("MyUIComponent", GenerateFluxUIComponentTemplate);
         }
 
+        // --- Event Templates ---
         [MenuItem("Assets/Create/Flux/Event/Flux Event", priority = 100)]
         public static void CreateFluxEvent()
         {
             CreateTemplateWithDialog("MyCustomEvent", GenerateFluxEventTemplate);
         }
 
+        // --- Testing Templates ---
+        [MenuItem("Assets/Create/Flux/Testing/Flux Test Fixture", priority = 110)]
+        public static void CreateFluxTestFixture() => CreateTemplateWithDialog("MyTests", GenerateFluxTestFixtureTemplate);
+
+        // --- Visual Scripting Templates ---
         [MenuItem("Assets/Create/Flux/Visual Scripting/New Node", priority = 110)]
         public static void CreateFluxNode()
         {
@@ -334,6 +344,56 @@ namespace MyGame.Events
         public {className}(/* string someData */)
         {{
             // SomeData = someData;
+        }}
+    }}
+}}";
+        }
+
+        private static string GenerateFluxTestFixtureTemplate(string className)
+        {
+            if (!className.EndsWith("Tests")) className += "Tests";
+
+            return $@"using FluxFramework.Testing;
+using FluxFramework.Testing.Attributes;
+
+// TODO: Change this to your project's testing namespace
+namespace MyGame.Tests
+{{
+    /// <summary>
+    /// A test fixture for testing [describe the class or system under test].
+    /// </summary>
+    public class {className} : FluxTestBase
+    {{
+        // The `Manager` property gives you access to the sandboxed framework instance for each test.
+        
+        [FluxSetUp]
+        public override void SetUp()
+        {{
+            base.SetUp();
+            // Add any setup logic that is common to all tests in this class.
+        }}
+
+        [FluxTearDown]
+        public override void TearDown()
+        {{
+            // Add any cleanup logic if needed.
+            base.TearDown();
+        }}
+
+        [FluxTest]
+        public void MyFirstTest_WhenCondition_ShouldResult()
+        {{
+            // --- ARRANGE ---
+            // Set up the initial state for your test.
+            // Example: Manager.Properties.GetOrCreateProperty(""player.health"", 100);
+
+            // --- ACT ---
+            // Perform the action you want to test.
+            // Example: player.TakeDamage(10);
+
+            // --- ASSERT ---
+            // Verify that the outcome is correct.
+            // Assert(Manager.Properties.GetProperty<int>(""player.health"").Value == 90);
         }}
     }}
 }}";

@@ -17,7 +17,6 @@ namespace FluxFramework.Editor
         private string _searchText = "";
         private Vector2 _scrollPosition;
 
-        [MenuItem("Flux/Configuration/View Property Definitions")]
         public static void ShowWindow()
         {
             // GetWindow will focus the existing window or create a new one.

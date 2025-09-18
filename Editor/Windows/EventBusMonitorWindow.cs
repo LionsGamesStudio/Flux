@@ -27,7 +27,6 @@ namespace FluxFramework.Editor
         private bool _isListening = false;
         private string _searchText = "";
 
-        [MenuItem("Flux/Tools/Event Bus Monitor")]
         public static void ShowWindow()
         {
             GetWindow<EventBusMonitorWindow>("Event Bus Monitor");

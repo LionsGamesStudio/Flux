@@ -13,7 +13,6 @@ namespace FluxFramework.Editor
         private Vector2 _scrollPosition;
         private string _searchText = "";
 
-        [MenuItem("Flux/Tools/Reactive Properties Inspector")]
         public static void ShowWindow()
         {
             GetWindow<ReactivePropertyInspectorWindow>("Reactive Properties");
