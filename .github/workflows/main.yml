@@ -33,15 +33,15 @@ jobs:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
         with:
           # Specify the Unity version of your project
-          unityVersion: '2022.3.58f1' # <-- IMPORTANT: Put your exact Unity version here
+          unityVersion: '2022.3.10f1' # <-- IMPORTANT: Put your exact Unity version here
           
           # This is where the magic happens for our custom Test Runner
-          customCommand: |
+          customParameters: |
             -quit
             -batchmode
             -nographics
             -logFile -
-            -executeMethod FluxFramework.Testing.FluxTestRunnerCli.RunTests
+            -executeMethod FluxFramework.Testing.Editor.FluxTestRunnerCli.RunTests
 
       # Step 4: Publish test results (optional but recommended)
       - name: Upload Test Results
