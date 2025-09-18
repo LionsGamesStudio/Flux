@@ -10,20 +10,24 @@ jobs:
   test:
     name: Run Flux Tests
     runs-on: ubuntu-latest
+    
     steps:
       # Step 1: Checkout your repository code
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      # Step 2: Cache Unity Library files (this is already the cache configuration)
+        with:
+          lfs: true  # Enable Git LFS if your project uses it
+      
+      # Step 2: Cache Unity Library files
       - name: Cache Unity Library
         uses: actions/cache@v4
         with:
           path: Library
-          key: Library-${{ hashFiles('ProjectSettings/**', 'Packages/**') }}
+          key: Library-${{ runner.os }}-${{ hashFiles('ProjectSettings/**', 'Packages/**') }}
           restore-keys: |
+            Library-${{ runner.os }}-
             Library-
-
+      
       # Step 3: Run custom test method
       - name: Run Flux Tests
         uses: game-ci/unity-builder@v4
@@ -38,19 +42,23 @@ jobs:
           # Explicitly specify the project path
           projectPath: .
           
-          # Use `executeMethod` to specify the method to run.
-          # This replaces the default method instead of creating a conflict.
+          # Target platform
+          targetPlatform: StandaloneLinux64
+          
+          # Use executeMethod to specify the method to run
           executeMethod: FluxFramework.Testing.FluxTestRunnerCli.RunTests
           
-          # You can add additional arguments if needed, but WITHOUT -executeMethod
-          customParameters: -nographics -logFile -
-
+          # Additional build arguments
+          customParameters: '-nographics -batchmode -quit -logFile -'
+      
       # Step 4: Upload test logs on failure
       - name: Upload Test Logs
         uses: actions/upload-artifact@v4
-        if: failure() # Only upload logs if the previous step failed
+        if: failure()
         with:
-          name: Test Execution Logs
+          name: test-execution-logs
           path: |
             ./*.log
+            ./Logs/*.log
             ./artifacts/*.log
+          retention-days: 7
