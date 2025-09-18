@@ -9,6 +9,8 @@ using FluxFramework.Configuration;
 using FluxFramework.Events;
 using FluxFramework.Binding;
 
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("FluxFramework.Testing")]
+
 namespace FluxFramework.Core
 {
     /// <summary>
@@ -19,8 +21,15 @@ namespace FluxFramework.Core
         private static FluxManager _instance;
         private static readonly object _lock = new object();
 
-        private readonly FluxPropertyManager _propertyManager;
         private readonly FluxThreadManager _threadManager;
+        private readonly EventBus _eventBus;
+        private readonly FluxPersistenceManager _persistenceManager;
+        private readonly FluxPropertyManager _propertyManager;
+        private readonly FluxPropertyFactory _propertyFactory;
+        private readonly FluxComponentRegistry _registry;
+        private readonly ReactiveBindingSystem _bindingSystem;
+        private readonly ValueConverterRegistry _valueConverterRegistry;
+        private readonly FluxConfigurationManager _configurationManager;
 
         private bool _isInitialized = false;
 
@@ -52,19 +61,62 @@ namespace FluxFramework.Core
         }
 
         /// <summary>
+        /// Thread manager for main thread operations
+        /// </summary>
+        public IFluxThreadManager Threading => _threadManager;
+
+        /// <summary>
+        /// Event bus for decoupled communication
+        /// </summary>
+        public IEventBus EventBus => _eventBus;
+
+        /// <summary>
+        /// Persistence manager for saving and loading persistent properties
+        /// </summary>
+        public IFluxPersistenceManager PersistenceManager => _persistenceManager;
+
+        /// <summary>
         /// Property manager for reactive properties
         /// </summary>
         public IFluxPropertyManager Properties => _propertyManager;
 
         /// <summary>
-        /// Thread manager for main thread operations
+        /// Property factory for creating and registering reactive properties
         /// </summary>
-        public IFluxThreadManager Threading => _threadManager;
+        public IFluxPropertyFactory PropertyFactory => _propertyFactory;
+
+        /// <summary>
+        /// Component registry for managing FluxComponents
+        /// </summary>
+        public IFluxComponentRegistry Registry => _registry;
+
+        /// <summary>
+        /// Reactive binding system for UI bindings
+        /// </summary>
+        public IReactiveBindingSystem BindingSystem => _bindingSystem;
+
+        /// <summary>
+        /// Value converter registry for type conversions in bindings
+        /// </summary>
+        public IValueConverterRegistry ValueConverterRegistry => _valueConverterRegistry;
+
+        /// <summary>
+        /// Configuration manager for managing configurations
+        /// </summary>
+        public IFluxConfigurationManager ConfigurationManager => _configurationManager;
+
 
         public FluxManager()
         {
-            _propertyManager = new FluxPropertyManager();
             _threadManager = new FluxThreadManager();
+            _eventBus = new EventBus(_threadManager);
+            _propertyManager = new FluxPropertyManager();
+            _persistenceManager = new FluxPersistenceManager(_propertyManager);
+            _propertyFactory = new FluxPropertyFactory(_propertyManager, _persistenceManager);
+            _registry = new FluxComponentRegistry(this);
+            _bindingSystem = new ReactiveBindingSystem(this);
+            _valueConverterRegistry = new ValueConverterRegistry();
+            _configurationManager = new FluxConfigurationManager();
         }
 
         /// <summary>
@@ -81,6 +133,8 @@ namespace FluxFramework.Core
             DontDestroyOnLoad(go);
             _instance = go.AddComponent<FluxManager>();
 
+            Flux.Manager = _instance;
+
             // Add the auto-registrar for runtime component detection
             go.AddComponent<FluxComponentAutoRegistrar>();
 
@@ -88,28 +142,29 @@ namespace FluxFramework.Core
 
             float initTime = (Time.realtimeSinceStartup - startTime) * 1000f;
 
-            EventBus.Publish(new FrameworkInitializedEvent("2.0.0", true, (long)initTime));
+            _instance.EventBus.Publish(new FrameworkInitializedEvent("3.0.0", true, (long)initTime));
         }
 
         private void Initialize()
         {
             if (_isInitialized) return;
 
-            // Initialize configuration system first
-            FluxConfigurationManager.Initialize();
-            FluxConfigurationManager.ApplyAllConfigurations(this);
+            // Initialize configuration system first to load any saved settings
+            _configurationManager.Initialize();
+            _configurationManager.ApplyAllConfigurations(this);
+
+            // Initialize core systems
+            _threadManager.Initialize();
+            _eventBus.Initialize();
 
             // Initialize all converters in the registry
-            ValueConverterRegistry.Initialize();
+            _valueConverterRegistry.Initialize();
 
             // Initialize component registry and discover all FluxComponent types
-            FluxComponentRegistry.Initialize();
+            _registry.Initialize();
 
-            _threadManager.Initialize();
-
-            // Initialize all framework systems
-            FluxFramework.Binding.ReactiveBindingSystem.Initialize();
-            EventBus.Initialize();
+            // Initialize the reactive binding system
+            _bindingSystem.Initialize();
 
             SceneManager.sceneLoaded += OnSceneLoaded;
 
@@ -119,7 +174,7 @@ namespace FluxFramework.Core
             Flux.InvokeOnFrameworkInitialized();
 
             // Auto-register all existing FluxComponents in the scene
-            FluxComponentRegistry.RegisterAllComponentsInScene();
+            _registry.RegisterAllComponentsInScene();
         }
 
         private void Update()
@@ -135,12 +190,14 @@ namespace FluxFramework.Core
             SceneManager.sceneLoaded -= OnSceneLoaded;
 
             _propertyManager.Clear();
+            _registry.ClearCache();
+            _registry.ClearInstanceCache();
             _isInitialized = false;
 
             // Save all pending changes before the application quits
-            FluxPersistenceManager.SaveAll();
+            _persistenceManager.SaveAll();
             // Unsubscribe all persistence listeners to avoid memory leaks
-            FluxPersistenceManager.Shutdown();
+            _persistenceManager.Shutdown();
         }
 
         /// <summary>
@@ -151,21 +208,21 @@ namespace FluxFramework.Core
             // We only clear properties if it's a single scene load, not additive.
             if (mode == LoadSceneMode.Single)
             {
-                ReactiveBindingSystem.ClearAll();
+                _bindingSystem.ClearAll();
                 _propertyManager.ClearNonPersistentProperties();
-                FluxComponentRegistry.ClearInstanceCache();
+                _registry.ClearInstanceCache();
             }
 
             // After cleaning, re-register any components that are in the newly loaded scene.
-            FluxComponentRegistry.RegisterAllComponentsInScene();
+            _registry.RegisterAllComponentsInScene();
         }
-        
+
         private void OnApplicationPause(bool pauseStatus)
         {
             // Save data when the game is backgrounded on mobile devices
             if (pauseStatus)
             {
-                FluxPersistenceManager.SaveAll();
+                _persistenceManager.SaveAll();
             }
         }
     }

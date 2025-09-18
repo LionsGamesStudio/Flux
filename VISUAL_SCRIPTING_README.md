@@ -1,127 +1,116 @@
 # 🎨 FluxFramework - Visual Scripting
 
-**A powerful, fully-integrated visual scripting system for the FluxFramework ecosystem.**
+**A powerful, attribute-based visual scripting system for the FluxFramework ecosystem.**
 
 ## 🚀 Overview
 
 The FluxFramework visual scripting system enables you to create complex game logic visually using a node-based graph editor. It is deeply integrated with the framework's core reactive systems, allowing for seamless communication between your C# code and your visual graphs.
 
-The architecture is built for robustness, featuring a **context-aware execution engine** that enables powerful, scene-aware nodes and **automatic lifecycle management** to prevent common issues like memory leaks.
+The architecture is built for robustness and extensibility. It features an **asynchronous, coroutine-based execution engine** that handles complex time-based and concurrent logic without blocking your game. The data flow model uses a **"Just-In-Time" execution** strategy, ensuring that data is calculated only when needed, providing optimal performance.
 
 ## ✨ Core Features
 
 ### 🔗 **Deep Framework Integration**
-- **Reactive Property Nodes:** A single, powerful `ReactivePropertyNode` to Get, Set, Subscribe, Unsubscribe, and check for the existence of any reactive property.
-- **Flux Event Nodes:** Dedicated nodes to listen for (`FluxEventListenerNode`) and publish (`FluxEventPublishNode`) strongly-typed framework events.
-- **UI Binding Control:** Trigger UI components to register or unregister their bindings directly from a graph.
-- **Context-Aware Execution:** Nodes have access to the `GameObject` that is running the graph, allowing for powerful interactions like `GetComponent`, `StartCoroutine`, and safe, instance-based subscriptions.
+- **Reactive Property Nodes:** `Get` and `Set` any reactive property by its key, creating a direct bridge to your game's state.
+- **Flux Event Nodes:** Dedicated nodes to listen for (`Listen for Flux Event`) and publish (`Publish Flux Event`) strongly-typed framework events, enabling a fully event-driven architecture.
+- **Component & GameObject Lifecycle:** Full control over the scene with nodes to `Instantiate`, `Destroy`, `GetComponent`, and `AddComponent`.
+- **Context-Aware Execution:** Nodes have access to the `GameObject` running the graph, allowing for powerful, scene-aware interactions.
 
-### 🎯 **Comprehensive Node Library**
+### ⚡ **Asynchronous & Intelligent Flow Control**
+- **Non-Blocking Logic:** Nodes that take time (`Delay`, `Timer`, `ForEach`) are fully asynchronous and managed safely by the execution engine, never freezing your game.
+- **Concurrent Execution:** Execution outputs with multiple connections (`PortCapacity.Multi`) will correctly split the flow, running all branches.
+- **Advanced Flow Control:** A rich library including `Branch` (If/Else), `Sequence` (Then 0, Then 1...), `Relay` (to merge flows), and `Sub-Graph` execution.
 
-#### **Framework**
--   `Reactive Property`: The all-in-one node for state management.
--   `Publish Flux Event` / `Listen to Flux Event`: For communication with the `EventBus`.
--   `UI Binding`: Manually control the lifecycle of `FluxUIComponent` bindings.
--   `Data Container`: Serialize, deserialize, and validate `FluxDataContainer` assets.
--   `Component`: A safe way to `GetComponent` or `AddComponent` on GameObjects.
+### 🛠️ **Attribute-Based Node Creation**
+- **Pure C# Logic:** Create new nodes by writing simple, clean C# classes that implement the `INode` interface. No boilerplate or complex editor code required.
+- **Declarative Ports:** Define input and output ports directly on your class fields using the `[Port]` attribute.
+- **Automatic Discovery:** The visual editor automatically finds any class marked with the `[FluxNode]` attribute and adds it to the node creation menu.
 
-#### **Flow Control**
--   `Start`: The primary entry point for a graph.
--   `Branch` (If/Else), `Switch`: For conditional logic.
--   `For Loop`, `Timer`, `Delay`: Asynchronous nodes that don't block execution and use coroutines managed by the framework.
--   `Execute Function`: Allows you to create reusable sub-routines within a single graph.
-
-#### **Data, Logic & Math**
--   `Constant`: Provides values of any basic type.
--   `Comparison`: Compares two inputs.
--   `Math Operation`: A full suite of mathematical functions.
--   `Random`: Generates random numbers, vectors, or booleans.
--   `Debug Log`: Prints messages to the console with context.
-
-### 🛠️ **Professional Editor Experience**
-- **Intuitive Graph Editor:** A fluid, node-based editor built on Unity's GraphView API.
-- **Smart Node Creation:** A searchable window (`Ctrl+Space`) that automatically discovers all available nodes.
-- **Live Validation:** The graph provides real-time visual feedback, highlighting nodes with unconnected required ports.
-- **Rich Node Inspector:** A dedicated inspector panel displays detailed properties and actions for any selected node, fully supporting custom editors.
+### 🎨 **Professional Editor Experience**
+- **Intuitive Graph Editor:** A fluid, node-based editor built on Unity's modern GraphView API.
+- **Real-Time Visual Debugging:** See your logic execute in real-time. Nodes in execution gain a glowing overlay, and connections flash as execution tokens pass through them.
+- **Smart Node Creation:** A searchable window (`Right-Click` or drag from a port) that discovers all available nodes.
+- **Rich Node Inspector:** A dedicated inspector displays properties for any selected node, fully supporting custom layouts and inline fields for unconnected data ports.
 
 ## 🎯 Installation and Usage
 
 The Visual Scripting module is an integral part of the FluxFramework.
 
 ### 1. Create a Visual Graph
-- In the Project window, right-click → `Create` → `Flux` → `Visual Scripting` → `Graph`.
+- In the Project window, right-click → `Create` → `Flux` → `Visual Scripting` → `New Graph`.
 - Name the new asset (e.g., `PlayerLogicGraph`).
 
 ### 2. Use the Visual Script Component (Runner)
 - On a GameObject in your scene, add the **`FluxVisualScriptComponent`**.
 - Drag your graph asset into the `Graph` slot.
-- Configure when it should run (e.g., `Execute On Start`).
+- The `Execute On Start` option is enabled by default.
 
 ### 3. Open the Editor
 - With the graph asset selected, click the **"Open in Visual Editor"** button in the inspector.
-- Alternatively, use the Unity Menu: `Flux` → `Visual Scripting Editor`.
+- Alternatively, use the Unity Menu: `Flux` → `Visual Scripting` → `Visual Scripting Editor`.
 
 ## 🏗️ Creating Custom Nodes
 
-Creating your own nodes is straightforward. Inherit from `FluxNodeBase` and implement two methods.
+Creating your own nodes is the core strength of this system. It's simple, clean, and attribute-driven.
 
 ```csharp
-[CreateAssetMenu(menuName = "Flux/Visual Scripting/Custom/My Custom Node")]
-public class MyCustomNode : FluxNodeBase
+using UnityEngine;
+using FluxFramework.Attributes.VisualScripting;
+using FluxFramework.VisualScripting.Node;
+
+// 1. Add the [FluxNode] attribute to define its name and category.
+[System.Serializable]
+[FluxNode("Move Towards", Category = "Transform", Description = "Moves a Transform towards a target position.")]
+public class MoveTowardsNode : IExecutableNode // 2. Implement IExecutableNode for action nodes.
 {
-    // 1. Define your ports.
-    protected override void InitializePorts()
+    // --- Execution Ports ---
+    [Port(FluxPortDirection.Input, "In", portType: FluxPortType.Execution, PortCapacity.Single)] 
+    public ExecutionPin In;
+    
+    [Port(FluxPortDirection.Output, "Out", portType: FluxPortType.Execution, PortCapacity.Multi)] 
+    public ExecutionPin Out;
+
+    // --- Data Ports ---
+    // These will appear as input sockets on the node.
+    [Port(FluxPortDirection.Input, "Target", PortCapacity.Single)] public Transform Target;
+    [Port(FluxPortDirection.Input, "Destination", PortCapacity.Single)] public Vector3 Destination;
+    [Port(FluxPortDirection.Input, "Speed", PortCapacity.Single)] public float Speed;
+
+    // 3. Implement the logic.
+    public void Execute(FluxGraphExecutor executor, AttributedNodeWrapper wrapper, string triggeredPortName, Dictionary<string, object> dataInputs)
     {
-        AddInputPort("execute", "▶ In", FluxPortType.Execution, "void", true);
-        AddInputPort("speed", "Speed", FluxPortType.Data, "float", false, 5.0f);
-        AddOutputPort("onComplete", "▶ Out", FluxPortType.Execution, "void", false);
-    }
-
-    // 2. Implement your logic.
-    protected override void ExecuteInternal(FluxGraphExecutor executor, Dictionary<string, object> inputs, Dictionary<string, object> outputs)
-    {
-        // Get the GameObject running this graph.
-        var contextObject = executor.Runner.GetContextObject();
-        float speed = GetInputValue<float>(inputs, "speed");
-
-        Debug.Log($"Executing on '{contextObject.name}' with speed {speed}!", contextObject);
-
-        // Continue the execution flow.
-        SetOutputValue(outputs, "onComplete", null);
+        if (Target != null)
+        {
+            float step = Speed * Time.deltaTime;
+            Target.position = Vector3.MoveTowards(Target.position, Destination, step);
+        }
     }
 }
 ```
 
 ## 🎮 Usage Example: A Reactive Health System
 
-This example shows how a graph can listen for a property change and publish an event.
+This example shows how a graph can listen for a `TakeDamageEvent`, update a reactive property, and publish another event when the player's health is depleted.
 
-1.  **`ReactivePropertyNode` (Subscribe):**
-    *   **Action:** `Subscribe`
-    *   **Property Key:** `"player.health"`
-    *   **Context:** Connect a "Get Self" node to this port.
-    *   The `onChanged` execution port will fire every time the player's health changes.
+1.  **`On Start` Node:**
+    *   Connect its `Out` port to a `Set Flux Property` node to initialize `"player.health"` to `100`.
 
-2.  **`ComparisonNode`:**
-    *   Connect the `value` output of the first node to the `A` input here.
-    *   **Operation:** `LessEqual`
-    *   **B:** A `ConstantNode` with an `Int` value of `0`.
+2.  **`Listen for Flux Event` Node:**
+    *   **Event Type Name:** `"MyGame.Events.TakeDamageEvent"` (assuming this event has a `float DamageAmount` property).
+    *   This node will execute its `Out` port every time a `TakeDamageEvent` is published.
 
-3.  **`BranchNode`:**
-    *   Connect the `onChanged` from the first node to the `execute` port of the Branch.
-    *   Connect the `result` of the ComparisonNode to the `condition` port.
+3.  **Get Current Health:**
+    *   Connect the `Out` of the listener to a **`Get Flux Property`** node with the key `"player.health"`.
 
-4.  **`Publish Flux EventNode`:**
-    *   Connect the `▶ True` output of the BranchNode to this node's `execute` port.
-    *   **Event Type Name:** `"MyGame.Events.PlayerDiedEvent"`
+4.  **Calculate New Health:**
+    *   Use a **`Subtract`** node. Connect the `Value` from `Get Flux Property` to input `A`. Connect the `DamageAmount` output from the `Listen for Flux Event` node to input `B`.
 
-**Result:** This graph automatically listens for health changes and publishes a `PlayerDiedEvent` only when health drops to 0 or below, without any `Update()` loop.
+5.  **Update Health:**
+    *   Use a **`Set Flux Property`** node with the key `"player.health"`. Connect the result of the `Subtract` node to its `Value` input.
 
-## 🚀 Performance and Architecture
+6.  **Check for Death (`Branch`):**
+    *   After setting the new health, use a **`Compare (Float)`** node (`<= 0`).
+    *   Connect the result to a **`Branch`** node.
+    *   If `True`, connect to a **`Publish Flux Event`** node with the event type `"MyGame.Events.PlayerDiedEvent"`.
 
--   **Asynchronous by Design:** Nodes that take time (`Delay`, `Timer`, `ForLoop`) use non-blocking coroutines, managed safely by the `IGraphRunner`.
--   **Context-Aware:** Nodes have access to the `FluxGraphExecutor` and `IGraphRunner`, allowing for safe, instance-based state management and callbacks (e.g., event subscriptions).
--   **Optimized Execution:** The `FluxGraphExecutor` uses a topological sort for pure data nodes and caches output values to avoid redundant calculations within a single execution.
--   **Validation:** The graph and its nodes provide validation feedback in the editor, preventing common errors before the game is even run.
-
-This robust architecture makes the FluxFramework visual scripting system a powerful, reliable, and scalable tool for any project.
+**Result:** This graph creates a complete, event-driven health system without writing a single `Update()` loop, showcasing the power of integrating reactive properties and events visually.

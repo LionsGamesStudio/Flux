@@ -190,7 +190,7 @@ namespace FluxFramework.Core
 
         protected void PublishEvent<T>(T eventData) where T : IFluxEvent
         {
-            EventBus.Publish(eventData);
+            Flux.Manager.EventBus.Publish(eventData);
         }
         
         /// <summary>

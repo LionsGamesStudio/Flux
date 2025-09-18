@@ -167,26 +167,28 @@ namespace FluxFramework.Editor
         private void StartListening()
         {
             if (_isListening) return;
-            EventBus.OnEventPublished += HandleEventPublished;
-            _isListening = true;
+
+            if (FluxEditorServices.EventBus != null)
+            {
+                FluxEditorServices.EventBus.OnEventPublished += HandleEventPublished;
+                _isListening = true;
+            }
         }
 
         private void StopListening()
         {
             if (!_isListening) return;
-            EventBus.OnEventPublished -= HandleEventPublished;
+
+            if (FluxEditorServices.EventBus != null)
+            {
+                FluxEditorServices.EventBus.OnEventPublished -= HandleEventPublished;
+            }
             _isListening = false;
         }
 
         private void HandlePlayModeState(PlayModeStateChange state)
         {
-            // Automatically start listening when entering play mode
-            if (state == PlayModeStateChange.EnteredPlayMode)
-            {
-                StartListening();
-            }
-            // Automatically clear the log when exiting play mode
-            else if (state == PlayModeStateChange.ExitingPlayMode)
+            if (state == PlayModeStateChange.ExitingPlayMode)
             {
                 _eventLog.Clear();
                 _eventQueue.Clear();

@@ -1,35 +1,41 @@
 # 🚀 FluxFramework
 
-**An innovative Unity framework for decoupling logic and UI with a modern, reactive architecture.**
+**An innovative Unity framework for decoupling logic and UI with a modern, reactive, and testable architecture.**
 
 [![Unity Version](https://img.shields.io/badge/Unity-2021.3%2B-blue.svg)](https://unity3d.com/get-unity/download)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-2.0.0-orange.svg)](package.json)
+[![Version](https://img.shields.io/badge/Version-3.0.0-orange.svg)](package.json)
+[![CI Status](https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME/actions/workflows/main.yml/badge.svg)](https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME/actions/workflows/main.yml)
 
 FluxFramework provides a powerful, attribute-driven workflow to build scalable and maintainable applications in Unity. It enforces a clean separation between your game's state/logic and its presentation layer, eliminating "spaghetti code" and making your project easier to debug, test, and expand.
 
 ## ✨ Core Features
 
 ### 🔄 **Centralized Reactive State**
-- **Reactive Properties:** A global, thread-safe state manager for your application's data.
-- **Automatic Discovery:** Declare state directly in your components with a `[ReactiveProperty]` attribute (in two flexible patterns). The framework handles registration and lifecycle.
+- **Reactive Properties:** An instance-based, thread-safe state manager for your application's data, accessible via `Flux.Manager.Properties`.
+- **Automatic Discovery:** Declare state directly in your components with a `[ReactiveProperty]` attribute. The framework handles registration and lifecycle.
 - **Advanced Capabilities:** Built-in validation (`[FluxRange]`), reactive collections, and LINQ-style extension methods (`Transform`, `CombineWith`).
 
 ### 🎯 **Declarative UI Data Binding**
 - **Zero-Code Binding:** Bind UI components to data with a single `[FluxBinding]` attribute in the inspector.
 - **Rich Component Set:** Includes generic, configurable components like `FluxText`, `FluxImage`, `FluxSlider`, and `FluxToggle`.
-- **Powerful Binding Options:** Full support for `OneWay` & `TwoWay` binding, with automatic and custom **Value Converters** to handle type mismatches (e.g., `int` to `string`).
+- **Powerful Binding Options:** Full support for `OneWay` & `TwoWay` binding, with automatic and custom **Value Converters**.
 
 ### ⚡ **Decoupled Event System**
-- **Global EventBus:** A thread-safe, high-performance message bus for system-wide communication.
+- **Instance-Based EventBus:** A thread-safe, high-performance message bus for system-wide communication, accessible via `Flux.Manager.EventBus`.
 - **Attribute-Based Subscriptions:** Subscribe to any `FluxEvent` or `ReactiveProperty` change with a single attribute (`[FluxEventHandler]`, `[FluxPropertyChangeHandler]`).
 - **Automatic Lifecycle Management:** The framework handles subscription and unsubscription automatically, preventing memory leaks.
 
+### ✅ **Integrated Testing Framework**
+- **Test in Isolation:** A built-in test runner and framework allows you to write fast, reliable unit and integration tests for your game logic.
+- **Declarative Tests:** Write tests using `[FluxTest]` attributes, inheriting from a `FluxTestBase` class that provides a sandboxed, in-memory version of the framework.
+- **CI/CD Ready:** Includes a command-line interface to easily integrate your test suite into any continuous integration pipeline (e.g., GitHub Actions).
+
 ### 🛠️ **Superior Developer Experience**
 - **Rich Editor Tooling:** A full suite of editor windows, including a central **Control Panel**, a live **Reactive Properties Inspector**, and an **Event Bus Monitor**.
-- **Project Health Check:** A powerful auditor that scans your entire project for broken or misspelled bindings, preventing runtime errors before they happen.
-- **Type-Safe Code Generation:** A built-in tool generates a static `FluxKeys` class, allowing you to replace `"player.health"` with `FluxKeys.PlayerHealth` for compile-time safety and auto-completion.
-- **Intelligent Inspectors:** Custom editors provide a clean, feature-rich experience with `[FluxGroup]`, `[FluxButton]`, and `[FluxAction]` for in-editor debugging.
+- **Project Health Check:** A powerful auditor that scans your entire project for broken or misspelled bindings.
+- **Type-Safe Code Generation:** A built-in tool generates a static `FluxKeys` class for compile-time safety and auto-completion.
+- **Intelligent Inspectors:** Custom editors provide a clean, feature-rich experience with `[FluxGroup]`, `[FluxButton]`, and `[FluxAction]`.
 - **Code Generation:** Built-in script templates to create perfectly structured framework classes in seconds.
 
 ### 🎨 **Integrated Visual Scripting**
@@ -186,11 +192,44 @@ public class AudioFeedback : FluxMonoBehaviour
 }
 ```
 
+## ✅ Writing Your First Test
+
+Flux 3.0 introduces a powerful, built-in testing framework. Write tests for your game logic by inheriting from `FluxTestBase`, which provides a clean, in-memory version of the framework for each test.
+
+```csharp
+using FluxFramework.Testing;
+using FluxFramework.Testing.Attributes;
+
+public class MyGameLogicTests : FluxTestBase
+{
+    // The `Manager` property gives you access to the sandboxed framework instance.
+    
+    [FluxTest]
+    public void AddToInventory_WhenItemIsValid_ShouldUpdateGoldProperty()
+    {
+        // --- ARRANGE ---
+        var inventory = new InventoryManager(Manager); // Your class might need the manager
+        const string goldKey = "player.gold";
+        Manager.Properties.GetOrCreateProperty(goldKey, 100);
+
+        // --- ACT ---
+        inventory.AddItem(new Item { Value = 50 });
+
+        // --- ASSERT ---
+        var finalGold = Manager.Properties.GetProperty<int>(goldKey).Value;
+        Assert(finalGold == 150, "Gold should have increased by 50.");
+    }
+}
+```
+Run your tests from the **Flux > Testing > Test Runner...** window.
+
 ## 🛠️ Best Practices
 
 *   **Logic Creates State:** Use `FluxMonoBehaviour` or `FluxDataContainer` to define your game's state with `[ReactiveProperty]`.
 *   **Views Display State:** Use `FluxUIComponent` and `[FluxBinding]` to display data. UI components should contain minimal or no logic.
-*   **Communicate via Events:** Use `PublishEvent()` and `[FluxEventHandler]` for decoupled communication between different systems.
+*   **Communicate via Events:**
+    *   From a `FluxMonoBehaviour`, always prefer the built-in helper: `PublishEvent(new MyEvent());`
+    *   From any other class, use the full path via the manager: `Flux.Manager.EventBus.Publish(new MyEvent());`
 *   **Prefer Type-Safe Keys:** Run the **Keys Generator** (`Flux/Tools/Generate Static Keys...`) and use the `FluxKeys` class instead of raw strings to prevent errors.
 *   **Validate Your Project:** Regularly use the **Health Check** tool (`Flux/Tools/Run Health Check...`) to find and fix broken bindings.
 
@@ -204,6 +243,7 @@ For more detailed information, please refer to the specific documentation files:
 -   **[REFERENCE_GUIDE.md](./REFERENCE_GUIDE.md):** A quick reference for all editor menus and C# attributes.
 -   **[VR_README.md](./VR_README.md):** Documentation for the Virtual Reality extension.
 -   **[VISUAL_SCRIPTING_README.md](./VISUAL_SCRIPTING_README.md):** Documentation for the Visual Scripting system.
+-   **[TESTING_GUIDE.md](./TESTING_GUIDE.md):** A guide to using the integrated testing framework and setting up CI/CD.
 
 ---
 

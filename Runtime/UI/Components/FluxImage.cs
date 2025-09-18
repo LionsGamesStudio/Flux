@@ -50,7 +50,7 @@ namespace FluxFramework.UI
             if (!string.IsNullOrEmpty(_spritePropertyKey))
             {
                 _spriteBinding = new SpriteBinding(_spritePropertyKey, imageComponent);
-                ReactiveBindingSystem.Bind(_spritePropertyKey, _spriteBinding, new BindingOptions());
+                Flux.Manager.BindingSystem.Bind(_spritePropertyKey, _spriteBinding, new BindingOptions());
                 TrackBinding(_spriteBinding); // Track for automatic cleanup
             }
 
@@ -58,7 +58,7 @@ namespace FluxFramework.UI
             if (!string.IsNullOrEmpty(_colorPropertyKey))
             {
                 _colorBinding = new ColorBinding(_colorPropertyKey, imageComponent);
-                ReactiveBindingSystem.Bind(_colorPropertyKey, _colorBinding, new BindingOptions());
+                Flux.Manager.BindingSystem.Bind(_colorPropertyKey, _colorBinding, new BindingOptions());
                 TrackBinding(_colorBinding); // Track for automatic cleanup
             }
         }

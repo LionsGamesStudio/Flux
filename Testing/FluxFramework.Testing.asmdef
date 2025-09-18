@@ -1,0 +1,16 @@
+{
+    "name": "FluxFramework.Testing",
+    "rootNamespace": "FluxFramework.Testing",
+    "references": [
+        "FluxFramework.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

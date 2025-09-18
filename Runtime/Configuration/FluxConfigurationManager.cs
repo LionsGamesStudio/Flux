@@ -11,25 +11,27 @@ namespace FluxFramework.Configuration
     /// <summary>
     /// Manages Flux configuration assets and their lifecycle
     /// </summary>
-    public static class FluxConfigurationManager
+    public class FluxConfigurationManager : IFluxConfigurationManager
     {
-        private static Dictionary<Type, FluxConfigurationAsset> _loadedConfigurations = new Dictionary<Type, FluxConfigurationAsset>();
-        private static Dictionary<string, List<Type>> _configurationsByCategory = new Dictionary<string, List<Type>>();
-        private static Dictionary<Type, FluxConfigurationAttribute> _discoveredTypes = new Dictionary<Type, FluxConfigurationAttribute>();
-        private static bool _isInitialized = false;
-        private static bool _typesDiscovered = false;
+        private Dictionary<Type, FluxConfigurationAsset> _loadedConfigurations = new Dictionary<Type, FluxConfigurationAsset>();
+        private Dictionary<string, List<Type>> _configurationsByCategory = new Dictionary<string, List<Type>>();
+        private Dictionary<Type, FluxConfigurationAttribute> _discoveredTypes = new Dictionary<Type, FluxConfigurationAttribute>();
+        private bool _isInitialized = false;
+        private bool _typesDiscovered = false;
+        
+        public FluxConfigurationManager() { }
 
         /// <summary>
         /// Initializes the configuration manager and discovers all configuration types
         /// </summary>
-        public static void Initialize()
+        public void Initialize()
         {
             if (_isInitialized) return;
 
             DiscoverConfigurationTypes();
             LoadConfigurations();
             _isInitialized = true;
-            
+
             Debug.Log("[FluxFramework] Configuration Manager initialized");
         }
 
@@ -38,7 +40,7 @@ namespace FluxFramework.Configuration
         /// </summary>
         /// <typeparam name="T">Type of configuration to retrieve</typeparam>
         /// <returns>The configuration instance or null if not found</returns>
-        public static T GetConfiguration<T>() where T : FluxConfigurationAsset
+        public T GetConfiguration<T>() where T : FluxConfigurationAsset
         {
             return GetConfiguration(typeof(T)) as T;
         }
@@ -48,7 +50,7 @@ namespace FluxFramework.Configuration
         /// </summary>
         /// <param name="configurationType">Type of configuration to retrieve</param>
         /// <returns>The configuration instance or null if not found</returns>
-        public static FluxConfigurationAsset GetConfiguration(Type configurationType)
+        public FluxConfigurationAsset GetConfiguration(Type configurationType)
         {
             if (!_isInitialized)
             {
@@ -64,7 +66,7 @@ namespace FluxFramework.Configuration
         /// </summary>
         /// <param name="category">The category name</param>
         /// <returns>List of configuration instances</returns>
-        public static List<FluxConfigurationAsset> GetConfigurationsByCategory(string category)
+        public List<FluxConfigurationAsset> GetConfigurationsByCategory(string category)
         {
             if (!_isInitialized)
             {
@@ -91,7 +93,7 @@ namespace FluxFramework.Configuration
         /// Registers a configuration instance
         /// </summary>
         /// <param name="configuration">The configuration to register</param>
-        public static void RegisterConfiguration(FluxConfigurationAsset configuration)
+        public void RegisterConfiguration(FluxConfigurationAsset configuration)
         {
             if (configuration == null) return;
 
@@ -105,7 +107,7 @@ namespace FluxFramework.Configuration
         /// Applies all loaded configurations to the provided manager instance.
         /// </summary>
         /// <param name="manager">The IFluxManager instance to configure.</param>
-        public static void ApplyAllConfigurations(IFluxManager manager)
+        public void ApplyAllConfigurations(IFluxManager manager)
         {
             if (!_isInitialized)
             {
@@ -139,7 +141,7 @@ namespace FluxFramework.Configuration
         /// Validates all loaded configurations
         /// </summary>
         /// <returns>True if all configurations are valid</returns>
-        public static bool ValidateAllConfigurations()
+        public bool ValidateAllConfigurations()
         {
             if (!_isInitialized)
             {
@@ -172,7 +174,7 @@ namespace FluxFramework.Configuration
         /// Gets information about all discovered configuration types
         /// </summary>
         /// <returns>Dictionary of configuration types and their attributes</returns>
-        public static Dictionary<Type, FluxConfigurationAttribute> GetConfigurationTypes()
+        public Dictionary<Type, FluxConfigurationAttribute> GetConfigurationTypes()
         {
             if (!_typesDiscovered)
             {
@@ -181,7 +183,7 @@ namespace FluxFramework.Configuration
             return new Dictionary<Type, FluxConfigurationAttribute>(_discoveredTypes);
         }
 
-        private static void DiscoverConfigurationTypesOnce()
+        private void DiscoverConfigurationTypesOnce()
         {
             if (_typesDiscovered) return;
 
@@ -221,7 +223,7 @@ namespace FluxFramework.Configuration
             _typesDiscovered = true;
         }
 
-        private static bool IsSystemAssembly(string assemblyName)
+        private bool IsSystemAssembly(string assemblyName)
         {
             return assemblyName.StartsWith("System.") ||
                    assemblyName.StartsWith("Microsoft.") ||
@@ -232,7 +234,7 @@ namespace FluxFramework.Configuration
                    assemblyName.StartsWith("netstandard");
         }
 
-        private static void DiscoverConfigurationTypes()
+        private void DiscoverConfigurationTypes()
         {
             if (!_typesDiscovered)
             {
@@ -257,7 +259,7 @@ namespace FluxFramework.Configuration
             Debug.Log($"[FluxFramework] Discovered {_discoveredTypes.Count} configuration types in {_configurationsByCategory.Count} categories");
         }
 
-        private static void LoadConfigurations()
+        private void LoadConfigurations()
         {
             // Load only configurations from known paths to avoid scanning entire Resources folder
             var loadedConfigs = new List<FluxConfigurationAsset>();
@@ -324,7 +326,7 @@ namespace FluxFramework.Configuration
             }
         }
 
-        private static int GetLoadPriority(Type configurationType)
+        private int GetLoadPriority(Type configurationType)
         {
             var attribute = configurationType.GetCustomAttribute<FluxConfigurationAttribute>();
             return attribute?.LoadPriority ?? 0;
@@ -333,7 +335,7 @@ namespace FluxFramework.Configuration
         /// <summary>
         /// Clear all cached data and force reinitialization (Editor only)
         /// </summary>
-        public static void ClearCache()
+        public void ClearCache()
         {
             _loadedConfigurations.Clear();
             _configurationsByCategory.Clear();
@@ -343,16 +345,5 @@ namespace FluxFramework.Configuration
             
             Debug.Log("[FluxFramework] Configuration cache cleared");
         }
-
-        #if UNITY_EDITOR
-        /// <summary>
-        /// Editor-only method to refresh configurations during development
-        /// </summary>
-        [UnityEditor.MenuItem("Flux/Configuration/Clear Configuration Cache")]
-        public static void EditorClearCache()
-        {
-            ClearCache();
-        }
-        #endif
     }
 }

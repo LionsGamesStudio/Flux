@@ -1,0 +1,31 @@
+# .ci/ProjectSettings.asset
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!129 &1
+PlayerSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 24
+  productGUID: 00000000000000000000000000000000
+  scriptingDefineSymbols: {}
+  platformArchitecture: {}
+  scriptingBackend: {}
+  il2cppCompilerConfiguration: {}
+  managedStrippingLevel: {}
+  incrementalIl2cppBuild: {}
+  allowUnsafeCode: 0
+  additionalIl2CppArgs:
+  scriptingRuntimeVersion: 1
+  apiCompatibilityLevelPerPlatform: {}
+  m_RenderingPath: 1
+  m_MobileRenderingPath: 1
+  cloudServicesEnabled:
+    UNet: 1
+  apiCompatibilityLevel: 6
+  cloudProjectId:
+  projectName: TempProject
+  organizationId:
+  cloudEnabled: 0
+  enableNativePlatformBackendsForNewInputSystem: 0
+  disableOldInputManagerSupport: 0
+  legacyClampBlendShapeWeights: 0
+  stripEngineCode: 1

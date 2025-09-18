@@ -9,10 +9,17 @@ namespace FluxFramework.Core
     /// Manages the persistence of ReactiveProperties marked with the Persistent flag.
     /// Uses PlayerPrefs with JSON serialization for robust type handling.
     /// </summary>
-    public static class FluxPersistenceManager
+    public class FluxPersistenceManager : IFluxPersistenceManager
     {
         private const string PLAYER_PREFS_PREFIX = "flux_persistent_";
-        private static readonly Dictionary<string, IDisposable> _persistentSubscriptions = new Dictionary<string, IDisposable>();
+        private readonly Dictionary<string, IDisposable> _persistentSubscriptions = new Dictionary<string, IDisposable>();
+        private readonly IFluxPropertyManager _propertyManager;
+
+        public FluxPersistenceManager(IFluxPropertyManager propertyManager)
+        {
+            _propertyManager = propertyManager;
+        }
+
 
         /// <summary>
         /// Registers a reactive property to be managed by the persistence system.
@@ -20,7 +27,7 @@ namespace FluxFramework.Core
         /// </summary>
         /// <param name="key">The unique key of the property.</param>
         /// <param name="property">The reactive property instance.</param>
-        public static void RegisterPersistentProperty(string key, IReactiveProperty property)
+        public void RegisterPersistentProperty(string key, IReactiveProperty property)
         {
             if (property == null || _persistentSubscriptions.ContainsKey(key))
             {
@@ -38,7 +45,7 @@ namespace FluxFramework.Core
                 // This is a placeholder. To make this work, ReactiveProperty must expose
                 // a way to subscribe non-generically or the interface must define it.
                 // Let's assume we add `IDisposable Subscribe(Action<object> callback)` to `IReactiveProperty`.
-                
+
                 // --- LET'S REFACTOR IReactiveProperty INTERFACE FIRST ---
                 // For this to work, we'll assume the IReactiveProperty interface is updated like this:
                 /*
@@ -56,7 +63,7 @@ namespace FluxFramework.Core
 
                 var subscription = a.Subscribe(value => SaveProperty(key, value));
                 _persistentSubscriptions[key] = subscription;
-                
+
                 Debug.Log($"[FluxFramework] Registered '{key}' for persistence.");
             }
             else
@@ -70,11 +77,11 @@ namespace FluxFramework.Core
         /// NOTE: This is generally not needed if registration happens at runtime.
         /// This could be used if keys were pre-registered.
         /// </summary>
-        public static void LoadAllRegisteredProperties()
+        public void LoadAllRegisteredProperties()
         {
             foreach (var key in _persistentSubscriptions.Keys)
             {
-                var property = Flux.Manager.Properties.GetProperty(key);
+                var property = _propertyManager.GetProperty(key);
                 if (property != null)
                 {
                     LoadProperty(key, property);
@@ -86,7 +93,7 @@ namespace FluxFramework.Core
         /// <summary>
         /// Saves all pending changes to disk. Should be called when the application quits or pauses.
         /// </summary>
-        public static void SaveAll()
+        public void SaveAll()
         {
             PlayerPrefs.Save();
             Debug.Log("[FluxFramework] All persistent properties saved to disk.");
@@ -95,7 +102,7 @@ namespace FluxFramework.Core
         /// <summary>
         /// Clears all subscriptions and stops the persistence service.
         /// </summary>
-        public static void Shutdown()
+        public void Shutdown()
         {
             foreach (var subscription in _persistentSubscriptions.Values)
             {
@@ -104,7 +111,7 @@ namespace FluxFramework.Core
             _persistentSubscriptions.Clear();
         }
 
-        private static void LoadProperty(string key, IReactiveProperty property)
+        private void LoadProperty(string key, IReactiveProperty property)
         {
             string playerPrefsKey = PLAYER_PREFS_PREFIX + key;
             if (!PlayerPrefs.HasKey(playerPrefsKey))
@@ -131,7 +138,7 @@ namespace FluxFramework.Core
             }
         }
 
-        private static void SaveProperty(string key, object value)
+        private void SaveProperty(string key, object value)
         {
             if (value == null) return;
             

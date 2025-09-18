@@ -62,7 +62,7 @@ namespace FluxFramework.Core
         public void InitializeReactiveProperties()
         {
             // CALL FACTORY TO REGISTER PROPERTIES
-            FluxPropertyFactory.RegisterPropertiesFor(this);
+            Flux.Manager.PropertyFactory.RegisterPropertiesFor(this);
 
             // We must now manually collect the keys of the registered properties for cleanup.
             CacheRegisteredPropertyKeys();

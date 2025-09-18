@@ -22,9 +22,14 @@ namespace FluxFramework.Editor
         
         [MenuItem(MENU_ROOT + "Tools/Generate Static Keys...", false, 21)]
         public static void ShowKeysGenerator() => FluxKeysGeneratorWindow.ShowWindow();
-        
+
         [MenuItem(MENU_ROOT + "Tools/Refresh Component Registry", false, 40)]
-        public static void RefreshComponentRegistry() => FluxComponentRegistry.EditorRefreshRegistry();
+        public static void RefreshComponentRegistry()
+        {
+            FluxEditorServices.ComponentRegistry?.ClearCache();
+            FluxEditorServices.ComponentRegistry?.Initialize();
+            Debug.Log("[FluxFramework] Editor Component Registry has been refreshed.");
+        }
 
         // --- Debug Submenu ---
         [MenuItem(MENU_ROOT + "Debug/Reactive Properties Inspector...", false, 0)]

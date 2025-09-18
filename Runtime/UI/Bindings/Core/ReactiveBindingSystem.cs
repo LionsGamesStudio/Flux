@@ -15,25 +15,32 @@ namespace FluxFramework.Binding
     /// It handles subscription lifecycles, and optional features like debouncing 
     /// for UI updates based on BindingOptions.
     /// </summary>
-    public static class ReactiveBindingSystem
+    public class ReactiveBindingSystem : IReactiveBindingSystem
     {
         // --- REGISTRIES ---
 
         // Main registry of active bindings, categorized by property key.
-        private static readonly Dictionary<string, List<IUIBinding>> _bindings = new Dictionary<string, List<IUIBinding>>();
+        private readonly Dictionary<string, List<IUIBinding>> _bindings = new Dictionary<string, List<IUIBinding>>();
 
         // Tracks the IDisposable subscription for each binding to ensure proper cleanup.
-        private static readonly Dictionary<IUIBinding, IDisposable> _subscriptions = new Dictionary<IUIBinding, IDisposable>();
+        private readonly Dictionary<IUIBinding, IDisposable> _subscriptions = new Dictionary<IUIBinding, IDisposable>();
         
         // Tracks active debouncing coroutines for each binding to manage update delays.
-        private static readonly Dictionary<IUIBinding, Coroutine> _debounceCoroutines = new Dictionary<IUIBinding, Coroutine>();
+        private readonly Dictionary<IUIBinding, Coroutine> _debounceCoroutines = new Dictionary<IUIBinding, Coroutine>();
         
-        private static bool _isInitialized = false;
+        private bool _isInitialized = false;
+
+        private readonly IFluxManager _manager;
+
+        public ReactiveBindingSystem(IFluxManager manager)
+        {
+            _manager = manager ?? throw new ArgumentNullException(nameof(manager));
+        }
 
         /// <summary>
         /// Initializes the reactive binding system.
         /// </summary>
-        public static void Initialize()
+        public void Initialize()
         {
             if (_isInitialized) return;
             _isInitialized = true;
@@ -46,7 +53,7 @@ namespace FluxFramework.Binding
         /// <param name="propertyKey">The unique key of the reactive property.</param>
         /// <param name="binding">The UI binding implementation (e.g., TextBinding, SliderBinding).</param>
         /// <param name="options">Configuration for the binding, such as mode, delay, and value converter.</param>
-        public static void Bind<T>(string propertyKey, IUIBinding<T> binding, BindingOptions options = null)
+        public void Bind<T>(string propertyKey, IUIBinding<T> binding, BindingOptions options = null)
         {
             options = options ?? BindingOptions.Default;
             if (string.IsNullOrEmpty(propertyKey)) return;
@@ -65,7 +72,7 @@ namespace FluxFramework.Binding
                 {
                     // CASE 1: The property's type matches the binding's expected type (e.g., float -> float).
                     BindToProperty((ReactiveProperty<T>)property, binding, options);
-                    EventBus.Publish(new BindingCreatedEvent(propertyKey, binding.Component.GetType().Name, options.Mode.ToString(), binding.Component.GetInstanceID()));
+                    _manager.EventBus.Publish(new BindingCreatedEvent(propertyKey, binding.Component.GetType().Name, options.Mode.ToString(), binding.Component.GetInstanceID()));
                 }
                 else
                 {
@@ -79,7 +86,7 @@ namespace FluxFramework.Binding
                     // If not, try to find a suitable one automatically in the registry.
                     if (converterType == null)
                     {
-                        converterType = ValueConverterRegistry.FindConverterType(sourceValueType, targetValueType);
+                        converterType = _manager.ValueConverterRegistry.FindConverterType(sourceValueType, targetValueType);
                     }
 
                     if (converterType != null)
@@ -89,7 +96,7 @@ namespace FluxFramework.Binding
                             var converterInstance = (IValueConverter)Activator.CreateInstance(converterType);
                             var transformedProp = property.Transform<T>(converterInstance, options);
                             BindToProperty(transformedProp, binding, options);
-                            EventBus.Publish(new BindingCreatedEvent(propertyKey, binding.Component.GetType().Name, options.Mode.ToString(), binding.Component.GetInstanceID()));
+                            _manager.EventBus.Publish(new BindingCreatedEvent(propertyKey, binding.Component.GetType().Name, options.Mode.ToString(), binding.Component.GetInstanceID()));
                         }
                         catch (Exception ex)
                         {
@@ -104,14 +111,14 @@ namespace FluxFramework.Binding
                 }
             };
             
-            var existingProperty = Flux.Manager.Properties.GetProperty(propertyKey);
+            var existingProperty = _manager.Properties.GetProperty(propertyKey);
             if (existingProperty != null)
             {
                 finalizeBindingAction(existingProperty);
             }
             else
             {
-                IDisposable deferredSub = Flux.Manager.Properties.SubscribeDeferred(propertyKey, finalizeBindingAction);
+                IDisposable deferredSub = _manager.Properties.SubscribeDeferred(propertyKey, finalizeBindingAction);
                 _subscriptions[binding] = deferredSub;
             }
         }
@@ -119,7 +126,7 @@ namespace FluxFramework.Binding
         /// <summary>
         /// Unbinds all bindings associated with a specific property key.
         /// </summary>
-        public static void Unbind(string propertyKey)
+        public void Unbind(string propertyKey)
         {
             if (_bindings.TryGetValue(propertyKey, out var bindingList))
             {
@@ -134,16 +141,16 @@ namespace FluxFramework.Binding
         /// <summary>
         /// Unbinds a specific binding and cleans up all its associated resources.
         /// </summary>
-        public static void Unbind(string propertyKey, IUIBinding binding)
+        public void Unbind(string propertyKey, IUIBinding binding)
         {
             if (binding == null) return;
 
             // 1. Stop any pending debounced update coroutine.
             if (_debounceCoroutines.TryGetValue(binding, out Coroutine coroutine))
             {
-                if (coroutine != null && Flux.Manager != null)
+                if (coroutine != null && _manager != null)
                 {
-                    Flux.Manager.StopCoroutine(coroutine);
+                    _manager.StopCoroutine(coroutine);
                 }
                 _debounceCoroutines.Remove(binding);
             }
@@ -169,13 +176,13 @@ namespace FluxFramework.Binding
             binding.Dispose();
 
             // 5. Optionally, publish an event indicating the binding was removed.
-            EventBus.Publish(new BindingRemovedEvent(propertyKey, binding.Component.GetType().Name));
+            _manager.EventBus.Publish(new BindingRemovedEvent(propertyKey, binding.Component.GetType().Name));
         }
 
         /// <summary>
         /// Clears all bindings and their resources. Typically called during scene transitions or application shutdown.
         /// </summary>
-        public static void ClearAll()
+        public void ClearAll()
         {
             // Iterate over a copy of the keys to safely unbind all registered bindings.
             foreach (var propertyKey in _bindings.Keys.ToList())
@@ -197,11 +204,11 @@ namespace FluxFramework.Binding
         /// Manually triggers a UI update for all bindings associated with a property key.
         /// This is useful for bindings created with ImmediateUpdate = false.
         /// </summary>
-        public static void RefreshBindings(string propertyKey)
+        public void RefreshBindings(string propertyKey)
         {
             if (_bindings.TryGetValue(propertyKey, out var bindingList))
             {
-                var property = Flux.Manager.Properties.GetProperty(propertyKey);
+                var property = _manager.Properties.GetProperty(propertyKey);
                 if (property == null) return;
                 
                 var value = property.GetValue();
@@ -216,10 +223,9 @@ namespace FluxFramework.Binding
         /// <summary>
         /// Gets the total number of active UI bindings.
         /// </summary>
-        public static int GetActiveBindingCount()
+        public int GetActiveBindingCount()
         {
             if (!_isInitialized) return 0;
-            // The .Sum() extension method requires 'using System.Linq;'
             return _bindings.Values.Sum(list => list.Count);
         }
 
@@ -227,7 +233,7 @@ namespace FluxFramework.Binding
         /// A private helper that contains the actual subscription logic.
         /// It is only ever called with a strongly-typed, validated property.
         /// </summary>
-        private static void BindToProperty<T>(ReactiveProperty<T> property, IUIBinding<T> binding, BindingOptions options)
+        private void BindToProperty<T>(ReactiveProperty<T> property, IUIBinding<T> binding, BindingOptions options)
         {
             if (_subscriptions.ContainsKey(binding))
             {
@@ -269,9 +275,9 @@ namespace FluxFramework.Binding
         /// Manages the debouncing logic by starting a delayed update coroutine.
         /// Cancels any previously pending update for the same binding.
         /// </summary>
-        private static void EnqueueDebouncedUpdate<T>(IUIBinding<T> binding, T value, int delayMs)
+        private void EnqueueDebouncedUpdate<T>(IUIBinding<T> binding, T value, int delayMs)
         {
-            if (Flux.Manager == null)
+            if (_manager == null)
             {
                 binding.UpdateUI(value); // Fallback to immediate update if the manager is not available.
                 return;
@@ -282,19 +288,19 @@ namespace FluxFramework.Binding
             {
                 if (existingCoroutine != null)
                 {
-                    Flux.Manager.StopCoroutine(existingCoroutine);
+                    _manager.StopCoroutine(existingCoroutine);
                 }
             }
 
             // Start a new coroutine for the delayed update.
-            var newCoroutine = Flux.Manager.StartCoroutine(DelayedUpdateCoroutine(binding, value, delayMs));
+            var newCoroutine = _manager.StartCoroutine(DelayedUpdateCoroutine(binding, value, delayMs));
             _debounceCoroutines[binding] = newCoroutine;
         }
         
         /// <summary>
         /// A coroutine that waits for a specified delay before applying a value to a UI binding.
         /// </summary>
-        private static IEnumerator DelayedUpdateCoroutine<T>(IUIBinding<T> binding, T value, int delayMs)
+        private IEnumerator DelayedUpdateCoroutine<T>(IUIBinding<T> binding, T value, int delayMs)
         {
             yield return new WaitForSeconds(delayMs / 1000f);
             

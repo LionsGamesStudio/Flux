@@ -139,8 +139,8 @@ namespace FluxFramework.UI
                     
                     // Use reflection to call the generic Bind<T> method
                     Type bindingValueType = newBinding.ValueType;
-                    MethodInfo bindMethod = typeof(ReactiveBindingSystem).GetMethod("Bind").MakeGenericMethod(bindingValueType);
-                    bindMethod.Invoke(null, new object[] { bindingAttr.PropertyKey, newBinding, options });
+                    MethodInfo bindMethod = typeof(IReactiveBindingSystem).GetMethod("Bind").MakeGenericMethod(bindingValueType);
+                    bindMethod.Invoke(Flux.Manager.BindingSystem, new object[] { bindingAttr.PropertyKey, newBinding, options });
                     
                     TrackBinding(newBinding);
                 }
@@ -170,7 +170,7 @@ namespace FluxFramework.UI
         {
             foreach (var binding in _activeBindings)
             {
-                ReactiveBindingSystem.Unbind(binding.PropertyKey, binding);
+                Flux.Manager.BindingSystem.Unbind(binding.PropertyKey, binding);
             }
             _activeBindings.Clear();
         }

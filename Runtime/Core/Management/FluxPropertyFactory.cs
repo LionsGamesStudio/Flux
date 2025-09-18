@@ -13,13 +13,22 @@ namespace FluxFramework.Core
     /// and registering all reactive properties for any given object.
     /// This ensures that the property creation logic is consistent across both MonoBehaviours and ScriptableObjects.
     /// </summary>
-    internal static class FluxPropertyFactory
+    public class FluxPropertyFactory : IFluxPropertyFactory
     {
+        private readonly IFluxPropertyManager _propertyManager;
+        private readonly IFluxPersistenceManager _persistenceManager;
+
+        public FluxPropertyFactory(IFluxPropertyManager propertyManager, IFluxPersistenceManager persistenceManager)
+        {
+            _propertyManager = propertyManager ?? throw new ArgumentNullException(nameof(propertyManager));
+            _persistenceManager = persistenceManager ?? throw new ArgumentNullException(nameof(persistenceManager));
+        }
+
         /// <summary>
         /// Scans a target object for all fields marked with [ReactiveProperty] and registers them with the framework.
         /// </summary>
         /// <param name="owner">The object instance (MonoBehaviour or ScriptableObject) that owns the properties.</param>
-        public static void RegisterPropertiesFor(object owner)
+        public void RegisterPropertiesFor(object owner)
         {
             var fields = owner.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
 
@@ -45,7 +54,7 @@ namespace FluxFramework.Core
         /// <summary>
         /// Handles PATTERN A: Registers a property for a field with a primitive type.
         /// </summary>
-        private static void RegisterImplicitProperty(object owner, FieldInfo field, ReactivePropertyAttribute attribute)
+        private void RegisterImplicitProperty(object owner, FieldInfo field, ReactivePropertyAttribute attribute)
         {
             var propertyKey = attribute.Key;
             var ownerContext = owner as UnityEngine.Object; // For logging
@@ -76,8 +85,8 @@ namespace FluxFramework.Core
 
                 property.Subscribe(newValue => field.SetValue(owner, newValue));
 
-                Flux.Manager.Properties.RegisterProperty(propertyKey, property, attribute.Persistent);
-                if (attribute.Persistent) FluxPersistenceManager.RegisterPersistentProperty(propertyKey, property);
+                _propertyManager.RegisterProperty(propertyKey, property, attribute.Persistent);
+                if (attribute.Persistent) _persistenceManager.RegisterPersistentProperty(propertyKey, property);
             }
             catch (Exception ex)
             {
@@ -88,7 +97,7 @@ namespace FluxFramework.Core
         /// <summary>
         /// Handles PATTERN B: Configures and registers a field that is explicitly of type ReactiveProperty<T>.
         /// </summary>
-        private static void RegisterAndConfigureExplicitProperty(object owner, FieldInfo field, ReactivePropertyAttribute attribute)
+        private void RegisterAndConfigureExplicitProperty(object owner, FieldInfo field, ReactivePropertyAttribute attribute)
         {
             var propertyKey = attribute.Key;
             var ownerContext = owner as UnityEngine.Object; // For logging
@@ -123,8 +132,8 @@ namespace FluxFramework.Core
                 }
 
                 field.SetValue(owner, finalProperty);
-                Flux.Manager.Properties.RegisterProperty(propertyKey, finalProperty, attribute.Persistent);
-                if (attribute.Persistent) FluxPersistenceManager.RegisterPersistentProperty(propertyKey, finalProperty);
+                _propertyManager.RegisterProperty(propertyKey, finalProperty, attribute.Persistent);
+                if (attribute.Persistent) _persistenceManager.RegisterPersistentProperty(propertyKey, finalProperty);
             }
             catch (Exception ex)
             {
@@ -135,7 +144,7 @@ namespace FluxFramework.Core
         /// <summary>
         /// A unified helper to get validators for a field.
         /// </summary>
-        private static List<IValidator> GetValidatorsForField(FieldInfo field)
+        private List<IValidator> GetValidatorsForField(FieldInfo field)
         {
             var validators = new List<IValidator>();
             var validationAttributes = field.GetCustomAttributes<FluxValidationAttribute>(true);

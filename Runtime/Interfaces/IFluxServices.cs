@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Collections;
 using System.Linq;
 using UnityEngine;
+using FluxFramework.Events;
+using FluxFramework.Binding;
+using FluxFramework.Configuration;
 
 namespace FluxFramework.Core
 {
@@ -108,14 +111,49 @@ namespace FluxFramework.Core
         bool IsInitialized { get; }
 
         /// <summary>
-        /// Provides access to the central property management service.
+        /// Provides access to the event bus service.
         /// </summary>
-        IFluxPropertyManager Properties { get; }
+        IEventBus EventBus { get; }
 
         /// <summary>
         /// Provides access to the thread management service.
         /// </summary>
         IFluxThreadManager Threading { get; }
+
+        /// <summary>
+        /// Provides access to the persistence management service.
+        /// </summary>
+        IFluxPersistenceManager PersistenceManager { get; }
+
+        /// <summary>
+        /// Provides access to the central property management service.
+        /// </summary>
+        IFluxPropertyManager Properties { get; }
+
+        /// <summary>
+        /// Provides access to the property factory service responsible for creating and registering reactive properties.
+        /// </summary>
+        IFluxPropertyFactory PropertyFactory { get; }
+
+        /// <summary>
+        /// Provides access to the component registry service.
+        /// </summary>
+        IFluxComponentRegistry Registry { get; }
+
+        /// <summary>
+        /// Provides access to the reactive binding system.
+        /// </summary>
+        IReactiveBindingSystem BindingSystem { get; }
+
+        /// <summary>
+        /// Provides access to the value converter registry.
+        /// </summary>
+        IValueConverterRegistry ValueConverterRegistry { get; }
+
+        /// <summary>
+        /// Provides access to the configuration management service.
+        /// </summary>
+        IFluxConfigurationManager ConfigurationManager { get; }
 
         /// <summary>
         /// Starts a coroutine using the framework's internal MonoBehaviour.
