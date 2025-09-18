@@ -15,16 +15,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Step 2: Cache Unity Library files
+      # Step 2: Cache Unity Library files (this is already the cache configuration)
       - name: Cache Unity Library
         uses: actions/cache@v4
         with:
           path: Library
-          key: Library-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          key: Library-${{ hashFiles('ProjectSettings/**', 'Packages/**') }}
           restore-keys: |
             Library-
 
-      # Step 3: Run the custom test method
+      # Step 3: Run custom test method
       - name: Run Flux Tests
         uses: game-ci/unity-builder@v4
         env:
@@ -32,18 +32,25 @@ jobs:
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
-          projectPath: .
-          
-          # La version d'Unity est toujours requise.
+          # Specify Unity version
           unityVersion: '2022.3.10f1'
           
-          # Notre commande personnalisée.
-          customParameters: -nographics -logFile -executeMethod FluxFramework.Testing.FluxTestRunnerCli.RunTests
+          # Explicitly specify the project path
+          projectPath: .
+          
+          # Use `buildMethod` to specify the method to run.
+          # This replaces the default method instead of creating a conflict.
+          buildMethod: FluxFramework.Testing.FluxTestRunnerCli.RunTests
+          
+          # You can add additional arguments if needed, but WITHOUT -executeMethod
+          customParameters: -nographics -logFile -
 
-      # Step 4: Upload test logs
+      # Step 4: Upload test logs on failure
       - name: Upload Test Logs
         uses: actions/upload-artifact@v4
-        if: always()
+        if: failure() # Only upload logs if the previous step failed
         with:
           name: Test Execution Logs
-          path: editor.log
+          path: |
+            ./*.log
+            ./artifacts/*.log
