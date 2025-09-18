@@ -26,10 +26,10 @@ jobs:
           restore-keys: |
             Library-${{ runner.os }}-
             Library-
-
-      # Step 3: Run Unity in batch mode to execute tests
+     
+      # Step 3: Run Flux Tests using unity-test-runner
       - name: Run Flux Tests
-        uses: game-ci/unity-builder@v4
+        uses: game-ci/unity-test-runner@v4
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
@@ -41,32 +41,13 @@ jobs:
           # Explicitly specify the project path
           projectPath: .
          
-          # Use a dummy target platform (required by unity-builder but not used)
-          targetPlatform: StandaloneLinux64
+          # Use EditMode for tests that create GameObjects in editor
+          testMode: EditMode
          
-          # Specify custom build method that just runs tests
-          buildMethod: FluxFramework.Testing.FluxTestRunnerCli.RunTests
-         
-          # Disable actual building since we just want to run tests
-          customBuildPath: ./test-results
-          customBuildName: FluxTests
-         
-          # Additional parameters for test execution
-          customParameters: '-nographics -logFile - -quit'
+          # Custom parameters to run your specific test method
+          customParameters: '-executeMethod FluxFramework.Testing.FluxTestRunnerCli.RunTests -nographics -logFile -'
      
-      # Step 4: Upload test results
-      - name: Upload Test Results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: flux-test-results
-          path: |
-            ./test-results/**
-            ./*.xml
-            ./TestResults/**
-          retention-days: 7
-     
-      # Step 5: Upload test logs on failure
+      # Step 4: Upload test logs on failure
       - name: Upload Test Logs
         uses: actions/upload-artifact@v4
         if: failure()
@@ -77,3 +58,14 @@ jobs:
             ./Logs/*.log
             ./artifacts/*.log
           retention-days: 7
+
+      # Step 5: Upload test results (if unity-test-runner generates them)
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: |
+            ./test-results.xml
+            ./TestResults/**
+          retention-days: 30
