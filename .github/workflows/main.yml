@@ -37,6 +37,8 @@ jobs:
           
           # Explicitly specify the project path
           projectPath: .
+
+          targetPlatform: Nothing # No build, just run tests
           
           # Use `buildMethod` to specify the method to run.
           # This replaces the default method instead of creating a conflict.
