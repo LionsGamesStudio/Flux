@@ -1,52 +1,59 @@
 name: Unity Package CI
 
+# Controls when the workflow will run
 on:
+  # Triggers the workflow on push or pull request events but only for the main and develop branches
   push:
     branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
+  
+  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
+  # This job runs the Unity tests
   test:
     name: Run Unity Tests on ${{ matrix.unity-version }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      # Test against multiple Unity versions to ensure compatibility
       matrix:
         unity-version:
           - 2022.3.21f1  # Minimum supported version
           - 2023.2.20f1  # Latest LTS for compatibility check
     
     steps:
+      # Step 1: Check out the repository code
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           lfs: true
 
+      # Step 2: Cache the Unity Library folder to speed up subsequent runs
       - name: Cache Unity Library
-        # Cache the Library folder to speed up subsequent runs
         uses: actions/cache@v4
         with:
           path: TempProject/Library
-          key: Library-${{ matrix.unity-version }}-${{ hashFiles('**/ProjectSettings/ProjectVersion.txt') }}
+          key: Library-${{ matrix.unity-version }}-${{ hashFiles('**/ProjectVersion.txt') }}
           restore-keys: |
             Library-${{ matrix.unity-version }}-
 
+      # Step 3: Create a temporary Unity project to test the package in isolation
       - name: Create Unity Project Structure
         run: |
           echo "Setting up temporary Unity project..."
-          # Create the required Unity project folders
           mkdir -p TempProject/Assets
           mkdir -p TempProject/Packages
           mkdir -p TempProject/ProjectSettings
           
-          # Copy the package source code into the Packages folder
-          # This ensures the package is tested in isolation
+          # Use rsync to copy package files, excluding CI/Git directories
           rsync -r --exclude '.git' --exclude '.github' --exclude 'TempProject' . TempProject/Packages/com.fluxframework.core/
           
-          # Create a basic package manifest to resolve dependencies
           echo "Creating package manifest (manifest.json)..."
+          # This manifest tells Unity how to resolve the local package and its dependencies
           cat > TempProject/Packages/manifest.json << EOF
           {
             "dependencies": {
@@ -62,46 +69,47 @@ jobs:
           }
           EOF
           
-          # Copy pre-configured project settings from the .ci folder
-          echo "Copying project settings..."
+          echo "Copying project settings from .ci folder..."
           cp .ci/ProjectSettings.asset TempProject/ProjectSettings/ProjectSettings.asset
           cp .ci/ProjectVersion.txt TempProject/ProjectSettings/ProjectVersion.txt
 
-          # Dynamically set the Unity editor version for the current job
           echo "Setting project version to ${{ matrix.unity-version }}"
+          # Dynamically set the editor version in the project settings
           sed -i "s/m_EditorVersion:.*/m_EditorVersion: ${{ matrix.unity-version }}/" TempProject/ProjectSettings/ProjectVersion.txt
 
-      - name: Activate Unity License
-        uses: game-ci/unity-activate@v3
-        with:
-          unityVersion: ${{ matrix.unity-version }}
-          # Supply secrets for Unity activation
-          unityUsername: ${{ secrets.UNITY_USERNAME }}
-          unityPassword: ${{ secrets.UNITY_PASSWORD }}
-          unityLicensingServer: ${{ secrets.UNITY_LICENSING_SERVER }}
-          unityLicense: ${{ secrets.UNITY_LICENSE }}
-          
+      # Step 4: Run the Unity tests
+      # The activation step is no longer needed with GameCI v4 actions.
+      # License activation is handled automatically by the test-runner action.
       - name: Run Unity Tests
         uses: game-ci/unity-test-runner@v4
         id: test-runner
+        # License secrets must be passed here as environment variables
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
           projectPath: TempProject
           unityVersion: ${{ matrix.unity-version }}
           testMode: editmode
-          # Use a custom CLI entry point for running tests
+          # This executes a specific static method in your C# code to run the tests
           customParameters: -executeMethod FluxFramework.Testing.FluxTestRunnerCli.RunTests
 
+      # Step 5: Upload test results as an artifact
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
-        if: always() # Always upload artifacts, even if tests fail
+        # 'if: always()' ensures this step runs even if the tests fail
+        if: always()
         with:
           name: test-results-${{ matrix.unity-version }}
           path: ${{ steps.test-runner.outputs.artifactsPath }}
           retention-days: 7
 
+  # This job validates the package structure and manifest
   package-validation:
     name: Package Validation
     runs-on: ubuntu-latest
+    # This job will only start after the 'test' job has successfully completed
     needs: test
 
     steps:
@@ -111,18 +119,16 @@ jobs:
       - name: Validate Package Structure
         run: |
           echo "=== Validating Unity Package Structure ==="
-          
-          # CORRECTED: Check for "Testing" folder instead of "Tests"
           [ -d "Runtime" ] || { echo "❌ Missing Runtime folder"; exit 1; }
           [ -d "Editor" ] || { echo "❌ Missing Editor folder"; exit 1; }
+          # Corrected path to 'Testing'
           [ -d "Testing" ] || { echo "❌ Missing Testing folder"; exit 1; }
           echo "✅ Required folders (Runtime, Editor, Testing) exist."
 
-          # Check for the package manifest
           [ -f "package.json" ] || { echo "❌ Missing package.json"; exit 1; }
           echo "✅ package.json exists."
           
-          # CORRECTED: Check path using "Testing" folder
+          # Corrected path to 'Testing'
           [ -f "Testing/FluxTestRunnerCli.cs" ] || { echo "❌ Missing Testing/FluxTestRunnerCli.cs"; exit 1; }
           echo "✅ Test runner script (FluxTestRunnerCli.cs) found."
 
@@ -131,14 +137,9 @@ jobs:
       - name: Validate package.json
         run: |
           echo "=== Validating package.json ==="
-          
-          # Ensure jq is installed for JSON parsing
           sudo apt-get update && sudo apt-get install -y jq
-
-          # Validate that package.json is valid JSON
           jq empty package.json || { echo "❌ Invalid JSON in package.json"; exit 1; }
           
-          # Extract and verify key properties
           name=$(jq -r '.name' package.json)
           version=$(jq -r '.version' package.json)
           unity=$(jq -r '.unity // "Not specified"' package.json)
@@ -152,11 +153,13 @@ jobs:
           
           echo "✅ package.json validation completed successfully."
 
+  # This job is a final check that runs only on the main branch
   publish-check:
     name: Publish Readiness Check
     runs-on: ubuntu-latest
     needs: [test, package-validation]
-    if: github.ref == 'refs/heads/main' # Run only on the main branch
+    # This job only runs on pushes to the 'main' branch, acting as a gate for releases
+    if: github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout Repository
