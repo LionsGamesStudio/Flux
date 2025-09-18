@@ -80,6 +80,7 @@ namespace FluxFramework.Attributes
             {
                 Mode = this.Mode,
                 UpdateDelayMs = this.UpdateDelay,
+                ConverterType = this.ConverterType,
                 Converter = converter,
                 ImmediateUpdate = this.ImmediateUpdate
             };
