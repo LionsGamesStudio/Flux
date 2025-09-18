@@ -48,8 +48,8 @@ jobs:
           # Use executeMethod to specify the method to run
           executeMethod: FluxFramework.Testing.FluxTestRunnerCli.RunTests
           
-          # Additional build arguments
-          customParameters: '-nographics -batchmode -quit -logFile -'
+          # Additional build arguments (removed -batchmode to avoid duplication)
+          customParameters: '-nographics -logFile -'
       
       # Step 4: Upload test logs on failure
       - name: Upload Test Logs
