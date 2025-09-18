@@ -109,7 +109,7 @@ namespace FluxFramework.Editor
             if (GUILayout.Button("Documentation", EditorStyles.miniButtonLeft)) Application.OpenURL("https://github.com/LionsGamesStudio/Flux/blob/main/README.md");
             if (GUILayout.Button("Settings Asset", EditorStyles.miniButtonRight)) Selection.activeObject = FindOrCreateSettingsAsset();
             GUILayout.FlexibleSpace();
-            EditorGUILayout.LabelField("Flux Framework v2.0", EditorStyles.miniLabel);
+            EditorGUILayout.LabelField("Flux Framework v3.0", EditorStyles.miniLabel);
             EditorGUILayout.EndHorizontal();
         }
         
