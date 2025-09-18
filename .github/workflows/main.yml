@@ -28,7 +28,7 @@ jobs:
 
       # Step 3: Run Unity tests via GameCI
       - name: Run Unity Tests
-        uses: game-ci/unity-test-runner@v4
+        uses: game-ci/unity-builder@v4
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
@@ -38,18 +38,12 @@ jobs:
           unityVersion: '2022.3.10f1' # <-- IMPORTANT: Put your exact Unity version here
           
           # This is where the magic happens for our custom Test Runner
-          customParameters: |
-            -quit
-            -batchmode
-            -nographics
-            -logFile -
-            -executeMethod FluxFramework.Testing.Editor.FluxTestRunnerCli.RunTests
+          customParameters: -nographics -logFile -executeMethod FluxFramework.Testing.FluxTestRunnerCli.RunTests
 
       # Step 4: Publish test results (optional but recommended)
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: Test Results
-          path:
-            ./*.xml # GameCI generates results in NUnit format
+          name: Test Execution Logs
+          path: editor.log
