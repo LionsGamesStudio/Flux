@@ -137,6 +137,116 @@ public class PlayerStatsAdvanced : FluxMonoBehaviour
 }
 ```
 
+### Working with Collections and Dictionaries
+
+FluxFramework provides special support for reactive collections and dictionaries to track changes to complex data structures.
+
+#### Lists - Direct Support
+Lists work directly with the `[ReactiveProperty]` attribute without any wrapper:
+
+```csharp
+public class InventoryManager : FluxMonoBehaviour
+{
+    // Lists work directly with ReactiveProperty attribute
+    [ReactiveProperty("inventory.items")]
+    private List<string> _inventoryItems = new List<string>();
+    
+    // Note: Arrays are not currently supported, use List<T> instead
+    // [ReactiveProperty("player.scores")]
+    // private int[] _scores = new int[10]; // ❌ Not supported
+    
+    protected override void OnFluxAwake()
+    {
+        // Subscribe to list changes
+        GetReactiveProperty<List<string>>("inventory.items").Subscribe(OnInventoryChanged);
+    }
+    
+    [FluxButton("Add Item")]
+    private void AddItem()
+    {
+        // Use helper methods from FluxMonoBehaviour for safe list operations
+        AddToReactiveCollection<string>("inventory.items", "New Item");
+    }
+    
+    [FluxButton("Remove Last Item")]
+    private void RemoveLastItem()
+    {
+        if (TryGetReactiveProperty<List<string>>("inventory.items", out var items) && items.Value.Count > 0)
+        {
+            RemoveFromReactiveCollection<string>("inventory.items", items.Value.Last());
+        }
+    }
+    
+    private void OnInventoryChanged(List<string> newItems)
+    {
+        Debug.Log($"Inventory now has {newItems.Count} items");
+    }
+}
+```
+
+#### Dictionaries - Require ReactiveDictionary Wrapper
+Dictionaries need the `ReactiveDictionary<TKey, TValue>` wrapper to track individual key-value changes:
+
+```csharp
+public class PlayerStats : FluxMonoBehaviour
+{
+    // Dictionaries require ReactiveDictionary wrapper
+    [ReactiveProperty("player.stats")]
+    private ReactiveDictionary<string, int> _playerStats = new ReactiveDictionary<string, int>();
+    
+    protected override void OnFluxAwake()
+    {
+        // Subscribe to individual dictionary events
+        _playerStats.OnItemAdded += OnStatAdded;
+        _playerStats.OnItemRemoved += OnStatRemoved;
+        _playerStats.OnItemChanged += OnStatChanged;
+        
+        // Initialize with default stats
+        InitializeStats();
+    }
+    
+    private void InitializeStats()
+    {
+        // Use helper methods for safe dictionary operations
+        SetInReactiveDictionary<string, int>("player.stats", "Health", 100);
+        SetInReactiveDictionary<string, int>("player.stats", "Mana", 50);
+        SetInReactiveDictionary<string, int>("player.stats", "Strength", 10);
+    }
+    
+    [FluxButton("Increase Health")]
+    private void IncreaseHealth()
+    {
+        if (TryGetFromReactiveDictionary<string, int>("player.stats", "Health", out int currentHealth))
+        {
+            SetInReactiveDictionary<string, int>("player.stats", "Health", currentHealth + 10);
+        }
+    }
+    
+    // Event handlers for fine-grained dictionary changes
+    private void OnStatAdded(string statName, int value)
+    {
+        Debug.Log($"New stat added: {statName} = {value}");
+    }
+    
+    private void OnStatRemoved(string statName)
+    {
+        Debug.Log($"Stat removed: {statName}");
+    }
+    
+    private void OnStatChanged(string statName, int newValue)
+    {
+        Debug.Log($"Stat changed: {statName} = {newValue}");
+    }
+}
+```
+
+**Key Differences:**
+- **Lists:** Work directly with `[ReactiveProperty]` and standard `List<T>` types
+- **Arrays:** Not currently supported - use `List<T>` instead
+- **Dictionaries:** Require `ReactiveDictionary<TKey, TValue>` wrapper for change tracking
+- **Helper Methods:** Both lists and dictionaries have dedicated helper methods in `FluxMonoBehaviour` for safe operations
+- **Event Granularity:** ReactiveDictionary provides fine-grained events (add/remove/change individual items)
+
 ### 3. Binding UI to State (Zero Code)
 
 The `FluxUIComponent` base class handles all binding automatically.

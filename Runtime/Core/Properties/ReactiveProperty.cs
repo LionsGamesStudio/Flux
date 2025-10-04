@@ -13,8 +13,10 @@ namespace FluxFramework.Core
     /// Subscriptions are managed via the IDisposable pattern.
     /// </summary>
     /// <typeparam name="T">The type of the property value.</typeparam>
+    [Serializable]
     public class ReactiveProperty<T> : IReactiveProperty<T>
     {
+        [SerializeField]
         private T _value;
         private readonly object _lock = new object();
         private readonly List<Action<T>> _subscribers = new List<Action<T>>();
@@ -231,7 +233,7 @@ namespace FluxFramework.Core
             }
         }
 
-        private void SetValueInternal(T newValue, bool forceNotify)
+        protected void SetValueInternal(T newValue, bool forceNotify)
         {
             T oldValue;
             bool valueChanged;
@@ -253,7 +255,7 @@ namespace FluxFramework.Core
             }
         }
 
-        private void NotifyValueChanged(T oldValue, T newValue)
+        protected void NotifyValueChanged(T oldValue, T newValue)
         {
             List<Action<T>> genericSubscribersCopy;
             List<Action<object>> objectSubscribersCopy;
@@ -283,7 +285,9 @@ namespace FluxFramework.Core
             }
 
             // Optionally, raise a PropertyChangedEvent here if needed.
+            if (Flux.Manager == null) return;
             var key = Flux.Manager.Properties.GetKey(this);
+            
             if (key != null)
             {
                 Flux.Manager.EventBus.Publish(new PropertyChangedEvent(key, oldValue, newValue, typeof(T)));

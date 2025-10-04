@@ -41,10 +41,10 @@ namespace FluxFramework.Core
             }
         }
 
-        protected sealed override void OnReactivePropertiesInitialized()
+        protected sealed override void OnFluxPropertiesInitialized()
         {
-            base.OnReactivePropertiesInitialized();
-            
+            base.OnFluxPropertiesInitialized();
+
             if (autoSave)
             {
                 SetupAutoSave();

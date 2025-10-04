@@ -14,7 +14,8 @@ In this tutorial, we'll demonstrate the power of FluxFramework's reactive archit
 4.  [Creating the Player Controller (The "Logic")](#4-creating-the-player-controller-the-logic)
 5.  [Building the Reactive UI (The "View")](#5-building-the-reactive-ui-the-view)
 6.  [Adding Collectible Items (Interaction)](#6-adding-collectible-items-interaction)
-7.  [Connecting Systems with Events](#7-connecting-systems-with-events)
+7.  [Advanced Inventory with Item Lists (Optional)](#65-advanced-inventory-with-item-lists-optional)
+8.  [Connecting Systems with Events](#7-connecting-systems-with-events)
 
 ---
 
@@ -287,6 +288,131 @@ public class Collectible : FluxMonoBehaviour
 ```
 
 **✅ Checkpoint 6**: Place some "GoldCoin" prefabs in your scene. When the player touches one, the gold count in your UI updates instantly!
+
+---
+
+## 6.5. Advanced Inventory with Item Lists (Optional)
+
+For a more realistic inventory system, you might want to track individual items, not just gold. Here's how to extend your data with a reactive list.
+
+### Step 6.5.1: Add Items List to PlayerData
+Update your `PlayerData.cs` to include a list of items:
+
+```csharp
+using UnityEngine;
+using FluxFramework.Core;
+using FluxFramework.Attributes;
+using System.Collections.Generic;
+
+[CreateAssetMenu(fileName = "PlayerData", menuName = "Flux/Tutorial/Player Data")]
+public class PlayerData : FluxDataContainer
+{
+    [Header("Player Stats")]
+    [ReactiveProperty("player.health", Persistent = false)]
+    [FluxRange(0, 100)]
+    public float Health = 100f;
+
+    [ReactiveProperty("player.isGrounded", Persistent = false)]
+    public bool IsGrounded;
+
+    [ReactiveProperty("player.position", Persistent = false)]
+    public Vector2 Position;
+    
+    [Header("Inventory")]
+    [ReactiveProperty("player.gold", Persistent = true)]
+    [FluxRange(0, 99999)]
+    public int Gold;
+    
+    // Lists work directly with ReactiveProperty attribute
+    // Note: Arrays are not currently supported, use List<T> instead
+    [ReactiveProperty("player.items", Persistent = true)]
+    public List<string> Items = new List<string>();
+}
+```
+
+### Step 6.5.2: Update InventoryManager
+Extend your `InventoryManager` to handle items:
+
+```csharp
+public class InventoryManager : FluxMonoBehaviour
+{
+    [FluxAction("Add 10 Gold")]
+    public void AddGold(int amount = 10)
+    {
+        if (amount <= 0) return;
+        UpdateReactiveProperty<int>(FluxKeys.PlayerGold, currentGold => currentGold + amount);
+        
+        int newTotal = GetReactivePropertyValue<int>(FluxKeys.PlayerGold);
+        PublishEvent(new GoldChangedEventArgs(newTotal));
+    }
+    
+    [FluxAction("Add Item")]
+    public void AddItem(string itemName)
+    {
+        if (string.IsNullOrEmpty(itemName)) return;
+        
+        // Use helper method from FluxMonoBehaviour for safe list operations
+        AddToReactiveCollection<string>("player.items", itemName);
+        
+        Debug.Log($"Added {itemName} to inventory");
+    }
+    
+    [FluxAction("Remove Item")]
+    public void RemoveItem(string itemName)
+    {
+        if (string.IsNullOrEmpty(itemName)) return;
+        
+        // Use helper method for safe removal
+        RemoveFromReactiveCollection<string>("player.items", itemName);
+        
+        Debug.Log($"Removed {itemName} from inventory");
+    }
+}
+```
+
+### Step 6.5.3: Update Collectible for Different Items
+```csharp
+public class Collectible : FluxMonoBehaviour
+{
+    [SerializeField] private int goldValue = 10;
+    [SerializeField] private string itemName = ""; // Leave empty for gold-only collectibles
+    
+    private static InventoryManager _inventoryManager;
+
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        if (!other.CompareTag("Player")) return;
+
+        if (_inventoryManager == null)
+        {
+            _inventoryManager = FindObjectOfType<InventoryManager>();
+        }
+
+        if (_inventoryManager != null)
+        {
+            // Add gold if specified
+            if (goldValue > 0)
+            {
+                _inventoryManager.AddGold(goldValue);
+            }
+            
+            // Add item if specified
+            if (!string.IsNullOrEmpty(itemName))
+            {
+                _inventoryManager.AddItem(itemName);
+            }
+            
+            Destroy(gameObject);
+        }
+    }
+}
+```
+
+**Key Points:**
+- **Lists** work directly with `[ReactiveProperty]` - no wrapper needed
+- **Arrays** are not supported - use `List<T>` instead  
+- **Helper methods** (`AddToReactiveCollection`, `RemoveFromReactiveCollection`) ensure safe operations
+- For **dictionaries**, you would need `ReactiveDictionary<TKey, TValue>` wrapper (see EXAMPLES.md)
 
 ---
 

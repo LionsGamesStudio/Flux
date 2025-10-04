@@ -12,6 +12,7 @@ namespace FluxFramework.Extensions
     /// It can be configured with multiple validators.
     /// </summary>
     /// <typeparam name="T">The type of the property value.</typeparam>
+    [Serializable]
     public class ValidatedReactiveProperty<T> : ReactiveProperty<T>
     {
         private readonly List<IValidator<T>> _validators = new List<IValidator<T>>();
