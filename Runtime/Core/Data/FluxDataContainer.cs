@@ -40,10 +40,10 @@ namespace FluxFramework.Core
         /// This sealed method is called by the base FluxScriptableObject after its properties are initialized.
         /// It sets up additional features like change logging.
         /// </summary>
-        protected sealed override void OnReactivePropertiesInitialized()
+        protected sealed override void OnFluxPropertiesInitialized()
         {
-            base.OnReactivePropertiesInitialized();
-            
+            base.OnFluxPropertiesInitialized();
+
             if (logChanges)
             {
                 SetupChangeLogging();

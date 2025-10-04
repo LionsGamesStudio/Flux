@@ -6,9 +6,10 @@
 
 1.  [Player Stats System](#1-player-stats-system)
 2.  [Data-Driven Inventory System](#2-data-driven-inventory-system)
-3.  [Settings Menu with Two-Way Binding](#3-settings-menu-with-two-way-binding)
-4.  [Advanced Health Bar (Manual Subscription)](#4-advanced-health-bar-manual-subscription)
-5.  [Reacting to State Changes (Declarative)](#5-reacting-to-state-changes-declarative)
+3.  [Player Stats with Dictionary System](#25-player-stats-with-dictionary-system)
+4.  [Settings Menu with Two-Way Binding](#3-settings-menu-with-two-way-binding)
+5.  [Advanced Health Bar (Manual Subscription)](#4-advanced-health-bar-manual-subscription)
+6.  [Reacting to State Changes (Declarative)](#5-reacting-to-state-changes-declarative)
 
 ---
 
@@ -113,7 +114,8 @@ public class InventoryData : FluxDataContainer
     [ReactiveProperty("inventory.gold", Persistent = true)]
     public int Gold;
     
-    // For lists, the property itself must be replaced for the change to be detected.
+    // Lists are supported directly with ReactiveProperty attribute
+    // Note: Arrays are not currently supported, use List<T> instead
     [ReactiveProperty("inventory.items")]
     public List<string> Items = new List<string>();
 }
@@ -138,13 +140,139 @@ public class InventoryManager : FluxMonoBehaviour
     {
         if (inventoryData == null || string.IsNullOrEmpty(itemName)) return;
         
-        var currentItems = new List<string>(inventoryData.Items);
-        currentItems.Add(itemName);
-        
-        // Correctly update the list property. This replaces the old list and notifies listeners.
-        inventoryData.UpdateReactiveProperty(FluxKeys.InventoryItems, currentItems);
+        // Use helper methods from FluxMonoBehaviour for safe list operations
+        AddToReactiveCollection<string>("inventory.items", itemName);
         
         PublishEvent(new ItemAddedEvent(itemName));
+    }
+    
+    [FluxAction("Remove Item")]
+    public void RemoveItem(string itemName)
+    {
+        if (inventoryData == null || string.IsNullOrEmpty(itemName)) return;
+        
+        // Use helper methods for safe removal
+        RemoveFromReactiveCollection<string>("inventory.items", itemName);
+    }
+    
+    [FluxAction("Clear Inventory")]
+    public void ClearInventory()
+    {
+        if (inventoryData == null) return;
+        
+        // Use helper method for safe clearing
+        ClearReactiveCollection<string>("inventory.items");
+    }
+}
+```
+
+---
+
+## 2.5. Player Stats with Dictionary System
+
+This example shows how to use `ReactiveDictionary` for complex key-value data that requires fine-grained change tracking.
+
+### a) `PlayerStatsData.cs` (The Data)
+```csharp
+using UnityEngine;
+using FluxFramework.Core;
+using FluxFramework.Attributes;
+using FluxFramework.Extensions;
+
+[CreateAssetMenu(fileName = "PlayerStatsData", menuName = "Flux/Examples/Player Stats Data")]
+public class PlayerStatsData : FluxDataContainer
+{
+    // Dictionaries require ReactiveDictionary wrapper for change tracking
+    // Note: Regular Dictionary<TKey, TValue> is not supported
+    [ReactiveProperty("player.stats")]
+    public ReactiveDictionary<string, int> Stats = new ReactiveDictionary<string, int>();
+}
+```
+
+### b) `PlayerStatsManager.cs` (The Logic)
+```csharp
+using UnityEngine;
+using FluxFramework.Core;
+using FluxFramework.Attributes;
+using FluxFramework.Extensions;
+using Flux;
+
+public class StatChangedEvent : FluxEventBase 
+{ 
+    public string StatName { get; }
+    public int NewValue { get; }
+    public StatChangedEvent(string statName, int newValue) { StatName = statName; NewValue = newValue; }
+}
+
+public class PlayerStatsManager : FluxMonoBehaviour
+{
+    [SerializeField] private PlayerStatsData playerStatsData;
+
+    protected override void OnFluxAwake()
+    {
+        // Subscribe to fine-grained dictionary events
+        if (playerStatsData?.Stats != null)
+        {
+            playerStatsData.Stats.OnItemAdded += OnStatAdded;
+            playerStatsData.Stats.OnItemChanged += OnStatChanged;
+            playerStatsData.Stats.OnItemRemoved += OnStatRemoved;
+        }
+        
+        InitializeDefaultStats();
+    }
+
+    private void InitializeDefaultStats()
+    {
+        // Use helper methods from FluxMonoBehaviour for safe dictionary operations
+        SetInReactiveDictionary<string, int>("player.stats", "Health", 100);
+        SetInReactiveDictionary<string, int>("player.stats", "Mana", 50);
+        SetInReactiveDictionary<string, int>("player.stats", "Strength", 10);
+        SetInReactiveDictionary<string, int>("player.stats", "Agility", 8);
+    }
+
+    [FluxAction("Increase Health")]
+    public void IncreaseHealth()
+    {
+        if (TryGetFromReactiveDictionary<string, int>("player.stats", "Health", out int currentHealth))
+        {
+            SetInReactiveDictionary<string, int>("player.stats", "Health", currentHealth + 10);
+        }
+    }
+
+    [FluxAction("Add New Stat")]
+    public void AddNewStat(string statName, int value)
+    {
+        if (!string.IsNullOrEmpty(statName))
+        {
+            AddToReactiveDictionary<string, int>("player.stats", statName, value);
+        }
+    }
+
+    [FluxAction("Remove Stat")]
+    public void RemoveStat(string statName)
+    {
+        if (!string.IsNullOrEmpty(statName))
+        {
+            RemoveFromReactiveDictionary<string, int>("player.stats", statName);
+        }
+    }
+
+    // Fine-grained event handlers
+    private void OnStatAdded(string statName, int value)
+    {
+        Debug.Log($"New stat added: {statName} = {value}");
+        PublishEvent(new StatChangedEvent(statName, value));
+    }
+
+    private void OnStatChanged(string statName, int newValue)
+    {
+        Debug.Log($"Stat changed: {statName} = {newValue}");
+        PublishEvent(new StatChangedEvent(statName, newValue));
+    }
+
+    private void OnStatRemoved(string statName)
+    {
+        Debug.Log($"Stat removed: {statName}");
     }
 }
 ```

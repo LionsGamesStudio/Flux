@@ -62,13 +62,10 @@ namespace FluxFramework.Core
         public void InitializeReactiveProperties()
         {
             // CALL FACTORY TO REGISTER PROPERTIES
-            Flux.Manager.PropertyFactory.RegisterPropertiesFor(this);
-
-            // We must now manually collect the keys of the registered properties for cleanup.
-            CacheRegisteredPropertyKeys();
+            var registeredKeys = Flux.Manager.PropertyFactory.RegisterPropertiesFor(this);
+            _registeredProperties = new List<string>(registeredKeys);
 
             // Call custom initialization hooks for child classes.
-            OnReactivePropertiesInitialized();
             OnFluxPropertiesInitialized();
         }
 
@@ -100,7 +97,7 @@ namespace FluxFramework.Core
                 Flux.Manager.Properties.UnregisterProperty(propertyKey);
             }
             _registeredProperties.Clear();
-            OnReactivePropertiesCleanup();
+            OnFluxPropertiesCleanup();
         }
 
         /// <summary>
@@ -136,8 +133,7 @@ namespace FluxFramework.Core
         #region Lifecycle Hooks & Editor Tools
         
         protected virtual void OnFluxPropertiesInitialized() { }
-        protected virtual void OnReactivePropertiesInitialized() { }
-        protected virtual void OnReactivePropertiesCleanup() { }
+        protected virtual void OnFluxPropertiesCleanup() { }
 
         /// <summary>
         /// Editor-only method to force initialization of reactive properties.

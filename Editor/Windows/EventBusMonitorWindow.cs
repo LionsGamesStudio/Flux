@@ -3,8 +3,9 @@ using UnityEditor;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using FluxFramework.Core;
 using System.Linq;
+using FluxFramework.Core;
+using FluxFramework.Editor.Utils;
 
 namespace FluxFramework.Editor
 {
@@ -133,7 +134,8 @@ namespace FluxFramework.Editor
                     if (prop.DeclaringType == typeof(FluxEventBase) || prop.DeclaringType == typeof(object)) continue;
                     try
                     {
-                        EditorGUILayout.LabelField(prop.Name, prop.GetValue(entry.Event)?.ToString() ?? "null");
+                        var value = prop.GetValue(entry.Event);
+                        EditorGUILayout.LabelField(prop.Name, EditorDebugUtils.ToPrettyString(value));
                     }
                     catch { /* Ignore properties that can't be read */ }
                 }
@@ -165,12 +167,13 @@ namespace FluxFramework.Editor
 
         private void StartListening()
         {
-            if (_isListening) return;
+            if (_isListening || !Application.isPlaying || Flux.Manager == null) return;
 
             if (FluxEditorServices.EventBus != null)
             {
                 FluxEditorServices.EventBus.OnEventPublished += HandleEventPublished;
                 _isListening = true;
+                Repaint();
             }
         }
 
@@ -183,6 +186,7 @@ namespace FluxFramework.Editor
                 FluxEditorServices.EventBus.OnEventPublished -= HandleEventPublished;
             }
             _isListening = false;
+            Repaint();
         }
 
         private void HandlePlayModeState(PlayModeStateChange state)

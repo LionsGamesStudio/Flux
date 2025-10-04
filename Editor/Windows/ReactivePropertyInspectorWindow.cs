@@ -3,6 +3,7 @@ using UnityEditor;
 using System;
 using System.Collections.Generic;
 using FluxFramework.Core;
+using FluxFramework.Events;
 using System.Linq;
 
 namespace FluxFramework.Editor
@@ -12,6 +13,8 @@ namespace FluxFramework.Editor
         private Dictionary<string, IReactiveProperty> _properties = new Dictionary<string, IReactiveProperty>();
         private Vector2 _scrollPosition;
         private string _searchText = "";
+        
+        private IDisposable _propertyChangeEventSubscription;
 
         public static void ShowWindow()
         {
@@ -20,62 +23,85 @@ namespace FluxFramework.Editor
 
         private void OnEnable()
         {
-            // Subscribe to the editor update loop to refresh the property list and values
-            EditorApplication.update += RefreshData;
+            EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
+            
+            if (Application.isPlaying)
+            {
+                SubscribeToEvents();
+                FetchAllProperties();
+            }
         }
 
         private void OnDisable()
         {
-            // Unsubscribe to prevent memory leaks
-            EditorApplication.update -= RefreshData;
+            EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
+            UnsubscribeFromEvents();
         }
 
-        private void RefreshData()
+        private void OnPlayModeStateChanged(PlayModeStateChange state)
         {
-            // We only need to fetch data if the application is playing
-            if (!Application.isPlaying || Flux.Manager == null)
+            if (state == PlayModeStateChange.EnteredPlayMode)
             {
-                if (_properties.Count > 0)
-                {
-                    _properties.Clear();
-                    Repaint(); // Clear the view when exiting play mode
-                }
-                return;
+                SubscribeToEvents();
+                FetchAllProperties();
             }
+            else if (state == PlayModeStateChange.ExitingPlayMode)
+            {
+                UnsubscribeFromEvents();
+                _properties.Clear();
+                Repaint();
+            }
+        }
+        
+        private void SubscribeToEvents()
+        {
+            if (_propertyChangeEventSubscription != null || Flux.Manager == null) return;
 
-            // Get the current list of properties from the manager
+            _propertyChangeEventSubscription = Flux.Manager.EventBus.Subscribe<PropertyChangedEvent>(OnPropertyChanged);
+        }
+
+        private void UnsubscribeFromEvents()
+        {
+            _propertyChangeEventSubscription?.Dispose();
+            _propertyChangeEventSubscription = null;
+        }
+
+        // Cette méthode est appelée LORSQU'UNE PROPRIÉTÉ CHANGE
+        private void OnPropertyChanged(PropertyChangedEvent evt)
+        {
+            Repaint();
+        }
+
+        private void FetchAllProperties()
+        {
+            if (!Application.isPlaying || Flux.Manager == null) return;
+            
             var currentKeys = Flux.Manager.Properties.GetAllPropertyKeys();
             _properties = currentKeys.ToDictionary(key => key, key => Flux.Manager.Properties.GetProperty(key));
-
-            Repaint(); // Redraw the window with the latest values
+            Repaint();
         }
 
         private void OnGUI()
         {
             EditorGUILayout.LabelField("Reactive Properties Inspector", EditorStyles.boldLabel);
-
             if (!Application.isPlaying)
             {
                 EditorGUILayout.HelpBox("Enter Play Mode to view and edit reactive properties.", MessageType.Info);
                 return;
             }
-
-            // --- Toolbar ---
+            
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
             GUILayout.FlexibleSpace();
             _searchText = EditorGUILayout.TextField(_searchText, EditorStyles.toolbarSearchField);
             EditorGUILayout.EndHorizontal();
 
-            // --- Property List ---
             _scrollPosition = EditorGUILayout.BeginScrollView(_scrollPosition);
-
             if (_properties == null || _properties.Count == 0)
             {
                 EditorGUILayout.LabelField("No reactive properties registered.");
             }
             else
             {
-                // Create a sorted list of keys for a consistent display order
                 var filteredKeys = _properties.Keys
                     .Where(k => string.IsNullOrEmpty(_searchText) || k.ToLowerInvariant().Contains(_searchText.ToLowerInvariant()))
                     .OrderBy(k => k)
@@ -89,7 +115,6 @@ namespace FluxFramework.Editor
                     }
                 }
             }
-            
             EditorGUILayout.EndScrollView();
         }
 
@@ -109,43 +134,73 @@ namespace FluxFramework.Editor
             EditorGUI.BeginChangeCheck();
             object newValue = currentValue;
 
-            // --- Type-Specific Editor Fields ---
-            if (type == typeof(int))
+            if (typeof(System.Collections.IEnumerable).IsAssignableFrom(type) && type != typeof(string))
             {
-                newValue = EditorGUILayout.IntField((int)currentValue);
-            }
-            else if (type == typeof(float))
-            {
-                newValue = EditorGUILayout.FloatField((float)currentValue);
-            }
-            else if (type == typeof(string))
-            {
-                newValue = EditorGUILayout.TextField((string)currentValue);
-            }
-            else if (type == typeof(bool))
-            {
-                newValue = EditorGUILayout.Toggle((bool)currentValue);
-            }
-            else if (type == typeof(Color))
-            {
-                newValue = EditorGUILayout.ColorField((Color)currentValue);
-            }
-            else if (type == typeof(Vector2))
-            {
-                newValue = EditorGUILayout.Vector2Field("", (Vector2)currentValue);
-            }
-            else if (type == typeof(Vector3))
-            {
-                newValue = EditorGUILayout.Vector3Field("", (Vector3)currentValue);
-            }
-            else if (type.IsEnum)
-            {
-                newValue = EditorGUILayout.EnumPopup((Enum)currentValue);
+                var collection = currentValue as System.Collections.IEnumerable;
+                if (collection != null)
+                {
+                    int count = 0;
+                    var preview = new System.Text.StringBuilder();
+
+                    foreach (var item in collection)
+                    {
+                        if (count < 3)
+                        {
+                            preview.Append(item?.ToString() ?? "null");
+                            preview.Append(", ");
+                        }
+                        count++;
+                    }
+                    if (preview.Length > 2) preview.Length -= 2;
+                    if (count > 3) preview.Append("...");
+
+                    EditorGUILayout.LabelField(new GUIContent($"Count: {count}", preview.ToString()), EditorStyles.helpBox);
+                }
+                else
+                {
+                    EditorGUILayout.LabelField("null collection");
+                }
             }
             else
             {
-                // For unsupported types, just display the value as a read-only string
-                EditorGUILayout.LabelField(currentValue?.ToString() ?? "null");
+                // --- Type-Specific Editor Fields ---
+                if (type == typeof(int))
+                {
+                    newValue = EditorGUILayout.IntField((int)currentValue);
+                }
+                else if (type == typeof(float))
+                {
+                    newValue = EditorGUILayout.FloatField((float)currentValue);
+                }
+                else if (type == typeof(string))
+                {
+                    newValue = EditorGUILayout.TextField((string)currentValue);
+                }
+                else if (type == typeof(bool))
+                {
+                    newValue = EditorGUILayout.Toggle((bool)currentValue);
+                }
+                else if (type == typeof(Color))
+                {
+                    newValue = EditorGUILayout.ColorField((Color)currentValue);
+                }
+                else if (type == typeof(Vector2))
+                {
+                    newValue = EditorGUILayout.Vector2Field("", (Vector2)currentValue);
+                }
+                else if (type == typeof(Vector3))
+                {
+                    newValue = EditorGUILayout.Vector3Field("", (Vector3)currentValue);
+                }
+                else if (type.IsEnum)
+                {
+                    newValue = EditorGUILayout.EnumPopup((Enum)currentValue);
+                }
+                else
+                {
+                    // For unsupported types, just display the value as a read-only string
+                    EditorGUILayout.LabelField(currentValue?.ToString() ?? "null");
+                }
             }
 
             if (EditorGUI.EndChangeCheck())

@@ -9,6 +9,7 @@ namespace FluxFramework.Extensions
     /// Collection reactive property for lists and arrays
     /// </summary>
     /// <typeparam name="T">Type of collection items</typeparam>
+    [Serializable]
     public class ReactiveCollection<T> : ReactiveProperty<List<T>>
     {
         /// <summary>
@@ -36,9 +37,10 @@ namespace FluxFramework.Extensions
         /// <param name="item">Item to add</param>
         public void Add(T item)
         {
+            var oldValue = new List<T>(Value); 
             Value.Add(item);
             OnItemsAdded?.Invoke(new[] { item });
-            NotifyCollectionChanged();
+            NotifyChange(oldValue, Value);
         }
 
         /// <summary>
@@ -48,9 +50,11 @@ namespace FluxFramework.Extensions
         public void AddRange(IEnumerable<T> items)
         {
             var itemsArray = items.ToArray();
+            if (itemsArray.Length == 0) return;
+            var oldValue = new List<T>(Value);
             Value.AddRange(itemsArray);
             OnItemsAdded?.Invoke(itemsArray);
-            NotifyCollectionChanged();
+            NotifyChange(oldValue, Value);
         }
 
         /// <summary>
@@ -60,10 +64,11 @@ namespace FluxFramework.Extensions
         /// <returns>True if item was removed</returns>
         public bool Remove(T item)
         {
+            var oldValue = new List<T>(Value);
             if (Value.Remove(item))
             {
                 OnItemsRemoved?.Invoke(new[] { item });
-                NotifyCollectionChanged();
+                NotifyChange(oldValue, Value);
                 return true;
             }
             return false;
@@ -77,10 +82,11 @@ namespace FluxFramework.Extensions
         {
             if (index >= 0 && index < Value.Count)
             {
+                var oldValue = new List<T>(Value);
                 var item = Value[index];
                 Value.RemoveAt(index);
                 OnItemsRemoved?.Invoke(new[] { item });
-                NotifyCollectionChanged();
+                NotifyChange(oldValue, Value);
             }
         }
 
@@ -89,9 +95,11 @@ namespace FluxFramework.Extensions
         /// </summary>
         public void Clear()
         {
+            if (Value.Count == 0) return;
+            var oldValue = new List<T>(Value);
             Value.Clear();
             OnCleared?.Invoke();
-            NotifyCollectionChanged();
+            NotifyChange(oldValue, Value);
         }
 
         /// <summary>
@@ -109,11 +117,12 @@ namespace FluxFramework.Extensions
             get => Value[index];
             set
             {
-                var oldItem = Value[index];
+                var oldValue = new List<T>(Value);
+                var oldItemInPlace = Value[index];
                 Value[index] = value;
-                OnItemsRemoved?.Invoke(new[] { oldItem });
+                OnItemsRemoved?.Invoke(new[] { oldItemInPlace });
                 OnItemsAdded?.Invoke(new[] { value });
-                NotifyCollectionChanged();
+                NotifyChange(oldValue, Value);
             }
         }
 
@@ -137,11 +146,9 @@ namespace FluxFramework.Extensions
             return Value.IndexOf(item);
         }
 
-        private void NotifyCollectionChanged()
+        private void NotifyChange(List<T> oldValue, List<T> newValue)
         {
-            // Trigger the property change notification
-            var currentValue = Value;
-            Value = new List<T>(currentValue);
+            NotifyValueChanged(oldValue, newValue);
         }
     }
 }
