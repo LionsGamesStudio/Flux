@@ -52,11 +52,11 @@ namespace FluxFramework.VR
         /// Initializes the controller for a specific hand and device.
         /// This is where the reactive properties are created with dynamic keys based on the controller's hand.
         /// </summary>
-        public void Initialize(InputDevice device, XRNode node)
+        public void Initialize(XRNode node)
         {
-            _inputDevice = device;
             _controllerNode = node;
             _handIdentifier = node == XRNode.LeftHand ? "left" : "right";
+            _inputDevice = InputDevices.GetDeviceAtXRNode(_controllerNode);
             
             // Programmatically create or get the reactive properties with dynamic keys.
             _positionProp = Flux.Manager.Properties.GetOrCreateProperty<Vector3>($"vr.controller.{_handIdentifier}.position");
@@ -80,6 +80,13 @@ namespace FluxFramework.VR
         /// </summary>
         protected virtual void LateUpdate()
         {
+            if (!_inputDevice.isValid)
+            {
+                // If the cached device is no longer valid, try to get it again.
+                // This automatically handles disconnection/reconnection.
+                _inputDevice = InputDevices.GetDeviceAtXRNode(_controllerNode);
+            }
+
             if (_inputDevice.isValid)
             {
                 UpdateTracking();
@@ -87,6 +94,7 @@ namespace FluxFramework.VR
             }
             else if (_isTrackedProp != null && _isTrackedProp.Value)
             {
+                // If we still can't find a device, update the "not tracked" status.
                 _isTrackedProp.Value = false;
             }
         }

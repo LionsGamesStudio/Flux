@@ -69,13 +69,24 @@ namespace FluxFramework.VR
 
         private void InitializeVR()
         {
-            XRDevice.SetTrackingSpaceType((TrackingSpaceType)trackingSpace);
+            // Use the XRInputSubsystem to set the tracking space.
+            List<XRInputSubsystem> subsystems = new List<XRInputSubsystem>();
+            SubsystemManager.GetSubsystems(subsystems);
+            foreach (var subsystem in subsystems)
+            {
+                // We try to set the tracking origin mode.
+                subsystem.TrySetTrackingOriginMode(TrackingOriginModeFlags.Floor); // Equivalent to RoomScale
+            }
+
             RefreshAllControllers();
             
-            string deviceName = XRSettings.loadedDeviceName;
-            bool isActive = XRSettings.isDeviceActive;
+            // Verify if an HMD is connected and publish an event.
+            var hmd = InputDevices.GetDeviceAtXRNode(XRNode.Head);
+            string deviceName = hmd.isValid ? hmd.name : "No HMD Detected";
+            bool isActive = hmd.isValid;
+
             this.PublishEvent(new VRInitializedEvent(isActive, deviceName));
-            FluxFramework.Core.Flux.Manager.Logger.Info($"[FluxFramework] FluxVRManager Initialized. Device: {deviceName}, Active: {isActive}", this);
+            Flux.Manager.Logger.Info($"FluxVRManager Initialized. Device: {deviceName}, Active: {isActive}", this);
         }
 
         private void UpdateHMDTracking()
@@ -134,7 +145,7 @@ namespace FluxFramework.VR
                     controllerGO.transform.SetParent(transform, false);
                     
                     var controller = controllerGO.AddComponent<FluxVRController>();
-                    controller.Initialize(device, node);
+                    controller.Initialize(node); 
                     _controllers[node] = controller;
                     
                     this.PublishEvent(new VRControllerConnectedEvent(node, device.name));
@@ -162,7 +173,14 @@ namespace FluxFramework.VR
         }
         
         public FluxVRController GetController(XRNode hand) => _controllers.TryGetValue(hand, out var controller) ? controller : null;
-        public bool IsVRActive => XRSettings.enabled && XRSettings.isDeviceActive;
+        public bool IsVRActive
+        {
+            get
+            {
+                var hmd = InputDevices.GetDeviceAtXRNode(XRNode.Head);
+                return hmd.isValid;
+            }
+        }
     }
 
     public enum VRTrackingSpace

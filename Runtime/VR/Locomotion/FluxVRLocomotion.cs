@@ -44,13 +44,13 @@ namespace FluxFramework.VR.Locomotion
         [SerializeField] private float teleportMaxDistance = 10f;
         [FluxGroup("Teleportation Settings")]
         [Tooltip("A prefab to instantiate as the visual marker for the teleport destination.")]
-        [SerializeField] private GameObject teleportMarkerPrefab;
+        [SerializeField] public GameObject teleportMarkerPrefab;
         [FluxGroup("Teleportation Settings")]
         [Tooltip("The LineRenderer used to draw the teleportation arc.")]
-        [SerializeField] private LineRenderer teleportLineRenderer;
+        [SerializeField] public LineRenderer teleportLineRenderer;
         [FluxGroup("Teleportation Settings")]
         [Tooltip("The material to apply to the teleport LineRenderer.")]
-        [SerializeField] private Material teleportLineMaterial;
+        [SerializeField] public Material teleportLineMaterial;
 
         [Header("Smooth Movement")]
         [FluxGroup("Smooth Movement Settings")]
