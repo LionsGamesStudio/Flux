@@ -29,6 +29,9 @@ namespace FluxFramework.Editor
             var editorManagerStub = new EditorFluxManagerStub();
             ComponentRegistry = new FluxComponentRegistry(editorManagerStub);
             ComponentRegistry.Initialize();
+
+            // Assign the stub manager to the global Flux access point
+            Flux.Manager = editorManagerStub;
         }
     }
 

@@ -56,6 +56,8 @@ namespace FluxFramework.Testing
             BindingSystem.Initialize();
             ValueConverterRegistry.Initialize();
             ConfigurationManager.Initialize();
+
+            FluxFramework.Core.Flux.Manager = this;
             
             IsInitialized = true;
         }
