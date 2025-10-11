@@ -3,6 +3,7 @@ using UnityEngine;
 using FluxFramework.Core;
 using FluxFramework.Attributes;
 using FluxFramework.VR.Events;
+using FluxFramework.Extensions;
 using System;
 
 namespace FluxFramework.VR.Examples
@@ -37,9 +38,9 @@ namespace FluxFramework.VR.Examples
         private IDisposable _hoverEnterSub;
         private IDisposable _hoverExitSub;
 
-        protected override void Awake()
+        protected override void OnFluxAwake()
         {
-            base.Awake();
+            base.OnFluxAwake();
 
             // Auto-find components
             _rigidbody = GetComponent<Rigidbody>();
@@ -56,14 +57,14 @@ namespace FluxFramework.VR.Examples
             _grabbingControllerProp = Flux.Manager.Properties.GetOrCreateProperty<string>($"vr.object.{objectKeyName}.grabbingController");
         }
         
-        protected virtual void Start()
+        protected override void OnFluxStart()
         {
             // Subscribe to VR hover events. Store the subscriptions for later disposal.
-            _hoverEnterSub = EventBus.Subscribe<VRUIHoverEnterEvent>(OnHoverEnter);
-            _hoverExitSub = EventBus.Subscribe<VRUIHoverExitEvent>(OnHoverExit);
+            _hoverEnterSub = Flux.Manager.EventBus.Subscribe<VRUIHoverEnterEvent>(OnHoverEnter);
+            _hoverExitSub = Flux.Manager.EventBus.Subscribe<VRUIHoverExitEvent>(OnHoverExit);
         }
         
-        protected override void OnDestroy()
+        protected override void OnFluxDestroy()
         {
             // --- Crucial Cleanup ---
             // Dispose of the event subscriptions to prevent memory leaks.
@@ -75,7 +76,7 @@ namespace FluxFramework.VR.Examples
             {
                 ReleaseObject();
             }
-            base.OnDestroy();
+            base.OnFluxDestroy();
         }
 
         /// <summary>
@@ -111,7 +112,7 @@ namespace FluxFramework.VR.Examples
             transform.SetParent(controller.transform);
             
             controller.TriggerHapticFeedback(0.5f, 0.1f);
-            PublishEvent(new VRObjectGrabbedEvent(controller.ControllerNode, gameObject, transform.position));
+            this.PublishEvent(new VRObjectGrabbedEvent(controller.ControllerNode, gameObject, transform.position));
             FluxFramework.Core.Flux.Manager.Logger.Info($"Grabbed {gameObject.name} with {controller.ControllerNode}", this);
         }
         
@@ -144,7 +145,7 @@ namespace FluxFramework.VR.Examples
             _currentGrabbingController = null;
             
             controller.TriggerHapticFeedback(0.3f, 0.05f);
-            PublishEvent(new VRObjectReleasedEvent(controller.ControllerNode, gameObject, releaseVelocity));
+            this.PublishEvent(new VRObjectReleasedEvent(controller.ControllerNode, gameObject, releaseVelocity));
             FluxFramework.Core.Flux.Manager.Logger.Info($"Released {gameObject.name}", this);
         }
         

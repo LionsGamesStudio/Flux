@@ -4,6 +4,7 @@ using UnityEngine.XR;
 using FluxFramework.Core;
 using FluxFramework.Attributes;
 using FluxFramework.VR.Events;
+using FluxFramework.Extensions;
 
 namespace FluxFramework.VR
 {
@@ -126,8 +127,8 @@ namespace FluxFramework.VR
                 if (!Mathf.Approximately(oldTrigger, trigger))
                 {
                     _triggerValueProp.Value = trigger;
-                    if (oldTrigger < 0.1f && trigger >= 0.1f) PublishEvent(new VRTriggerPressedEvent(_controllerNode, trigger));
-                    else if (oldTrigger >= 0.1f && trigger < 0.1f) PublishEvent(new VRTriggerReleasedEvent(_controllerNode));
+                    if (oldTrigger < 0.1f && trigger >= 0.1f) this.PublishEvent(new VRTriggerPressedEvent(_controllerNode, trigger));
+                    else if (oldTrigger >= 0.1f && trigger < 0.1f) this.PublishEvent(new VRTriggerReleasedEvent(_controllerNode));
                 }
             }
             
@@ -138,8 +139,8 @@ namespace FluxFramework.VR
                  if (!Mathf.Approximately(oldGrip, grip))
                 {
                     _gripValueProp.Value = grip;
-                    if (oldGrip < 0.5f && grip >= 0.5f) PublishEvent(new VRGripPressedEvent(_controllerNode, grip));
-                    else if (oldGrip >= 0.5f && grip < 0.5f) PublishEvent(new VRGripReleasedEvent(_controllerNode));
+                    if (oldGrip < 0.5f && grip >= 0.5f) this.PublishEvent(new VRGripPressedEvent(_controllerNode, grip));
+                    else if (oldGrip >= 0.5f && grip < 0.5f) this.PublishEvent(new VRGripReleasedEvent(_controllerNode));
                 }
             }
             
@@ -166,8 +167,8 @@ namespace FluxFramework.VR
                 if (property.Value != isPressed)
                 {
                     property.Value = isPressed;
-                    if (isPressed) PublishEvent(new VRButtonPressedEvent(_controllerNode, buttonType));
-                    else PublishEvent(new VRButtonReleasedEvent(_controllerNode, buttonType));
+                    if (isPressed) this.PublishEvent(new VRButtonPressedEvent(_controllerNode, buttonType));
+                    else this.PublishEvent(new VRButtonReleasedEvent(_controllerNode, buttonType));
                 }
             }
         }

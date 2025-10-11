@@ -37,9 +37,9 @@ namespace FluxFramework.VR
         private IDisposable _controllerDisconnectedSub;
         private IDisposable _triggerPressedSub;
         
-        protected override void Awake()
+        protected override void OnFluxAwake()
         {
-            base.Awake();
+            base.OnFluxAwake();
 
             // Get component dependencies
             _vrManager = GetComponent<FluxVRManager>();
@@ -53,23 +53,23 @@ namespace FluxFramework.VR
             _isGroundedProp = Flux.Manager.Properties.GetOrCreateProperty<bool>("vr.player.isGrounded", true);
         }
 
-        protected virtual void Start()
+        protected override void OnFluxStart()
         {
             // Subscribe to VR events. Storing the IDisposable handle is crucial for cleanup.
-            _controllerConnectedSub = EventBus.Subscribe<VRControllerConnectedEvent>(OnControllerConnected);
-            _controllerDisconnectedSub = EventBus.Subscribe<VRControllerDisconnectedEvent>(OnControllerDisconnected);
-            _triggerPressedSub = EventBus.Subscribe<VRTriggerPressedEvent>(OnTriggerPressed);
-            
+            _controllerConnectedSub = Flux.Manager.EventBus.Subscribe<VRControllerConnectedEvent>(OnControllerConnected);
+            _controllerDisconnectedSub = Flux.Manager.EventBus.Subscribe<VRControllerDisconnectedEvent>(OnControllerDisconnected);
+            _triggerPressedSub = Flux.Manager.EventBus.Subscribe<VRTriggerPressedEvent>(OnTriggerPressed);
+
             FluxFramework.Core.Flux.Manager.Logger.Info("[FluxFramework] FluxVRPlayer initialized!", this);
         }
         
-        protected override void OnDestroy()
+        protected override void OnFluxDestroy()
         {
             // Unsubscribe from all events to prevent memory leaks.
             _controllerConnectedSub?.Dispose();
             _controllerDisconnectedSub?.Dispose();
             _triggerPressedSub?.Dispose();
-            base.OnDestroy();
+            base.OnFluxDestroy();
         }
 
         protected virtual void Update()

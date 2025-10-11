@@ -4,6 +4,7 @@ using UnityEngine.XR;
 using FluxFramework.Core;
 using FluxFramework.Attributes;
 using FluxFramework.VR.Events;
+using FluxFramework.Extensions;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -31,10 +32,10 @@ namespace FluxFramework.VR
 
         private readonly Dictionary<XRNode, FluxVRController> _controllers = new Dictionary<XRNode, FluxVRController>();
 
-        protected override void Awake()
+        protected override void OnFluxAwake()
         {
-            base.Awake();
-            
+            base.OnFluxAwake();
+
             _hmdPositionProp = Flux.Manager.Properties.GetOrCreateProperty<Vector3>("vr.hmd.position");
             _hmdRotationProp = Flux.Manager.Properties.GetOrCreateProperty<Quaternion>("vr.hmd.rotation");
             _hmdIsTrackedProp = Flux.Manager.Properties.GetOrCreateProperty<bool>("vr.hmd.isTracked");
@@ -42,7 +43,7 @@ namespace FluxFramework.VR
             _activeControllerCountProp = Flux.Manager.Properties.GetOrCreateProperty<int>("vr.controllers.count");
         }
 
-        protected virtual void Start()
+        protected override void OnFluxStart()
         {
             if (autoInitializeVR)
             {
@@ -59,11 +60,11 @@ namespace FluxFramework.VR
             UpdateControllerCount();
         }
 
-        protected override void OnDestroy()
+        protected override void OnFluxDestroy()
         {
             InputDevices.deviceConnected -= OnDeviceChanged;
             InputDevices.deviceDisconnected -= OnDeviceChanged;
-            base.OnDestroy();
+            base.OnFluxDestroy();
         }
 
         private void InitializeVR()
@@ -73,7 +74,7 @@ namespace FluxFramework.VR
             
             string deviceName = XRSettings.loadedDeviceName;
             bool isActive = XRSettings.isDeviceActive;
-            PublishEvent(new VRInitializedEvent(isActive, deviceName));
+            this.PublishEvent(new VRInitializedEvent(isActive, deviceName));
             FluxFramework.Core.Flux.Manager.Logger.Info($"[FluxFramework] FluxVRManager Initialized. Device: {deviceName}, Active: {isActive}", this);
         }
 
@@ -136,7 +137,7 @@ namespace FluxFramework.VR
                     controller.Initialize(device, node);
                     _controllers[node] = controller;
                     
-                    PublishEvent(new VRControllerConnectedEvent(node, device.name));
+                    this.PublishEvent(new VRControllerConnectedEvent(node, device.name));
                 }
             }
 
@@ -149,7 +150,7 @@ namespace FluxFramework.VR
                     Destroy(controllerToDestroy.gameObject);
                 }
                 _controllers.Remove(node);
-                PublishEvent(new VRControllerDisconnectedEvent(node));
+                this.PublishEvent(new VRControllerDisconnectedEvent(node));
             }
         }
 

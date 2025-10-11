@@ -5,6 +5,7 @@ using UnityEngine.XR;
 using FluxFramework.Core;
 using FluxFramework.Attributes;
 using FluxFramework.VR.Events;
+using FluxFramework.Extensions;
 using System.Collections.Generic;
 
 namespace FluxFramework.VR.UI
@@ -102,7 +103,7 @@ namespace FluxFramework.VR.UI
                 if (_currentHitObject != null)
                 {
                     ExecuteEvents.Execute(_currentHitObject, _pointerEventData, ExecuteEvents.pointerExitHandler);
-                    PublishEvent(new VRUIHoverExitEvent(_controller.ControllerNode, _currentHitObject));
+                    this.PublishEvent(new VRUIHoverExitEvent(_controller.ControllerNode, _currentHitObject));
                 }
 
                 _currentHitObject = newHitObject;
@@ -111,7 +112,7 @@ namespace FluxFramework.VR.UI
                 if (_currentHitObject != null)
                 {
                     ExecuteEvents.Execute(_currentHitObject, _pointerEventData, ExecuteEvents.pointerEnterHandler);
-                    PublishEvent(new VRUIHoverEnterEvent(_controller.ControllerNode, _currentHitObject));
+                    this.PublishEvent(new VRUIHoverEnterEvent(_controller.ControllerNode, _currentHitObject));
                 }
             }
             
@@ -135,7 +136,7 @@ namespace FluxFramework.VR.UI
                 if (_lastPressedObject != null)
                 {
                     ExecuteEvents.Execute(_lastPressedObject, _pointerEventData, ExecuteEvents.pointerDownHandler);
-                    PublishEvent(new VRUIClickEvent(_controller.ControllerNode, _lastPressedObject, _pointerEventData.pointerCurrentRaycast.worldPosition));
+                    this.PublishEvent(new VRUIClickEvent(_controller.ControllerNode, _lastPressedObject, _pointerEventData.pointerCurrentRaycast.worldPosition));
                 }
             }
             else if (!triggerState && _isTriggerPressed) // Press Up

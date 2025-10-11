@@ -3,6 +3,7 @@ using UnityEngine;
 using FluxFramework.Core;
 using FluxFramework.Attributes;
 using FluxFramework.VR.Events;
+using FluxFramework.Extensions;
 
 namespace FluxFramework.VR.Examples
 {
@@ -26,9 +27,9 @@ namespace FluxFramework.VR.Examples
         private Vector3 _originalPosition;
         private Renderer _buttonRenderer;
 
-        protected override void Awake()
+        protected override void OnFluxAwake()
         {
-            base.Awake();
+            base.OnFluxAwake();
             _originalPosition = transform.localPosition;
             _buttonRenderer = GetComponent<Renderer>();
             
@@ -62,7 +63,7 @@ namespace FluxFramework.VR.Examples
             controller?.TriggerHapticFeedback(0.7f, 0.1f);
             
             // Publish a specific event for this button press.
-            PublishEvent(new VRInteractiveButtonEvent(gameObject, controller.ControllerNode));
+            this.PublishEvent(new VRInteractiveButtonEvent(gameObject, controller.ControllerNode));
             
             // Use a coroutine for the release to avoid issues if the object is disabled.
             StartCoroutine(ReleaseButtonAfterDelay(0.2f));

@@ -63,18 +63,14 @@ namespace FluxFramework.VR.UI
         }
 
         /// <summary>
-        /// This is the core of the VR enhancement. It overrides the base SetText method.
+        /// This is the core of the VR enhancement.
         /// When the data binding updates the text, this method ensures that BOTH the original
         /// UI component (if needed) and the new 3D text component are synchronized.
         /// </summary>
         /// <param name="newText">The new text value from the binding.</param>
-        public override void SetText(string newText)
+        public void SetText(string newText)
         {
-            // First, call the base implementation to update the underlying UI Text or TextMeshProUGUI.
-            // This keeps the original functionality intact.
-            base.SetText(newText);
-
-            // Then, add the specific logic for this VR class: update the 3D text component.
+            // Add the specific logic for this VR class: update the 3D text component.
             if (use3DText && _textMesh3D != null)
             {
                 _textMesh3D.text = newText;

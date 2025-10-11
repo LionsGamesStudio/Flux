@@ -6,6 +6,7 @@ using FluxFramework.Core;
 using FluxFramework.UI;
 using FluxFramework.Attributes;
 using FluxFramework.VR.Events;
+using FluxFramework.Extensions;
 using System.Collections;
 
 namespace FluxFramework.VR.UI
@@ -118,7 +119,7 @@ namespace FluxFramework.VR.UI
             if (isCurrentlyFocused != wasFocused)
             {
                 _isFocusedProp.Value = isCurrentlyFocused;
-                PublishEvent(new VRCanvasFocusChangedEvent(gameObject, isCurrentlyFocused));
+                this.PublishEvent(new VRCanvasFocusChangedEvent(gameObject, isCurrentlyFocused));
             }
         }
         

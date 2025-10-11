@@ -24,10 +24,12 @@ namespace FluxFramework.VR
         [Tooltip("Optional: A prefab for the Camera Rig object. Used if building from scratch.")]
         [SerializeField] private GameObject cameraRigPrefab;
 
-        protected override void Awake()
+        private GameObject _createdPlayer;
+
+        protected override void OnFluxAwake()
         {
-            base.Awake();
-            if (createAtStart)
+            base.OnFluxAwake();
+            if (createAtStart && _createdPlayer == null)
             {
                 CreateVRPlayerPrefab();
             }
@@ -37,12 +39,12 @@ namespace FluxFramework.VR
         /// Creates or instantiates a complete VR Player prefab.
         /// </summary>
         [FluxButton("Create VR Player")]
-        public GameObject CreateVRPlayerPrefab()
+        public void CreateVRPlayerPrefab()
         {
             // If a full prefab is assigned, instantiate it.
             if (vrPlayerPrefab != null)
             {
-                return Instantiate(vrPlayerPrefab, transform.position, transform.rotation);
+                _createdPlayer = Instantiate(vrPlayerPrefab, transform.position, transform.rotation);
             }
 
             // --- Otherwise, build the rig from scratch (original logic) ---
@@ -68,7 +70,7 @@ namespace FluxFramework.VR
             vrRig.AddComponent<FluxVRPlayer>();
 
             FluxFramework.Core.Flux.Manager.Logger.Info("[FluxFramework] A new FluxVR Player Rig has been created programmatically.", this);
-            return vrRig;
+            _createdPlayer = vrRig;
         }
     }
 }

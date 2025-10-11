@@ -4,6 +4,7 @@ using UnityEngine.XR;
 using FluxFramework.Core;
 using FluxFramework.Attributes;
 using FluxFramework.VR.Events;
+using FluxFramework.Extensions;
 using System.Collections;
 
 namespace FluxFramework.VR.Locomotion
@@ -84,9 +85,9 @@ namespace FluxFramework.VR.Locomotion
         private float _lastSnapTurnTime;
         private bool _isReadyForSnapTurn = true;
         
-        protected override void Awake()
+        protected override void OnFluxAwake()
         {
-            base.Awake();
+            base.OnFluxAwake();
 
             _vrManager = GetComponent<FluxVRManager>();
             _vrCamera = GetComponentInChildren<Camera>();
@@ -285,7 +286,7 @@ namespace FluxFramework.VR.Locomotion
             if (fadeOnTeleport) StartCoroutine(TeleportWithFade());
             else PerformTeleport();
             
-            PublishEvent(new VRTeleportEvent(oldPosition, _teleportDestination, XRNode.RightHand));
+            this.PublishEvent(new VRTeleportEvent(oldPosition, _teleportDestination, XRNode.RightHand));
             _vrManager.GetController(XRNode.RightHand)?.TriggerHapticFeedback(0.8f, 0.2f);
             
             CancelTeleportAiming();

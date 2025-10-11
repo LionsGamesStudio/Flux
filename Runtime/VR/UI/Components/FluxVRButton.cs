@@ -5,6 +5,7 @@ using FluxFramework.UI;
 using FluxFramework.Attributes;
 using FluxFramework.Core;
 using FluxFramework.VR.Events;
+using FluxFramework.Extensions;
 using System;
 using System.Collections;
 
@@ -76,9 +77,9 @@ namespace FluxFramework.VR.UI
         /// </summary>
         protected virtual void Start()
         {
-            _hoverEnterSub = EventBus.Subscribe<VRUIHoverEnterEvent>(OnHoverEnter);
-            _hoverExitSub = EventBus.Subscribe<VRUIHoverExitEvent>(OnHoverExit);
-            _clickSub = EventBus.Subscribe<VRUIClickEvent>(OnVRClick);
+            _hoverEnterSub = Flux.Manager.EventBus.Subscribe<VRUIHoverEnterEvent>(OnHoverEnter);
+            _hoverExitSub = Flux.Manager.EventBus.Subscribe<VRUIHoverExitEvent>(OnHoverExit);
+            _clickSub = Flux.Manager.EventBus.Subscribe<VRUIClickEvent>(OnVRClick);
         }
 
         /// <summary>
@@ -160,7 +161,7 @@ namespace FluxFramework.VR.UI
         {
             // Publish a high-level event that game logic can listen to,
             // abstracting away whether the click came from VR or a mouse.
-            PublishEvent(new VRButtonClickedEvent(gameObject));
+            this.PublishEvent(new VRButtonClickedEvent(gameObject));
             FluxFramework.Core.Flux.Manager.Logger.Info($"[FluxVRButton] {gameObject.name} onClick event fired.", this);
         }
         
