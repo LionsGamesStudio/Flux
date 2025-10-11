@@ -109,7 +109,7 @@ public class PlayerStats : FluxMonoBehaviour
     {
         // To safely MODIFY the state, provide a function that transforms its current,
         // authoritative value. This prevents bugs from using a stale local cache.
-        UpdateReactiveProperty("player.health", currentHealth => currentHealth - 10f);
+        this.UpdateReactiveProperty("player.health", currentHealth => currentHealth - 10f);
     }
 }
 ```
@@ -158,22 +158,22 @@ public class InventoryManager : FluxMonoBehaviour
     protected override void OnFluxAwake()
     {
         // Subscribe to list changes
-        GetReactiveProperty<List<string>>("inventory.items").Subscribe(OnInventoryChanged);
+        this.GetReactiveProperty<List<string>>("inventory.items").Subscribe(OnInventoryChanged);
     }
     
     [FluxButton("Add Item")]
     private void AddItem()
     {
         // Use helper methods from FluxMonoBehaviour for safe list operations
-        AddToReactiveCollection<string>("inventory.items", "New Item");
+        this.AddToReactiveCollection<string>("inventory.items", "New Item");
     }
     
     [FluxButton("Remove Last Item")]
     private void RemoveLastItem()
     {
-        if (TryGetReactiveProperty<List<string>>("inventory.items", out var items) && items.Value.Count > 0)
+        if (this.TryGetReactiveProperty<List<string>>("inventory.items", out var items) && items.Value.Count > 0)
         {
-            RemoveFromReactiveCollection<string>("inventory.items", items.Value.Last());
+            this.RemoveFromReactiveCollection<string>("inventory.items", items.Value.Last());
         }
     }
     
@@ -208,9 +208,9 @@ public class PlayerStats : FluxMonoBehaviour
     private void InitializeStats()
     {
         // Use helper methods for safe dictionary operations
-        SetInReactiveDictionary<string, int>("player.stats", "Health", 100);
-        SetInReactiveDictionary<string, int>("player.stats", "Mana", 50);
-        SetInReactiveDictionary<string, int>("player.stats", "Strength", 10);
+        this.SetInReactiveDictionary<string, int>("player.stats", "Health", 100);
+        this.SetInReactiveDictionary<string, int>("player.stats", "Mana", 50);
+        this.SetInReactiveDictionary<string, int>("player.stats", "Strength", 10);
     }
     
     [FluxButton("Increase Health")]
@@ -218,7 +218,7 @@ public class PlayerStats : FluxMonoBehaviour
     {
         if (TryGetFromReactiveDictionary<string, int>("player.stats", "Health", out int currentHealth))
         {
-            SetInReactiveDictionary<string, int>("player.stats", "Health", currentHealth + 10);
+            this.SetInReactiveDictionary<string, int>("player.stats", "Health", currentHealth + 10);
         }
     }
     

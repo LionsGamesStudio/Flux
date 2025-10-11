@@ -5,11 +5,13 @@ using System.Linq;
 using UnityEngine;
 using FluxFramework.Core;
 using FluxFramework.Core.Data;
+using FluxFramework.Utils;
 
 namespace FluxFramework.Extensions
 {
     [Serializable]
-    public class ReactiveDictionary<TKey, TValue> : ReactiveProperty<SerializableDictionary<TKey, TValue>>, IEnumerable<KeyValuePair<TKey, TValue>>, ISerializationCallbackReceiver
+    public class ReactiveDictionary<TKey, TValue> : ReactiveProperty<SerializableDictionary<TKey, TValue>>,
+        IEnumerable<KeyValuePair<TKey, TValue>>, ISerializationCallbackReceiver, IImplicitSyncable
     {
         public event Action<TKey, TValue> OnItemAdded;
         public event Action<TKey> OnItemRemoved;
@@ -235,5 +237,42 @@ namespace FluxFramework.Extensions
         {
             NotifyChange(Value, Value);
         }
+
+        #region IImplicitSyncable Implementation
+
+        /// <summary>
+        /// Sets up the subscriptions to keep the local Dictionary field in sync.
+        /// </summary>
+        public void SetupImplicitSync(MonoBehaviour owner, object localFieldInstance)
+        {
+            if (localFieldInstance is not IDictionary localDictionary)
+            {
+                Debug.LogError($"[FluxFramework] IImplicitSyncable setup failed for ReactiveDictionary. The provided local field is not an IDictionary.", owner);
+                return;
+            }
+
+            var subManager = owner.gameObject.GetComponent<ComponentSubscriptionManager>() ?? owner.gameObject.AddComponent<ComponentSubscriptionManager>();
+
+            Action<TKey, TValue> addHandler = (key, value) => localDictionary[key] = value;
+            this.OnItemAdded += addHandler;
+            this.OnItemChanged += addHandler; // OnItemChanged can be treated like an Add/Update
+
+            Action<TKey> removeHandler = key => localDictionary.Remove(key);
+            this.OnItemRemoved += removeHandler;
+
+            Action clearHandler = localDictionary.Clear;
+            this.OnCleared += clearHandler;
+
+            // Ensure we clean up the subscriptions when the component is destroyed
+            subManager.Add(new ActionDisposable(() =>
+            {
+                this.OnItemAdded -= addHandler;
+                this.OnItemChanged -= addHandler;
+                this.OnItemRemoved -= removeHandler;
+                this.OnCleared -= clearHandler;
+            }));
+        }
+
+        #endregion
     }
 }

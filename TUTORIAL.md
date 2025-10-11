@@ -124,7 +124,7 @@ public class PlayerController : FluxMonoBehaviour
     {
         _rb = GetComponent<Rigidbody2D>();
         // Reset non-persistent stats at the start of the game
-        UpdateReactiveProperty(FluxKeys.PlayerHealth, 100f);
+        this.UpdateReactiveProperty(FluxKeys.PlayerHealth, 100f);
     }
 
     private void Update()
@@ -133,12 +133,12 @@ public class PlayerController : FluxMonoBehaviour
         _rb.velocity = new Vector2(horizontal * moveSpeed, _rb.velocity.y);
 
         // To READ a value, get it from the central manager.
-        bool isGrounded = GetReactivePropertyValue<bool>(FluxKeys.PlayerIsGrounded);
+        bool isGrounded = this.GetReactivePropertyValue<bool>(FluxKeys.PlayerIsGrounded);
 
         if (Input.GetButtonDown("Jump") && isGrounded)
         {
             _rb.velocity = new Vector2(_rb.velocity.x, jumpForce);
-            PublishEvent(new PlayerJumpedEvent());
+            this.PublishEvent(new PlayerJumpedEvent());
         }
     }
 
@@ -147,9 +147,9 @@ public class PlayerController : FluxMonoBehaviour
         // To WRITE state, we must use the helper method. This ensures
         // the central ReactiveProperty is updated, and all listeners are notified.
         bool groundedState = Physics2D.OverlapCircle(groundCheck.position, 0.2f, groundLayer);
-        UpdateReactiveProperty(FluxKeys.PlayerIsGrounded, groundedState);
+        this.UpdateReactiveProperty(FluxKeys.PlayerIsGrounded, groundedState);
         
-        UpdateReactiveProperty(FluxKeys.PlayerPosition, (Vector2)_rb.position);
+        this.UpdateReactiveProperty(FluxKeys.PlayerPosition, (Vector2)_rb.position);
     }
 }
 
@@ -249,11 +249,11 @@ public class InventoryManager : FluxMonoBehaviour
         // 1. Use the UpdateReactiveProperty helper with a function.
         // This reads the current authoritative value, modifies it, and writes it back
         // in one safe, atomic operation that respects validation.
-        UpdateReactiveProperty<int>(FluxKeys.PlayerGold, currentGold => currentGold + amount);
+        this.UpdateReactiveProperty<int>(FluxKeys.PlayerGold, currentGold => currentGold + amount);
         
         // 2. Publish an event to notify other systems of the change.
         int newTotal = GetReactivePropertyValue<int>(FluxKeys.PlayerGold);
-        PublishEvent(new GoldChangedEventArgs(newTotal));
+        this.PublishEvent(new GoldChangedEventArgs(newTotal));
     }
 }
 ```
@@ -340,10 +340,10 @@ public class InventoryManager : FluxMonoBehaviour
     public void AddGold(int amount = 10)
     {
         if (amount <= 0) return;
-        UpdateReactiveProperty<int>(FluxKeys.PlayerGold, currentGold => currentGold + amount);
+        this.UpdateReactiveProperty<int>(FluxKeys.PlayerGold, currentGold => currentGold + amount);
         
-        int newTotal = GetReactivePropertyValue<int>(FluxKeys.PlayerGold);
-        PublishEvent(new GoldChangedEventArgs(newTotal));
+        int newTotal = this.GetReactivePropertyValue<int>(FluxKeys.PlayerGold);
+        this.PublishEvent(new GoldChangedEventArgs(newTotal));
     }
     
     [FluxAction("Add Item")]
@@ -352,7 +352,7 @@ public class InventoryManager : FluxMonoBehaviour
         if (string.IsNullOrEmpty(itemName)) return;
         
         // Use helper method from FluxMonoBehaviour for safe list operations
-        AddToReactiveCollection<string>("player.items", itemName);
+        this.AddToReactiveCollection<string>("player.items", itemName);
         
         Debug.Log($"Added {itemName} to inventory");
     }
@@ -363,7 +363,7 @@ public class InventoryManager : FluxMonoBehaviour
         if (string.IsNullOrEmpty(itemName)) return;
         
         // Use helper method for safe removal
-        RemoveFromReactiveCollection<string>("player.items", itemName);
+        this.RemoveFromReactiveCollection<string>("player.items", itemName);
         
         Debug.Log($"Removed {itemName} from inventory");
     }

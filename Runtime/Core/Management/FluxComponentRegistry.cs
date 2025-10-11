@@ -110,8 +110,12 @@ namespace FluxFramework.Core
             // --- REGISTRATION PIPELINE ---
             CallRegistrationMethods(component, attribute);
 
-            // 1. Delegate all reactive property creation to the central factory.
-            _manager.PropertyFactory.RegisterPropertiesFor(component);
+            // 1. Delegate reactive property creation to the component itself via the IFluxReactiveObject interface.
+            // This decouples the registry from the property factory.
+            if (component is IFluxReactiveObject reactiveObject)
+            {
+                reactiveObject.InitializeReactiveProperties();
+            }
 
             // 2. Register event and property change handlers.
             RegisterEventHandlers(component);

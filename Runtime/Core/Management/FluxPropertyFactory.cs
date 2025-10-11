@@ -128,7 +128,17 @@ namespace FluxFramework.Core
                 }
 
                 // --- Step 3: Finalize registration ---
+
+                // 1. Basic sync: if the entire property reference changes, update the local field.
                 property.Subscribe(newValue => field.SetValue(owner, newValue));
+
+                // 2. Granular sync: Check if the property is syncable and delegate the setup.
+                if (owner is MonoBehaviour monoBehaviour && property is IImplicitSyncable syncable)
+                {
+                    // The factory no longer needs to know HOW to sync. It just tells the property TO sync.
+                    syncable.SetupImplicitSync(monoBehaviour, initialValue);
+                }
+
                 _propertyManager.RegisterProperty(propertyKey, property, attribute.Persistent);
                 if (attribute.Persistent) _persistenceManager.RegisterPersistentProperty(propertyKey, property);
             }

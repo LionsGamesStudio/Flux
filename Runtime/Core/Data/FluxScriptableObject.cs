@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System;
 using FluxFramework.Attributes;
+using FluxFramework.Extensions;
 
 namespace FluxFramework.Core
 {
@@ -175,13 +176,5 @@ namespace FluxFramework.Core
         }
 
         #endregion
-    }
-
-    /// <summary>
-    /// Interface for objects that have reactive properties that can be initialized by the framework.
-    /// </summary>
-    public interface IFluxReactiveObject
-    {
-        void InitializeReactiveProperties();
     }
 }

@@ -10,7 +10,7 @@ namespace FluxFramework.Core
     public class FluxIdentifier : MonoBehaviour
     {
         [Tooltip("The unique ID for this object. Should not be changed manually.")]
-        [SerializeField]
+        [SerializeField, HideInInspector]
         private string _id;
         public string Id => _id;
 

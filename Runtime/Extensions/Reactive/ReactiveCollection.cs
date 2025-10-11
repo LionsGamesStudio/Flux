@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Collections;
 using System.Linq;
+using UnityEngine;
 using FluxFramework.Core;
+using FluxFramework.Utils;
 
 namespace FluxFramework.Extensions
 {
@@ -10,7 +13,7 @@ namespace FluxFramework.Extensions
     /// </summary>
     /// <typeparam name="T">Type of collection items</typeparam>
     [Serializable]
-    public class ReactiveCollection<T> : ReactiveProperty<List<T>>
+    public class ReactiveCollection<T> : ReactiveProperty<List<T>>, IImplicitSyncable
     {
         /// <summary>
         /// Event raised when items are added to the collection
@@ -150,5 +153,41 @@ namespace FluxFramework.Extensions
         {
             NotifyValueChanged(oldValue, newValue);
         }
+
+        #region IImplicitSyncable Implementation
+
+        /// <summary>
+        /// Sets up the subscriptions to keep the local List<T> field in sync.
+        /// </summary>
+        public void SetupImplicitSync(MonoBehaviour owner, object localFieldInstance)
+        {
+            if (localFieldInstance is not IList localList)
+            {
+                Debug.LogError($"[FluxFramework] IImplicitSyncable setup failed for ReactiveCollection. The provided local field is not an IList.", owner);
+                return;
+            }
+
+            var subManager = owner.gameObject.GetComponent<ComponentSubscriptionManager>() ?? owner.gameObject.AddComponent<ComponentSubscriptionManager>();
+
+            // The logic is now strongly typed and much cleaner!
+            Action<IEnumerable<T>> addHandler = items => { foreach (var item in items) localList.Add(item); };
+            this.OnItemsAdded += addHandler;
+
+            Action<IEnumerable<T>> removeHandler = items => { foreach (var item in items) localList.Remove(item); };
+            this.OnItemsRemoved += removeHandler;
+
+            Action clearHandler = localList.Clear;
+            this.OnCleared += clearHandler;
+
+            // Ensure we clean up the subscriptions when the component is destroyed
+            subManager.Add(new ActionDisposable(() =>
+            {
+                this.OnItemsAdded -= addHandler;
+                this.OnItemsRemoved -= removeHandler;
+                this.OnCleared -= clearHandler;
+            }));
+        }
+
+        #endregion
     }
 }

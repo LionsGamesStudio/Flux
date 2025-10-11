@@ -53,7 +53,7 @@ namespace FluxFramework.Core
             
             OnDataContainerInitialized();
         }
-        
+
         /// <summary>
         /// This method can be overridden by child classes for custom initialization logic
         /// that should run after all reactive properties are set up.

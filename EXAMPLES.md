@@ -141,9 +141,9 @@ public class InventoryManager : FluxMonoBehaviour
         if (inventoryData == null || string.IsNullOrEmpty(itemName)) return;
         
         // Use helper methods from FluxMonoBehaviour for safe list operations
-        AddToReactiveCollection<string>("inventory.items", itemName);
+        this.AddToReactiveCollection<string>("inventory.items", itemName);
         
-        PublishEvent(new ItemAddedEvent(itemName));
+        this.PublishEvent(new ItemAddedEvent(itemName));
     }
     
     [FluxAction("Remove Item")]
@@ -152,7 +152,7 @@ public class InventoryManager : FluxMonoBehaviour
         if (inventoryData == null || string.IsNullOrEmpty(itemName)) return;
         
         // Use helper methods for safe removal
-        RemoveFromReactiveCollection<string>("inventory.items", itemName);
+        this.RemoveFromReactiveCollection<string>("inventory.items", itemName);
     }
     
     [FluxAction("Clear Inventory")]
@@ -161,7 +161,7 @@ public class InventoryManager : FluxMonoBehaviour
         if (inventoryData == null) return;
         
         // Use helper method for safe clearing
-        ClearReactiveCollection<string>("inventory.items");
+        this.ClearReactiveCollection<string>("inventory.items");
     }
 }
 ```
@@ -224,18 +224,18 @@ public class PlayerStatsManager : FluxMonoBehaviour
     private void InitializeDefaultStats()
     {
         // Use helper methods from FluxMonoBehaviour for safe dictionary operations
-        SetInReactiveDictionary<string, int>("player.stats", "Health", 100);
-        SetInReactiveDictionary<string, int>("player.stats", "Mana", 50);
-        SetInReactiveDictionary<string, int>("player.stats", "Strength", 10);
-        SetInReactiveDictionary<string, int>("player.stats", "Agility", 8);
+        this.SetInReactiveDictionary<string, int>("player.stats", "Health", 100);
+        this.SetInReactiveDictionary<string, int>("player.stats", "Mana", 50);
+        this.SetInReactiveDictionary<string, int>("player.stats", "Strength", 10);
+        this.SetInReactiveDictionary<string, int>("player.stats", "Agility", 8);
     }
 
     [FluxAction("Increase Health")]
     public void IncreaseHealth()
     {
-        if (TryGetFromReactiveDictionary<string, int>("player.stats", "Health", out int currentHealth))
+        if (this.TryGetFromReactiveDictionary<string, int>("player.stats", "Health", out int currentHealth))
         {
-            SetInReactiveDictionary<string, int>("player.stats", "Health", currentHealth + 10);
+            this.SetInReactiveDictionary<string, int>("player.stats", "Health", currentHealth + 10);
         }
     }
 
@@ -244,7 +244,7 @@ public class PlayerStatsManager : FluxMonoBehaviour
     {
         if (!string.IsNullOrEmpty(statName))
         {
-            AddToReactiveDictionary<string, int>("player.stats", statName, value);
+            this.AddToReactiveDictionary<string, int>("player.stats", statName, value);
         }
     }
 
@@ -253,7 +253,7 @@ public class PlayerStatsManager : FluxMonoBehaviour
     {
         if (!string.IsNullOrEmpty(statName))
         {
-            RemoveFromReactiveDictionary<string, int>("player.stats", statName);
+            this.RemoveFromReactiveDictionary<string, int>("player.stats", statName);
         }
     }
 
@@ -261,13 +261,13 @@ public class PlayerStatsManager : FluxMonoBehaviour
     private void OnStatAdded(string statName, int value)
     {
         Debug.Log($"New stat added: {statName} = {value}");
-        PublishEvent(new StatChangedEvent(statName, value));
+        this.PublishEvent(new StatChangedEvent(statName, value));
     }
 
     private void OnStatChanged(string statName, int newValue)
     {
         Debug.Log($"Stat changed: {statName} = {newValue}");
-        PublishEvent(new StatChangedEvent(statName, newValue));
+        this.PublishEvent(new StatChangedEvent(statName, newValue));
     }
 
     private void OnStatRemoved(string statName)
@@ -317,7 +317,7 @@ public class SettingsApplier : FluxMonoBehaviour
     protected override void OnFluxAwake()
     {
         // Subscribe to apply the settings when they change.
-        _fullscreenSub = SubscribeToProperty<bool>(FluxKeys.SettingsFullscreen, value => Screen.fullScreen = value, fireOnSubscribe: true);
+        _fullscreenSub = this.SubscribeToProperty<bool>(FluxKeys.SettingsFullscreen, value => Screen.fullScreen = value, fireOnSubscribe: true);
         // For volume, you would subscribe and set AudioMixer values.
     }
 
@@ -375,7 +375,7 @@ public class AdvancedHealthBar : FluxUIComponent
     protected override void RegisterCustomBindings()
     {
         // We subscribe manually using the helper method and store the IDisposable handle.
-        _healthSubscription = SubscribeToProperty<float>(FluxKeys.PlayerHealth, OnHealthChanged, fireOnSubscribe: true);
+        _healthSubscription = this.SubscribeToProperty<float>(FluxKeys.PlayerHealth, OnHealthChanged, fireOnSubscribe: true);
         
         // We must also track this binding if we want the base class to manage its lifecycle.
         // For manual subscriptions, however, cleaning up in CleanupComponent is clearer.
