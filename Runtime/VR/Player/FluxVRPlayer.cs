@@ -1,6 +1,7 @@
 #if FLUX_VR_SUPPORT
 using UnityEngine;
 using UnityEngine.XR;
+using UnityEngine.InputSystem.XR; 
 using FluxFramework.Core;
 using FluxFramework.Attributes;
 using FluxFramework.VR.Locomotion;

@@ -4,6 +4,7 @@ using FluxFramework.Core;
 using FluxFramework.Attributes;
 using FluxFramework.VR.Locomotion;
 using UnityEngine.XR;
+using UnityEngine.InputSystem.XR;
 
 namespace FluxFramework.VR
 {
@@ -47,13 +48,14 @@ namespace FluxFramework.VR
                 _createdPlayer = Instantiate(vrPlayerPrefab, transform.position, transform.rotation);
             }
 
-            // --- Otherwise, build the rig from scratch (original logic) ---
+            // --- Otherwise, build the rig from scratch ---
 
+            // 1. Create the main player GameObject
             GameObject vrRig = new GameObject("FluxVR Player");
             vrRig.transform.position = Vector3.zero;
-            
             vrRig.AddComponent<CharacterController>();
             
+            // 2. HMD Camera Setup
             GameObject cameraOffset = new GameObject("Camera Offset");
             cameraOffset.transform.SetParent(vrRig.transform);
             cameraOffset.transform.localPosition = Vector3.zero;
@@ -64,13 +66,58 @@ namespace FluxFramework.VR
             cameraGO.tag = "MainCamera";
             cameraGO.AddComponent<Camera>();
             cameraGO.AddComponent<AudioListener>();
+
+            var trackedPoseDriver = cameraGO.AddComponent<TrackedPoseDriver>();
+            trackedPoseDriver.SetPoseDataSource(TrackedPoseDriver.DeviceType.GenericXRDevice, TrackedPoseDriver.TrackedPose.Center);
             
+            // 3. Add Locomotion and Manager components
             vrRig.AddComponent<FluxVRManager>();
             vrRig.AddComponent<FluxVRLocomotion>();
             vrRig.AddComponent<FluxVRPlayer>();
 
-            FluxFramework.Core.Flux.Manager.Logger.Info("[FluxFramework] A new FluxVR Player Rig has been created programmatically.", this);
+            // 4. Optionally, instantiate visuals for controllers and HMD
+            CreateControllerVisuals(vrRig.transform, locomotion);
+
+            Debug.Log("[FluxFramework] A new FluxVR Player Rig has been created programmatically.", this);
             _createdPlayer = vrRig;
+        }
+
+        /// <summary>
+        /// Creates the visual GameObjects for controllers and teleportation,
+        /// and connects them to the locomotion system.
+        /// </summary>
+        private void CreateControllerVisuals(Transform rigParent, FluxVRLocomotion locomotion)
+        {            
+            // Create Line Renderer for Teleportation
+            GameObject teleportLineGO = new GameObject("Teleport Line");
+            teleportLineGO.transform.SetParent(rigParent, false); // Attaché au rig
+            var lineRenderer = teleportLineGO.AddComponent<LineRenderer>();
+            
+            // Configuration of LineRenderer
+            lineRenderer.material = new Material(Shader.Find("Legacy Shaders/Particles/Alpha Blended Premultiply"));
+            lineRenderer.startColor = Color.cyan;
+            lineRenderer.endColor = Color.white;
+            lineRenderer.startWidth = 0.01f;
+            lineRenderer.endWidth = 0.002f;
+            lineRenderer.positionCount = 2;
+            lineRenderer.useWorldSpace = true;
+            lineRenderer.enabled = false;
+            
+            // Assign the LineRenderer to the locomotion system
+            locomotion.teleportLineRenderer = lineRenderer;
+            
+            // Create a simple Teleport Marker
+            GameObject teleportMarkerGO = new GameObject("Teleport Marker");
+
+            // Create a simple visual, like a flattened cylinder
+            GameObject markerVisual = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            markerVisual.transform.SetParent(teleportMarkerGO.transform, false);
+            markerVisual.transform.localScale = new Vector3(0.5f, 0.01f, 0.5f);
+            Destroy(markerVisual.GetComponent<Collider>());
+            
+            // Assign the Teleport Marker to the locomotion system
+            locomotion.teleportMarkerPrefab = teleportMarkerGO;
+            teleportMarkerGO.SetActive(false);
         }
     }
 }
