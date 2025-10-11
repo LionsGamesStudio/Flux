@@ -31,13 +31,13 @@ namespace FluxFramework.Configuration
             {
                 if (string.IsNullOrEmpty(eventDef.eventName))
                 {
-                    Debug.LogError("[FluxFramework] Event name cannot be empty");
+                    FluxFramework.Core.Flux.Manager.Logger.Error("[FluxFramework] Event name cannot be empty");
                     return false;
                 }
 
                 if (names.Contains(eventDef.eventName))
                 {
-                    Debug.LogError($"[FluxFramework] Duplicate event name: {eventDef.eventName}");
+                    FluxFramework.Core.Flux.Manager.Logger.Error($"[FluxFramework] Duplicate event name: {eventDef.eventName}");
                     return false;
                 }
 
@@ -54,7 +54,7 @@ namespace FluxFramework.Configuration
             // Register events with the framework
             foreach (var eventDef in events)
             {
-                Debug.Log($"[FluxFramework] Registered event: {eventDef.eventName}");
+                FluxFramework.Core.Flux.Manager.Logger.Info($"[FluxFramework] Registered event: {eventDef.eventName}");
             }
         }
     }

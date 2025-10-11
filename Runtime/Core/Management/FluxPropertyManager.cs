@@ -207,7 +207,7 @@ namespace FluxFramework.Core
             
             if (clearedCount > 0)
             {
-                Debug.Log($"[FluxFramework] Cleared {clearedCount} non-persistent properties on scene load.");
+                FluxFramework.Core.Flux.Manager.Logger.Info($"[FluxFramework] Cleared {clearedCount} non-persistent properties on scene load.");
             }
         }
 

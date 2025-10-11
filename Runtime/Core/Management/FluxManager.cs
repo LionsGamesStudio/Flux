@@ -8,6 +8,7 @@ using UnityEngine.SceneManagement;
 using FluxFramework.Configuration;
 using FluxFramework.Events;
 using FluxFramework.Binding;
+using FluxFramework.Utils;
 
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("FluxFramework.Testing")]
 
@@ -30,6 +31,7 @@ namespace FluxFramework.Core
         private readonly ReactiveBindingSystem _bindingSystem;
         private readonly ValueConverterRegistry _valueConverterRegistry;
         private readonly FluxConfigurationManager _configurationManager;
+        private readonly FluxLogger _logger;
 
         private bool _isInitialized = false;
 
@@ -105,9 +107,15 @@ namespace FluxFramework.Core
         /// </summary>
         public IFluxConfigurationManager ConfigurationManager => _configurationManager;
 
+        /// <summary>
+        /// Logging service for framework logs
+        /// </summary>
+        public IFluxLogger Logger => _logger;
+
 
         public FluxManager()
         {
+            _logger = new FluxLogger();
             _threadManager = new FluxThreadManager();
             _eventBus = new EventBus(_threadManager);
             _propertyManager = new FluxPropertyManager();
@@ -170,7 +178,7 @@ namespace FluxFramework.Core
 
             _isInitialized = true;
 
-            Debug.Log("[FluxFramework] Framework initialized successfully");
+            _logger.Info("[FluxFramework] Framework initialized successfully"); 
             Flux.InvokeOnFrameworkInitialized();
 
             // Auto-register all existing FluxComponents in the scene

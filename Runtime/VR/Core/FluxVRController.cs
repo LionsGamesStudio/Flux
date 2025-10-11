@@ -71,7 +71,7 @@ namespace FluxFramework.VR
             _thumbstickPressedProp = Flux.Manager.Properties.GetOrCreateProperty<bool>($"vr.controller.{_handIdentifier}.thumbstickClick");
             _menuButtonPressedProp = Flux.Manager.Properties.GetOrCreateProperty<bool>($"vr.controller.{_handIdentifier}.menuButton");
 
-            Debug.Log($"[FluxFramework] FluxVRController initialized for {_handIdentifier} hand.", this);
+            FluxFramework.Core.Flux.Manager.Logger.Info($"[FluxFramework] FluxVRController initialized for {_handIdentifier} hand.", this);
         }
         
         /// <summary>

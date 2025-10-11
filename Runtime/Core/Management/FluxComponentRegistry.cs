@@ -46,7 +46,8 @@ namespace FluxFramework.Core
             if (_isInitialized) return;
             DiscoverComponentTypes();
             _isInitialized = true;
-            Debug.Log($"[FluxFramework] Component Registry initialized with {_discoveredComponents.Count} component types.");
+            _manager.Logger.Info($"[FluxFramework] Component Registry initialized with {_discoveredComponents.Count} component types.");
+
         }
 
         /// <summary>
@@ -80,7 +81,7 @@ namespace FluxFramework.Core
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogWarning($"[FluxFramework] An error occurred while scanning assembly {assembly.FullName}: {ex.Message}");
+                    FluxFramework.Core.Flux.Manager.Logger.Warning($"[FluxFramework] An error occurred while scanning assembly {assembly.FullName}: {ex.Message}");
                 }
             }
             _isDiscovered = true;
@@ -147,7 +148,7 @@ namespace FluxFramework.Core
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogError($"[FluxFramework] Error calling registration method {method.Name} on {component.GetType().Name}: {ex.Message}", component);
+                    FluxFramework.Core.Flux.Manager.Logger.Error($"[FluxFramework] Error calling registration method {method.Name} on {component.GetType().Name}: {ex.Message}", component);
                 }
             }
         }
@@ -184,7 +185,7 @@ namespace FluxFramework.Core
                 
                 if (parameters.Length > 2)
                 {
-                    Debug.LogError($"[FluxFramework] Method '{method.Name}' on '{component.GetType().Name}' has too many parameters for a [FluxPropertyChangeHandler]. It can have 0, 1 (newValue), or 2 (oldValue, newValue) parameters.", component);
+                    FluxFramework.Core.Flux.Manager.Logger.Error($"[FluxFramework] Method '{method.Name}' on '{component.GetType().Name}' has too many parameters for a [FluxPropertyChangeHandler]. It can have 0, 1 (newValue), or 2 (oldValue, newValue) parameters.", component);
                     return null;
                 }
 
@@ -233,18 +234,18 @@ namespace FluxFramework.Core
                         }
                         else
                         {
-                            Debug.LogError($"[FluxFramework] Could not find a suitable 'Subscribe' method on property '{attribute.PropertyKey}' for handler '{method.Name}'. Check for API changes in ReactiveProperty.", component);
+                            FluxFramework.Core.Flux.Manager.Logger.Error($"[FluxFramework] Could not find a suitable 'Subscribe' method on property '{attribute.PropertyKey}' for handler '{method.Name}'. Check for API changes in ReactiveProperty.", component);
                         }
                     }
                     catch (Exception ex)
                     {
-                        Debug.LogError($"[FluxFramework] Error attaching property change handler '{method.Name}' to key '{attribute.PropertyKey}': {ex.Message}. Check method signature.", component);
+                        FluxFramework.Core.Flux.Manager.Logger.Error($"[FluxFramework] Error attaching property change handler '{method.Name}' to key '{attribute.PropertyKey}': {ex.Message}. Check method signature.", component);
                     }
                 });
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[FluxFramework] Error subscribing property change handler '{method.Name}' to key '{attribute.PropertyKey}': {ex.Message}", component);
+                FluxFramework.Core.Flux.Manager.Logger.Error($"[FluxFramework] Error subscribing property change handler '{method.Name}' to key '{attribute.PropertyKey}': {ex.Message}", component);
                 return null;
             }
         }
@@ -286,14 +287,14 @@ namespace FluxFramework.Core
                     // Allow parameterless methods if the event type is specified in the attribute
                     else if (parameters.Length > 1)
                     {
-                        Debug.LogWarning($"[FluxFramework] Cannot automatically register event handler '{method.Name}' on '{component.GetType().Name}'. Method has more than one parameter. Use [FluxEventHandler(typeof(MyEvent))] on a method with zero or one parameter.", component);
+                        FluxFramework.Core.Flux.Manager.Logger.Warning($"[FluxFramework] Cannot automatically register event handler '{method.Name}' on '{component.GetType().Name}'. Method has more than one parameter. Use [FluxEventHandler(typeof(MyEvent))] on a method with zero or one parameter.", component);
                         return;
                     }
                 }
 
                 if (eventType == null)
                 {
-                    Debug.LogWarning($"[FluxFramework] Could not determine event type for handler '{method.Name}' on '{component.GetType().Name}'. Ensure the method has one parameter that inherits from IFluxEvent, or specify the type in the attribute.", component);
+                    FluxFramework.Core.Flux.Manager.Logger.Warning($"[FluxFramework] Could not determine event type for handler '{method.Name}' on '{component.GetType().Name}'. Ensure the method has one parameter that inherits from IFluxEvent, or specify the type in the attribute.", component);
                     return;
                 }
 
@@ -310,7 +311,7 @@ namespace FluxFramework.Core
 
                 if (subscribeMethodInfo == null)
                 {
-                    Debug.LogError("[FluxFramework] Critical Error: Could not find the required 'IEventBus.Subscribe<T>(Action<T>, int)' method via reflection.", component);
+                    FluxFramework.Core.Flux.Manager.Logger.Error("[FluxFramework] Critical Error: Could not find the required 'IEventBus.Subscribe<T>(Action<T>, int)' method via reflection.", component);
                     return;
                 }
 
@@ -325,13 +326,13 @@ namespace FluxFramework.Core
                 // --- Step 4: Invoke the Subscribe method ---
                 int priority = attribute.Priority;
                 genericSubscribeMethod.Invoke(_manager.EventBus, new object[] { eventHandlerDelegate, priority });
-                
-                Debug.Log($"[FluxFramework] Registered EventHandler '{method.Name}' for event '{eventType.Name}' with priority {priority} on '{component.GetType().Name}'.", component);
+
+                FluxFramework.Core.Flux.Manager.Logger.Info($"[FluxFramework] Registered EventHandler '{method.Name}' for event '{eventType.Name}' with priority {priority} on '{component.GetType().Name}'.", component);
             }
             catch (Exception ex)
             {
                 // This will catch errors from Delegate.CreateDelegate (if signatures mismatch) or Invoke.
-                Debug.LogError($"[FluxFramework] Error registering EventHandler '{method.Name}' on '{component.GetType().Name}': {ex.Message}. Please ensure the method signature matches the event type.", component);
+                FluxFramework.Core.Flux.Manager.Logger.Error($"[FluxFramework] Error registering EventHandler '{method.Name}' on '{component.GetType().Name}': {ex.Message}. Please ensure the method signature matches the event type.", component);
             }
         }
 
@@ -354,7 +355,7 @@ namespace FluxFramework.Core
             }
             if (registeredCount > 0)
             {
-                Debug.Log($"[FluxFramework] Auto-registered {registeredCount} new FluxComponent instances in scene.");
+                FluxFramework.Core.Flux.Manager.Logger.Info($"[FluxFramework] Auto-registered {registeredCount} new FluxComponent instances in scene.");
             }
         }
 

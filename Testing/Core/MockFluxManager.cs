@@ -2,6 +2,7 @@ using FluxFramework.Core;
 using FluxFramework.Binding;
 using FluxFramework.Configuration;
 using FluxFramework.Attributes;
+using FluxFramework.Utils;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -29,11 +30,13 @@ namespace FluxFramework.Testing
         public IFluxPersistenceManager PersistenceManager { get; private set; }
         public IFluxPropertyFactory PropertyFactory { get; private set; }
         public IFluxThreadManager Threading { get; private set; }
+        public IFluxLogger Logger { get; private set; }
 
         public MockFluxManager()
         {
             // Instantiate all services in the correct dependency order.
             // This mirrors the constructor of the real FluxManager.
+            Logger = new FluxLogger();
             Threading = new MockThreadManager(); // A version that executes actions immediately.
             Properties = new FluxPropertyManager();
             PersistenceManager = new MockPersistenceManager(); // A version that doesn't save to PlayerPrefs.
@@ -65,6 +68,7 @@ namespace FluxFramework.Testing
         {
             public void ExecuteOnMainThread(System.Action action) => action?.Invoke();
             public bool IsMainThread() => true;
+            public void SetMaxActionsPerFrame(int maxActions) { }
         }
 
         /// <summary>Persistence manager that does nothing, preventing tests from writing to PlayerPrefs.</summary>

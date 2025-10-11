@@ -6,6 +6,7 @@ using UnityEngine;
 using FluxFramework.Events;
 using FluxFramework.Binding;
 using FluxFramework.Configuration;
+using FluxFramework.Utils;
 
 namespace FluxFramework.Core
 {
@@ -156,6 +157,11 @@ namespace FluxFramework.Core
         IFluxConfigurationManager ConfigurationManager { get; }
 
         /// <summary>
+        /// Provides access to the framework's logging service.
+        /// </summary>
+        IFluxLogger Logger { get; }
+
+        /// <summary>
         /// Starts a coroutine using the framework's internal MonoBehaviour.
         /// </summary>
         /// <param name="routine"></param>
@@ -179,11 +185,17 @@ namespace FluxFramework.Core
         /// </summary>
         /// <param name="action"></param>
         void ExecuteOnMainThread(Action action);
-        
+
         /// <summary>
         /// Checks if the current thread is the main Unity thread.
         /// </summary>
         /// <returns>True if called from the main thread, otherwise false.</returns>
         bool IsMainThread();
+        
+        /// <summary>
+        /// Sets the maximum number of actions that can be executed on the main thread per frame.
+        /// </summary>
+        /// <param name="count"></param>
+        void SetMaxActionsPerFrame(int count);
     }
 }

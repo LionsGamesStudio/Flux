@@ -12,6 +12,7 @@ namespace FluxFramework.Core
     {
         private readonly ConcurrentQueue<Action> _mainThreadActions = new();
         private SynchronizationContext _mainThreadContext;
+        private int _maxActionsPerFrame = 100;
 
         /// <summary>
         /// Initializes the thread manager
@@ -42,15 +43,23 @@ namespace FluxFramework.Core
         /// </summary>
         public void ProcessMainThreadActions()
         {
-            while (_mainThreadActions.TryDequeue(out var action))
+            for (int i = 0; i < _maxActionsPerFrame; ++i)
             {
-                try
+                if (_mainThreadActions.TryDequeue(out var action))
                 {
-                    action?.Invoke();
+                    try
+                    {
+                        action?.Invoke();
+                    }
+                    catch (Exception e)
+                    {
+                        Flux.Manager.Logger.Exception(e, "Error executing main thread action");
+                    }
                 }
-                catch (Exception e)
+                else
                 {
-                    Debug.LogError($"[FluxFramework] Error executing main thread action: {e}");
+                    // No more actions to process
+                    break;
                 }
             }
         }
@@ -75,6 +84,11 @@ namespace FluxFramework.Core
         public void ClearQueue()
         {
             while (_mainThreadActions.TryDequeue(out _)) { }
+        }
+
+        public void SetMaxActionsPerFrame(int count)
+        {
+            _maxActionsPerFrame = Mathf.Max(1, count);
         }
     }
 }

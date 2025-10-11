@@ -99,7 +99,7 @@ namespace FluxFramework.Editor
             Selection.activeObject = asset;
             EditorGUIUtility.PingObject(asset);
 
-            Debug.Log($"Created Flux script: {filePath}");
+            FluxFramework.Core.Flux.Manager.Logger.Info($"[FluxFramework] Created Flux script: {filePath}");
         }
 
         private static string GetTargetPath()

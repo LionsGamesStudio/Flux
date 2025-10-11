@@ -92,7 +92,7 @@ namespace FluxFramework.Editor
                 {
                     // Copy the key to the system clipboard.
                     GUIUtility.systemCopyBuffer = def.key;
-                    Debug.Log($"[FluxFramework] Copied to clipboard: {def.key}");
+                    FluxFramework.Core.Flux.Manager.Logger.Info($"[FluxFramework] Copied to clipboard: {def.key}");
                     // Optionally, show a temporary notification on the window itself.
                     this.ShowNotification(new GUIContent("Key Copied!"));
                 }
@@ -102,7 +102,7 @@ namespace FluxFramework.Editor
 
             if (!filteredDefinitions.Any())
             {
-                 EditorGUILayout.HelpBox("No property keys found or none match your search.", MessageType.Info);
+                EditorGUILayout.HelpBox("No property keys found or none match your search.", MessageType.Info);
             }
 
             EditorGUILayout.EndScrollView();

@@ -40,13 +40,13 @@ namespace FluxFramework.VisualScripting.Node
             switch (logType)
             {
                 case LogType.Log:
-                    Debug.Log(finalMessage, contextObject);
+                    FluxFramework.Core.Flux.Manager.Logger.Info(finalMessage, contextObject);
                     break;
                 case LogType.Warning:
-                    Debug.LogWarning(finalMessage, contextObject);
+                    FluxFramework.Core.Flux.Manager.Logger.Warning(finalMessage, contextObject);
                     break;
                 case LogType.Error:
-                    Debug.LogError(finalMessage, contextObject);
+                    FluxFramework.Core.Flux.Manager.Logger.Error(finalMessage, contextObject);
                     break;
             }
         }

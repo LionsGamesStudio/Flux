@@ -21,7 +21,7 @@ namespace FluxFramework.UI
         public static void SetTheme(FluxUITheme theme)
         {
             CurrentTheme = theme;
-            Debug.Log($"[FluxFramework] UI Theme '{theme.name}' has been applied.", theme);
+            FluxFramework.Core.Flux.Manager.Logger.Info($"[FluxFramework] UI Theme '{theme.name}' has been applied.", theme);
         }
     }
 }

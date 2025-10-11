@@ -31,12 +31,12 @@ namespace FluxFramework.Configuration
             {
                 if (string.IsNullOrEmpty(property.key))
                 {
-                    Debug.LogError("[FluxFramework] A PropertyDefinition cannot have an empty key.", this);
+                    FluxFramework.Core.Flux.Manager.Logger.Error("[FluxFramework] A PropertyDefinition cannot have an empty key.", this);
                     return false;
                 }
                 if (!keys.Add(property.key))
                 {
-                    Debug.LogError($"[FluxFramework] Duplicate property key found in definitions: '{property.key}'. Keys must be unique.", this);
+                    FluxFramework.Core.Flux.Manager.Logger.Error($"[FluxFramework] Duplicate property key found in definitions: '{property.key}'. Keys must be unique.", this);
                     return false;
                 }
             }
@@ -107,18 +107,19 @@ namespace FluxFramework.Configuration
                         
                         // Note: Sprite cannot be created from a string. It would need a path to a resource.
                         case PropertyType.Sprite:
-                            Debug.LogWarning($"[FluxFramework] Pre-defining properties of type 'Sprite' is not supported via string. Property '{propDef.key}' will be created with a null default value.", this);
+                            FluxFramework.Core.Flux.Manager.Logger.Warning($"[FluxFramework] Pre-defining properties of type 'Sprite' is not supported via string. Property '{propDef.key}' will be created with a null default value.", this);
                             manager.Properties.GetOrCreateProperty<Sprite>(propDef.key, null);
                             break;
                     }
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogError($"[FluxFramework] Failed to create pre-defined property '{propDef.key}' with value '{propDef.defaultValue}': {ex.Message}", this);
+                    FluxFramework.Core.Flux.Manager.Logger.Error($"[FluxFramework] Failed to create pre-defined property '{propDef.key}' with value '{propDef.defaultValue}': {ex.Message}", this);
                 }
             }
-            
-            Debug.Log($"[FluxFramework] Applied {properties.Count} pre-defined properties.");
+
+            FluxFramework.Core.Flux.Manager.Logger.Info($"[FluxFramework] Applied {properties.Count} pre-defined properties.");
+
         }
     }
 }

@@ -38,7 +38,7 @@ namespace FluxFramework.Core
         [ContextMenu("Validate Settings")]
         public virtual bool ValidateSettings()
         {
-            Debug.Log($"[FluxFramework] Structural validation of settings asset '{this.name}' passed. Value validation is handled automatically at runtime.", this);
+            FluxFramework.Core.Flux.Manager.Logger.Info($"[FluxFramework] Structural validation of settings asset '{this.name}' passed. Value validation is handled automatically at runtime.", this);
             return true;
         }
 

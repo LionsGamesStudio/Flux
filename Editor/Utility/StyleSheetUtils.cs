@@ -168,12 +168,12 @@ namespace FluxFramework.Editor
             if (styleSheet != null)
             {
                 element.styleSheets.Add(styleSheet);
-                Debug.Log($"[FluxGraphView] Successfully loaded stylesheet: {relativePath}");
+                FluxFramework.Core.Flux.Manager.Logger.Info($"[FluxGraphView] Successfully loaded stylesheet: {relativePath}");
                 return true;
             }
             else
             {
-                Debug.LogWarning($"[FluxGraphView] Could not load stylesheet at path: {fullPath}");
+                FluxFramework.Core.Flux.Manager.Logger.Warning($"[FluxGraphView] Could not load stylesheet at path: {fullPath}");
                 return false;
             }
         }

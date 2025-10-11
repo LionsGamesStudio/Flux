@@ -60,7 +60,7 @@ namespace FluxFramework.VR
             _controllerDisconnectedSub = EventBus.Subscribe<VRControllerDisconnectedEvent>(OnControllerDisconnected);
             _triggerPressedSub = EventBus.Subscribe<VRTriggerPressedEvent>(OnTriggerPressed);
             
-            Debug.Log("[FluxFramework] FluxVRPlayer initialized!", this);
+            FluxFramework.Core.Flux.Manager.Logger.Info("[FluxFramework] FluxVRPlayer initialized!", this);
         }
         
         protected override void OnDestroy()
@@ -108,12 +108,12 @@ namespace FluxFramework.VR
         // --- Event Handlers ---
         private void OnControllerConnected(VRControllerConnectedEvent evt)
         {
-            Debug.Log($"Player detected controller connection: {evt.ControllerNode}");
+            FluxFramework.Core.Flux.Manager.Logger.Info($"Player detected controller connection: {evt.ControllerNode}", this);
         }
         
         private void OnControllerDisconnected(VRControllerDisconnectedEvent evt)
         {
-            Debug.Log($"Player detected controller disconnection: {evt.ControllerNode}");
+            FluxFramework.Core.Flux.Manager.Logger.Info($"Player detected controller disconnection: {evt.ControllerNode}", this);
         }
         
         private void OnTriggerPressed(VRTriggerPressedEvent evt)

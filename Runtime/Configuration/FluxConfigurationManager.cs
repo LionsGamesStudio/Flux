@@ -32,7 +32,7 @@ namespace FluxFramework.Configuration
             LoadConfigurations();
             _isInitialized = true;
 
-            Debug.Log("[FluxFramework] Configuration Manager initialized");
+            FluxFramework.Core.Flux.Manager.Logger.Info("[FluxFramework] Configuration Manager initialized");
         }
 
         /// <summary>
@@ -99,8 +99,8 @@ namespace FluxFramework.Configuration
 
             var type = configuration.GetType();
             _loadedConfigurations[type] = configuration;
-            
-            Debug.Log($"[FluxFramework] Registered configuration: {type.Name}");
+
+            FluxFramework.Core.Flux.Manager.Logger.Info($"[FluxFramework] Registered configuration: {type.Name}");
         }
 
         /// <summary>
@@ -116,7 +116,7 @@ namespace FluxFramework.Configuration
 
             if (manager == null)
             {
-                Debug.LogError("[FluxFramework] Cannot apply configurations because the provided IFluxManager is null.");
+                FluxFramework.Core.Flux.Manager.Logger.Error("[FluxFramework] Cannot apply configurations because the provided IFluxManager is null.");
                 return;
             }
 
@@ -132,7 +132,7 @@ namespace FluxFramework.Configuration
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogError($"[FluxFramework] Failed to apply configuration {config.GetType().Name}: {ex.Message}");
+                    FluxFramework.Core.Flux.Manager.Logger.Error($"[FluxFramework] Failed to apply configuration {config.GetType().Name}: {ex.Message}");
                 }
             }
         }
@@ -156,13 +156,13 @@ namespace FluxFramework.Configuration
                 {
                     if (!config.ValidateConfiguration())
                     {
-                        Debug.LogError($"[FluxFramework] Configuration validation failed: {config.GetType().Name}");
+                        FluxFramework.Core.Flux.Manager.Logger.Error($"[FluxFramework] Configuration validation failed: {config.GetType().Name}");
                         allValid = false;
                     }
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogError($"[FluxFramework] Exception during validation of {config.GetType().Name}: {ex.Message}");
+                    FluxFramework.Core.Flux.Manager.Logger.Error($"[FluxFramework] Exception during validation of {config.GetType().Name}: {ex.Message}");
                     allValid = false;
                 }
             }
@@ -211,12 +211,12 @@ namespace FluxFramework.Configuration
                 }
                 catch (ReflectionTypeLoadException ex)
                 {
-                    Debug.LogWarning($"[FluxFramework] Could not load types from assembly {assembly.FullName}: {ex.Message}");
+                    FluxFramework.Core.Flux.Manager.Logger.Warning($"[FluxFramework] Could not load types from assembly {assembly.FullName}: {ex.Message}");
                 }
                 catch (Exception ex)
                 {
                     // Silently ignore other exceptions to avoid spam
-                    Debug.LogWarning($"[FluxFramework] Assembly scanning error: {ex.Message}");
+                    FluxFramework.Core.Flux.Manager.Logger.Warning($"[FluxFramework] Assembly scanning error: {ex.Message}");
                 }
             }
 
@@ -256,7 +256,7 @@ namespace FluxFramework.Configuration
                 _configurationsByCategory[attribute.Category].Add(type);
             }
 
-            Debug.Log($"[FluxFramework] Discovered {_discoveredTypes.Count} configuration types in {_configurationsByCategory.Count} categories");
+            FluxFramework.Core.Flux.Manager.Logger.Info($"[FluxFramework] Discovered {_discoveredTypes.Count} configuration types in {_configurationsByCategory.Count} categories");
         }
 
         private void LoadConfigurations()
@@ -280,7 +280,7 @@ namespace FluxFramework.Configuration
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogWarning($"[FluxFramework] Could not load configurations from path '{path}': {ex.Message}");
+                    FluxFramework.Core.Flux.Manager.Logger.Warning($"[FluxFramework] Could not load configurations from path '{path}': {ex.Message}");
                 }
             }
 
@@ -304,7 +304,7 @@ namespace FluxFramework.Configuration
 
                 if (attribute.IsRequired && !_loadedConfigurations.ContainsKey(type))
                 {
-                    Debug.LogWarning($"[FluxFramework] Required configuration {type.Name} is missing!");
+                    FluxFramework.Core.Flux.Manager.Logger.Warning($"[FluxFramework] Required configuration {type.Name} is missing!");
                 }
 
                 if (attribute.AutoCreate && !_loadedConfigurations.ContainsKey(type))
@@ -315,12 +315,12 @@ namespace FluxFramework.Configuration
                         if (instance != null)
                         {
                             RegisterConfiguration(instance);
-                            Debug.Log($"[FluxFramework] Auto-created configuration: {type.Name}");
+                            FluxFramework.Core.Flux.Manager.Logger.Info($"[FluxFramework] Auto-created configuration: {type.Name}");
                         }
                     }
                     catch (Exception ex)
                     {
-                        Debug.LogError($"[FluxFramework] Failed to auto-create configuration {type.Name}: {ex.Message}");
+                        FluxFramework.Core.Flux.Manager.Logger.Error($"[FluxFramework] Failed to auto-create configuration {type.Name}: {ex.Message}");
                     }
                 }
             }
@@ -342,8 +342,8 @@ namespace FluxFramework.Configuration
             _discoveredTypes.Clear();
             _isInitialized = false;
             _typesDiscovered = false;
-            
-            Debug.Log("[FluxFramework] Configuration cache cleared");
+
+            FluxFramework.Core.Flux.Manager.Logger.Info("[FluxFramework] Configuration cache cleared");
         }
     }
 }

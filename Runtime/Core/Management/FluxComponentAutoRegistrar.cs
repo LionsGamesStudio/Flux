@@ -35,7 +35,7 @@ namespace FluxFramework.Core
             if (_scanCoroutine == null)
             {
                 _scanCoroutine = StartCoroutine(ScanForNewComponents());
-                Debug.Log("[FluxFramework] Started runtime component scanning");
+                FluxFramework.Core.Flux.Manager.Logger.Info("[FluxFramework] Started runtime component scanning");
             }
         }
         
@@ -48,7 +48,7 @@ namespace FluxFramework.Core
             {
                 StopCoroutine(_scanCoroutine);
                 _scanCoroutine = null;
-                Debug.Log("[FluxFramework] Stopped runtime component scanning");
+                FluxFramework.Core.Flux.Manager.Logger.Info("[FluxFramework] Stopped runtime component scanning");
             }
         }
         

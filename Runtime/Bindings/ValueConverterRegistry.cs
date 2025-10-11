@@ -47,7 +47,7 @@ namespace FluxFramework.Binding
             }
 
             _isInitialized = true;
-            UnityEngine.Debug.Log($"[FluxFramework] ValueConverterRegistry initialized. Found {_converters.Count} converters.");
+            FluxFramework.Core.Flux.Manager.Logger.Info($"[FluxFramework] ValueConverterRegistry initialized. Found {_converters.Count} converters.");
         }
 
         public Type FindConverterType(Type sourceType, Type targetType)

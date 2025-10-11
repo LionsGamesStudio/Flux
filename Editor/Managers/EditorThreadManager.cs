@@ -18,5 +18,10 @@ namespace FluxFramework.Editor
         {
             return true;
         }
+
+        public void SetMaxActionsPerFrame(int maxActions)
+        {
+            // No-op in editor context
+        }
     }
 }

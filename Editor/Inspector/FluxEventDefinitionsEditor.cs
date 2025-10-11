@@ -67,11 +67,11 @@ namespace FluxFramework.Editor
                 _targetAsset.events = _targetAsset.events.OrderBy(e => e.eventName).ToList();
                 EditorUtility.SetDirty(_targetAsset);
                 AssetDatabase.SaveAssets();
-                Debug.Log($"[FluxFramework] Discovery complete. Added {eventsAdded} new event definition(s) to '{_targetAsset.name}'.", _targetAsset);
+                FluxFramework.Core.Flux.Manager.Logger.Info($"[FluxFramework] Discovery complete. Added {eventsAdded} new event definition(s) to '{_targetAsset.name}'.");
             }
             else
             {
-                Debug.Log("[FluxFramework] Discovery complete. No new event definitions found.", _targetAsset);
+                FluxFramework.Core.Flux.Manager.Logger.Info("[FluxFramework] Discovery complete. No new event definitions found.", _targetAsset);
             }
         }
         

@@ -40,7 +40,7 @@ namespace FluxFramework.Core
             var subscription = property.Subscribe(value => SaveProperty(key, value), fireOnSubscribe: false);
             _persistentSubscriptions[key] = subscription;
 
-            Debug.Log($"[FluxFramework] Registered '{key}' for persistence.");
+            FluxFramework.Core.Flux.Manager.Logger.Info($"[FluxFramework] Registered '{key}' for persistence.");
         }
 
         /// <summary>
@@ -58,7 +58,7 @@ namespace FluxFramework.Core
                     LoadProperty(key, property);
                 }
             }
-            Debug.Log($"[FluxFramework] Loaded all persistent properties.");
+            FluxFramework.Core.Flux.Manager.Logger.Info($"[FluxFramework] Loaded all persistent properties.");
         }
         
         /// <summary>
@@ -67,7 +67,7 @@ namespace FluxFramework.Core
         public void SaveAll()
         {
             PlayerPrefs.Save();
-            Debug.Log("[FluxFramework] All persistent properties saved to disk.");
+            FluxFramework.Core.Flux.Manager.Logger.Info($"[FluxFramework] All persistent properties saved to disk.");
         }
         
         /// <summary>
@@ -103,7 +103,7 @@ namespace FluxFramework.Core
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[FluxFramework] Failed to load/deserialize persistent property '{key}': {ex.Message}");
+                FluxFramework.Core.Flux.Manager.Logger.Error($"[FluxFramework] Failed to load/deserialize persistent property '{key}': {ex.Message}");
             }
         }
 
@@ -120,7 +120,7 @@ namespace FluxFramework.Core
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[FluxFramework] Failed to save/serialize persistent property '{key}': {ex.Message}");
+                FluxFramework.Core.Flux.Manager.Logger.Error($"[FluxFramework] Failed to save/serialize persistent property '{key}': {ex.Message}");
             }
         }
     }

@@ -108,7 +108,7 @@ namespace FluxFramework.Core
         /// </summary>
         private void LogChange(string fieldName, object oldValue, object newValue)
         {
-            Debug.Log($"[{GetType().Name}] Property Changed: '{fieldName}' | {oldValue} → {newValue}", this);
+            FluxFramework.Core.Flux.Manager.Logger.Info($"[{GetType().Name}] Property Changed: '{fieldName}' | {oldValue} → {newValue}", this);
             _previousValues[fieldName] = newValue;
         }
 
@@ -130,7 +130,7 @@ namespace FluxFramework.Core
             }
             catch (System.Exception e)
             {
-                Debug.LogError($"Failed to serialize {GetType().Name}: {e.Message}", this);
+                FluxFramework.Core.Flux.Manager.Logger.Error($"Failed to serialize {GetType().Name}: {e.Message}", this);
                 return "";
             }
         }
@@ -151,7 +151,7 @@ namespace FluxFramework.Core
             }
             catch (System.Exception e)
             {
-                Debug.LogError($"Failed to load {GetType().Name} from JSON: {e.Message}", this);
+                FluxFramework.Core.Flux.Manager.Logger.Error($"Failed to load {GetType().Name} from JSON: {e.Message}", this);
             }
         }
 
@@ -176,7 +176,7 @@ namespace FluxFramework.Core
         {
             if (snapshot.containerType != GetType().Name)
             {
-                Debug.LogWarning($"Snapshot type mismatch: expected {GetType().Name}, got {snapshot.containerType}", this);
+                FluxFramework.Core.Flux.Manager.Logger.Warning($"Snapshot type mismatch: expected {GetType().Name}, got {snapshot.containerType}", this);
                 return;
             }
 

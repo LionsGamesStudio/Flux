@@ -4,172 +4,122 @@ using System.Collections.Generic;
 namespace FluxFramework.Utils
 {
     /// <summary>
-    /// Logger utility for the Flux Framework with different log levels
+    /// The default implementation of the IFluxLogger service.
+    /// Supports log levels, categories, context objects, and custom output handlers.
     /// </summary>
-    public static class FluxLogger
+    public class FluxLogger : IFluxLogger
     {
-        private static LogLevel _currentLogLevel = LogLevel.Info;
-        private static readonly List<IFluxLogHandler> _handlers = new List<IFluxLogHandler>();
-        private static readonly Dictionary<string, LogLevel> _categoryLevels = new Dictionary<string, LogLevel>();
+        private readonly List<IFluxLogHandler> _handlers = new List<IFluxLogHandler>();
+        private readonly Dictionary<string, LogLevel> _categoryLevels = new Dictionary<string, LogLevel>();
+        private readonly object _handlerLock = new object();
 
-        /// <summary>
-        /// Gets or sets the current log level
-        /// </summary>
-        public static LogLevel CurrentLogLevel
+        public LogLevel CurrentLogLevel { get; set; } = LogLevel.Info;
+    
+        public void AddHandler(IFluxLogHandler handler)
         {
-            get => _currentLogLevel;
-            set => _currentLogLevel = value;
-        }
-
-        /// <summary>
-        /// Adds a custom log handler
-        /// </summary>
-        /// <param name="handler">Log handler to add</param>
-        public static void AddHandler(IFluxLogHandler handler)
-        {
-            if (handler != null && !_handlers.Contains(handler))
+            lock (_handlerLock)
             {
-                _handlers.Add(handler);
+                if (handler != null && !_handlers.Contains(handler))
+                {
+                    _handlers.Add(handler);
+                }
             }
         }
 
-        /// <summary>
-        /// Removes a custom log handler
-        /// </summary>
-        /// <param name="handler">Log handler to remove</param>
-        public static void RemoveHandler(IFluxLogHandler handler)
+        public void RemoveHandler(IFluxLogHandler handler)
         {
-            _handlers.Remove(handler);
+            lock (_handlerLock)
+            {
+                _handlers.Remove(handler);
+            }
         }
 
-        /// <summary>
-        /// Sets the log level for a specific category
-        /// </summary>
-        /// <param name="category">Category name</param>
-        /// <param name="level">Log level for this category</param>
-        public static void SetCategoryLevel(string category, LogLevel level)
+        public void SetCategoryLevel(string category, LogLevel level)
         {
             _categoryLevels[category] = level;
         }
 
-        /// <summary>
-        /// Logs a debug message
-        /// </summary>
-        /// <param name="message">Message to log</param>
-        /// <param name="category">Optional category</param>
-        public static void Debug(string message, string category = "")
+        public void Debug(string message, UnityEngine.Object context = null, string category = "")
         {
-            Log(LogLevel.Debug, message, category);
+            if (ShouldLog(LogLevel.Debug, category))
+                Log(LogLevel.Debug, message, context, category);
         }
 
-        /// <summary>
-        /// Logs an info message
-        /// </summary>
-        /// <param name="message">Message to log</param>
-        /// <param name="category">Optional category</param>
-        public static void Info(string message, string category = "")
+        public void Info(string message, UnityEngine.Object context = null, string category = "")
         {
-            Log(LogLevel.Info, message, category);
+            if (ShouldLog(LogLevel.Info, category))
+                Log(LogLevel.Info, message, context, category);
         }
 
-        /// <summary>
-        /// Logs a warning message
-        /// </summary>
-        /// <param name="message">Message to log</param>
-        /// <param name="category">Optional category</param>
-        public static void Warning(string message, string category = "")
+        public void Warning(string message, UnityEngine.Object context = null, string category = "")
         {
-            Log(LogLevel.Warning, message, category);
+            if (ShouldLog(LogLevel.Warning, category))
+                Log(LogLevel.Warning, message, context, category);
         }
 
-        /// <summary>
-        /// Logs an error message
-        /// </summary>
-        /// <param name="message">Message to log</param>
-        /// <param name="category">Optional category</param>
-        public static void Error(string message, string category = "")
+        public void Error(string message, UnityEngine.Object context = null, string category = "")
         {
-            Log(LogLevel.Error, message, category);
+            if (ShouldLog(LogLevel.Error, category))
+                Log(LogLevel.Error, message, context, category);
         }
 
-        /// <summary>
-        /// Logs an exception
-        /// </summary>
-        /// <param name="exception">Exception to log</param>
-        /// <param name="message">Additional message</param>
-        /// <param name="category">Optional category</param>
-        public static void Exception(Exception exception, string message = "", string category = "")
+        public void Exception(Exception exception, string message = "", UnityEngine.Object context = null, string category = "")
         {
-            var fullMessage = string.IsNullOrEmpty(message) ? 
-                exception.ToString() : 
-                $"{message}\n{exception}";
-            
-            Log(LogLevel.Error, fullMessage, category);
+            if (ShouldLog(LogLevel.Error, category))
+            {
+                var fullMessage = string.IsNullOrEmpty(message) ? exception.ToString() : $"{message}\n{exception}";
+                Log(LogLevel.Error, fullMessage, context, category);
+            }
         }
-
-        private static void Log(LogLevel level, string message, string category)
+        
+        private void Log(LogLevel level, string message, UnityEngine.Object context, string category)
         {
-            // Check if we should log this level
-            var effectiveLevel = GetEffectiveLevel(category);
-            if (level < effectiveLevel)
-                return;
-
             var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
             var prefix = string.IsNullOrEmpty(category) ? "[FluxFramework]" : $"[FluxFramework:{category}]";
-            var formattedMessage = $"{timestamp} {prefix} {message}";
+            var formattedMessage = $"{prefix} {message}";
 
-            // Log to Unity console
             switch (level)
             {
                 case LogLevel.Debug:
                 case LogLevel.Info:
-                    UnityEngine.Debug.Log(formattedMessage);
+                    UnityEngine.Debug.Log(formattedMessage, context);
                     break;
                 case LogLevel.Warning:
-                    UnityEngine.Debug.LogWarning(formattedMessage);
+                    UnityEngine.Debug.LogWarning(formattedMessage, context);
                     break;
                 case LogLevel.Error:
-                    UnityEngine.Debug.LogError(formattedMessage);
+                    UnityEngine.Debug.LogError(formattedMessage, context);
                     break;
             }
 
-            // Log to custom handlers
-            foreach (var handler in _handlers)
+            lock (_handlerLock)
             {
-                try
+                foreach (var handler in _handlers)
                 {
-                    handler.Log(level, message, category, timestamp);
-                }
-                catch (Exception e)
-                {
-                    UnityEngine.Debug.LogError($"[FluxFramework] Error in log handler: {e}");
+                    try
+                    {
+                        handler.Log(level, message, category, timestamp);
+                    }
+                    catch (Exception e)
+                    {
+                        UnityEngine.Debug.LogError($"[FluxFramework] Error in log handler: {e.GetType().Name}", context);
+                    }
                 }
             }
         }
+        
+        private bool ShouldLog(LogLevel level, string category)
+        {
+            return level >= GetEffectiveLevel(category);
+        }
 
-        private static LogLevel GetEffectiveLevel(string category)
+        private LogLevel GetEffectiveLevel(string category)
         {
             if (!string.IsNullOrEmpty(category) && _categoryLevels.TryGetValue(category, out var categoryLevel))
             {
                 return categoryLevel;
             }
-            return _currentLogLevel;
-        }
-
-        /// <summary>
-        /// Clears all custom handlers
-        /// </summary>
-        public static void ClearHandlers()
-        {
-            _handlers.Clear();
-        }
-
-        /// <summary>
-        /// Clears all category-specific log levels
-        /// </summary>
-        public static void ClearCategoryLevels()
-        {
-            _categoryLevels.Clear();
+            return CurrentLogLevel;
         }
     }
 }

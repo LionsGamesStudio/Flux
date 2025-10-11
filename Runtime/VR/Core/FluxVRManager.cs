@@ -74,7 +74,7 @@ namespace FluxFramework.VR
             string deviceName = XRSettings.loadedDeviceName;
             bool isActive = XRSettings.isDeviceActive;
             PublishEvent(new VRInitializedEvent(isActive, deviceName));
-            Debug.Log("[FluxFramework] FluxVRManager Initialized.", this);
+            FluxFramework.Core.Flux.Manager.Logger.Info($"[FluxFramework] FluxVRManager Initialized. Device: {deviceName}, Active: {isActive}", this);
         }
 
         private void UpdateHMDTracking()
@@ -107,7 +107,7 @@ namespace FluxFramework.VR
 
         private void OnDeviceChanged(InputDevice device)
         {
-            Debug.Log($"[FluxFramework] VR device configuration changed for: {device.name}. Refreshing controllers.");
+            FluxFramework.Core.Flux.Manager.Logger.Info($"[FluxFramework] VR device configuration changed for: {device.name}. Refreshing controllers.");
             // A simple and robust way to handle both connections and disconnections.
             RefreshAllControllers();
         }

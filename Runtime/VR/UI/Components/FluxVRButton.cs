@@ -161,7 +161,7 @@ namespace FluxFramework.VR.UI
             // Publish a high-level event that game logic can listen to,
             // abstracting away whether the click came from VR or a mouse.
             PublishEvent(new VRButtonClickedEvent(gameObject));
-            Debug.Log($"[FluxVRButton] {gameObject.name} onClick event fired.");
+            FluxFramework.Core.Flux.Manager.Logger.Info($"[FluxVRButton] {gameObject.name} onClick event fired.", this);
         }
         
         /// <summary>

@@ -67,7 +67,7 @@ namespace FluxFramework.VR.Examples
             // Use a coroutine for the release to avoid issues if the object is disabled.
             StartCoroutine(ReleaseButtonAfterDelay(0.2f));
             
-            Debug.Log($"VR Button {gameObject.name} pressed! Total presses: {_pressCountProp.Value}");
+            FluxFramework.Core.Flux.Manager.Logger.Info($"VR Button {gameObject.name} pressed! Total presses: {_pressCountProp.Value}", this);
         }
         
         private System.Collections.IEnumerator ReleaseButtonAfterDelay(float delay)

@@ -112,7 +112,7 @@ namespace FluxFramework.VR.Examples
             
             controller.TriggerHapticFeedback(0.5f, 0.1f);
             PublishEvent(new VRObjectGrabbedEvent(controller.ControllerNode, gameObject, transform.position));
-            Debug.Log($"Grabbed {gameObject.name} with {controller.ControllerNode}");
+            FluxFramework.Core.Flux.Manager.Logger.Info($"Grabbed {gameObject.name} with {controller.ControllerNode}", this);
         }
         
         private void ReleaseObject()
@@ -145,7 +145,7 @@ namespace FluxFramework.VR.Examples
             
             controller.TriggerHapticFeedback(0.3f, 0.05f);
             PublishEvent(new VRObjectReleasedEvent(controller.ControllerNode, gameObject, releaseVelocity));
-            Debug.Log($"Released {gameObject.name}");
+            FluxFramework.Core.Flux.Manager.Logger.Info($"Released {gameObject.name}", this);
         }
         
         private void OnHoverEnter(VRUIHoverEnterEvent evt)

@@ -54,7 +54,7 @@ namespace FluxFramework.Configuration
         {
             if (defaultFontSize <= 0 || titleFontSize <= 0 || subtitleFontSize <= 0)
             {
-                Debug.LogError("[FluxFramework] Font sizes must be greater than 0");
+                FluxFramework.Core.Flux.Manager.Logger.Error("[FluxFramework] Font sizes must be greater than 0");
                 return false;
             }
 
@@ -67,7 +67,7 @@ namespace FluxFramework.Configuration
 
             // Apply theme to UI components
             UIThemeManager.SetTheme(this);
-            Debug.Log("[FluxFramework] UI Theme applied successfully");
+            FluxFramework.Core.Flux.Manager.Logger.Info("[FluxFramework] UI Theme applied successfully");
         }
     }
 }

@@ -6,12 +6,13 @@ using FluxFramework.Utils;
 namespace FluxFramework.Configuration
 {
     /// <summary>
-    /// Main framework configuration
+    /// The main configuration asset for the Flux Framework.
+    /// Defines core behaviors, logging levels, and other foundational settings.
     /// </summary>
     [FluxConfiguration("Framework", 
         DisplayName = "Framework Settings", 
         Description = "Core framework configuration and behavior settings",
-        LoadPriority = 100,
+        LoadPriority = 100, // Highest priority to ensure it runs first
         IsRequired = true,
         AutoCreate = true,
         DefaultMenuPath = "Flux/Framework Settings")]
@@ -19,50 +20,56 @@ namespace FluxFramework.Configuration
     public class FluxFrameworkSettings : FluxConfigurationAsset
     {
         [Header("Framework Settings")]
-        [Tooltip("Enables detailed debug messages from the framework. Set to Info or higher for production builds.")]
+        [Tooltip("The minimum level of messages to log. Set to Info or higher for production builds.")]
         public LogLevel logLevel = LogLevel.Info;
 
-        [Tooltip("Maximum number of main thread actions queued per frame")]
+        [Tooltip("Maximum number of main thread actions to process in a single frame.")]
         [Range(1, 1000)]
         public int maxMainThreadActionsPerFrame = 100;
 
-        [Tooltip("Enable automatic component registration")]
+        [Tooltip("Enables the automatic discovery and registration of components marked with [FluxComponent].")]
         public bool autoRegisterComponents = true;
 
         [Header("Threading")]
-        [Tooltip("Enable thread-safe operations")]
+        [Tooltip("Enables thread-safe mechanisms for framework operations.")]
         public bool enableThreadSafety = true;
 
-        [Tooltip("Timeout for thread-safe operations (milliseconds)")]
+        [Tooltip("Default timeout for thread-safe operations in milliseconds.")]
         [Range(100, 10000)]
         public int threadTimeoutMs = 5000;
 
         [Header("Event System")]
-        [Tooltip("Maximum number of event subscribers per event type")]
+        [Tooltip("A soft limit for the number of subscribers per event type to detect potential memory leaks.")]
         [Range(10, 1000)]
         public int maxEventSubscribers = 100;
 
-        [Tooltip("Enable event performance monitoring")]
+        [Tooltip("Enables performance monitoring hooks for the event system.")]
         public bool enableEventProfiling = false;
 
         [Header("UI Binding")]
-        [Tooltip("Enable automatic UI binding")]
+        [Tooltip("Enables the automatic discovery and creation of UI bindings.")]
         public bool enableAutoUIBinding = true;
 
-        [Tooltip("Default format string for numeric bindings")]
+        [Tooltip("The default string format used for binding numbers to text components (e.g., '{0:F2}' for two decimal places).")]
         public string defaultNumericFormat = "{0:F2}";
 
+        /// <summary>
+        /// Validates the configuration values to ensure they are within acceptable ranges.
+        /// </summary>
+        /// <returns>True if the configuration is valid; otherwise, false.</returns>
         public override bool ValidateConfiguration()
         {
             if (maxMainThreadActionsPerFrame <= 0)
             {
-                Debug.LogError("[FluxFramework] maxMainThreadActionsPerFrame must be greater than 0");
+                // NOTE: Using Debug.LogError here is acceptable because if validation fails,
+                // we want to ensure the message is visible even if the logger isn't fully configured yet.
+                Debug.LogError("[FluxFramework] 'maxMainThreadActionsPerFrame' must be greater than 0 in FluxFrameworkSettings.", this);
                 return false;
             }
 
             if (threadTimeoutMs <= 0)
             {
-                Debug.LogError("[FluxFramework] threadTimeoutMs must be greater than 0");
+                Debug.LogError("[FluxFramework] 'threadTimeoutMs' must be greater than 0 in FluxFrameworkSettings.", this);
                 return false;
             }
 
@@ -73,28 +80,27 @@ namespace FluxFramework.Configuration
         /// Applies the settings from this asset to the live framework systems.
         /// This is where the configuration becomes active.
         /// </summary>
+        /// <param name="manager">The IFluxManager instance to configure.</param>
         public override void ApplyConfiguration(IFluxManager manager)
         {
             if (!ValidateConfiguration()) return;
 
-            // 1. Apply Logging Configuration
-            FluxLogger.CurrentLogLevel = this.logLevel;
+            // --- 1. Apply Logging Configuration ---
+            manager.Logger.CurrentLogLevel = this.logLevel;
 
-            // Example: Add a file logger if a specific setting was enabled.
+            // Example: The pattern for adding a handler is now also through the manager.
             // if (this.enableFileLogging) {
-            //     FluxLogger.AddHandler(new FileLogHandler("path/to/my/log.txt"));
+            //     manager.Logger.AddHandler(new FileLogHandler("path/to/my/log.txt"));
             // }
 
-            // 2. Apply Threading Configuration
-            // This assumes your FluxThreadManager is a singleton or has static settings.
-            // Example:
-            // if (Flux.Manager != null) {
-            //     Flux.Manager.Threading.SetMaxActionsPerFrame(this.maxMainThreadActionsPerFrame);
-            // }
+            // --- 2. Apply Threading Configuration ---
+            manager.Threading.SetMaxActionsPerFrame(this.maxMainThreadActionsPerFrame);
 
-            // 3. Apply other configurations...
+            // --- 3. Apply other configurations... ---
             
-            Debug.Log($"[FluxFramework] Core settings applied. Log level set to: {this.logLevel}.");
+            // CHANGED: Using the manager's logger instance for consistency.
+            // Also removed the "[FluxFramework]" prefix from the message, as the logger adds it automatically.
+            manager.Logger.Info($"Core settings applied. Log level set to: {this.logLevel}.", this);
         }
     }
 }

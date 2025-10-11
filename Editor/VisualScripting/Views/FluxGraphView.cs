@@ -557,19 +557,19 @@ namespace FluxFramework.VisualScripting.Editor
             if (unityStyleSheet != null)
             {
                 styleSheets.Add(unityStyleSheet);
-                Debug.Log("[FluxGraphView] Loaded Unity Visual Scripting stylesheet");
+                FluxFramework.Core.Flux.Manager.Logger.Info("[FluxGraphView] Loaded Unity Visual Scripting stylesheet");
             }
             else
             {
-                Debug.LogWarning("[FluxGraphView] Could not find the default Visual Scripting stylesheet. Connection lines may be invisible.");
+                FluxFramework.Core.Flux.Manager.Logger.Warning("[FluxGraphView] Could not find the default Visual Scripting stylesheet. Connection lines may be invisible.");
             }
 
             // Debug: Log all loaded stylesheets
-            Debug.Log($"[FluxGraphView] Total stylesheets loaded: {styleSheets.count}");
+            FluxFramework.Core.Flux.Manager.Logger.Info($"[FluxGraphView] Total stylesheets loaded: {styleSheets.count}");
             for (int i = 0; i < styleSheets.count; i++)
             {
                 var sheet = styleSheets[i];
-                Debug.Log($"[FluxGraphView] Stylesheet {i}: {sheet?.name ?? "null"}");
+                FluxFramework.Core.Flux.Manager.Logger.Info($"[FluxGraphView] Stylesheet {i}: {sheet?.name ?? "null"}");
             }
         }
  

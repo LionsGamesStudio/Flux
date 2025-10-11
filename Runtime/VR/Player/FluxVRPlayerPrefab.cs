@@ -66,8 +66,8 @@ namespace FluxFramework.VR
             vrRig.AddComponent<FluxVRManager>();
             vrRig.AddComponent<FluxVRLocomotion>();
             vrRig.AddComponent<FluxVRPlayer>();
-            
-            Debug.Log("[FluxFramework] A new FluxVR Player Rig has been created programmatically.", vrRig);
+
+            FluxFramework.Core.Flux.Manager.Logger.Info("[FluxFramework] A new FluxVR Player Rig has been created programmatically.", this);
             return vrRig;
         }
     }

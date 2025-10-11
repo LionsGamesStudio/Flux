@@ -28,7 +28,7 @@ namespace FluxFramework.Editor
         {
             FluxEditorServices.ComponentRegistry?.ClearCache();
             FluxEditorServices.ComponentRegistry?.Initialize();
-            Debug.Log("[FluxFramework] Editor Component Registry has been refreshed.");
+            FluxFramework.Core.Flux.Manager.Logger.Info("[FluxFramework] Editor Component Registry has been refreshed.");
         }
 
         // --- Debug Submenu ---

@@ -118,11 +118,11 @@ namespace FluxFramework.Editor
                 _targetAsset.properties.AddRange(definitionsToAdd);
                 EditorUtility.SetDirty(_targetAsset);
                 AssetDatabase.SaveAssets();
-                Debug.Log($"[FluxFramework] Discovery complete. Added {keysAdded} new property definition(s) to '{_targetAsset.name}'.", _targetAsset);
+                FluxFramework.Core.Flux.Manager.Logger.Info($"[FluxFramework] Discovery complete. Added {keysAdded} new property definition(s) to '{_targetAsset.name}'.");
             }
             else
             {
-                Debug.Log("[FluxFramework] Discovery complete. No new property definitions found.", _targetAsset);
+                FluxFramework.Core.Flux.Manager.Logger.Info("[FluxFramework] Discovery complete. No new property definitions found.", _targetAsset);
             }
         }
 
@@ -165,12 +165,12 @@ namespace FluxFramework.Editor
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[FluxFramework] Could not retrieve default value for '{field.Name}' in '{ownerType.Name}': {ex.Message}");
+                FluxFramework.Core.Flux.Manager.Logger.Warning($"[FluxFramework] Could not retrieve default value for '{field.Name}' in '{ownerType.Name}': {ex.Message}");
             }
 
             // --- FALLBACK LOGIC ---
             // If no instance was found, fall back to the C# default for the field's value type.
-            Debug.Log($"[FluxFramework] Could not find a prefab instance for component '{ownerType.Name}'. Falling back to the type's default value for field '{field.Name}'.");
+            FluxFramework.Core.Flux.Manager.Logger.Info($"[FluxFramework] Could not find a prefab instance for component '{ownerType.Name}'. Falling back to the type's default value for field '{field.Name}'.");
             
             Type valueType = GetValueTypeFromFieldInfo(field);
             if (valueType.IsValueType)
