@@ -1,3 +1,4 @@
+#if FLUX_VR_SUPPORT
 namespace FluxFramework.VR
 {
     /// <summary>
@@ -18,3 +19,4 @@ namespace FluxFramework.VR
         void OnHoverExit(FluxVRController controller);
     }
 }
+#endif
