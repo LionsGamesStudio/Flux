@@ -45,6 +45,7 @@ namespace FluxFramework.Editor
         public IFluxPropertyManager Properties => null;
         public IFluxComponentRegistry Registry => null;
         public IReactiveBindingSystem BindingSystem => null;
+        public IBindingFactory BindingFactory => null;
         public IValueConverterRegistry ValueConverterRegistry => null;
         public IFluxConfigurationManager ConfigurationManager => null;
         public IFluxPersistenceManager PersistenceManager => null;

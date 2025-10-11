@@ -1,5 +1,6 @@
 using UnityEngine.UI;
 using FluxFramework.Core;
+using FluxFramework.Attributes;
 
 namespace FluxFramework.Binding
 {

@@ -8,6 +8,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using System.ComponentModel;
 
 namespace FluxFramework.Testing
 {
@@ -25,6 +26,7 @@ namespace FluxFramework.Testing
         public IFluxPropertyManager Properties { get; private set; }
         public IFluxComponentRegistry Registry { get; private set; }
         public IReactiveBindingSystem BindingSystem { get; private set; }
+        public IBindingFactory BindingFactory { get;  private set; }
         public IValueConverterRegistry ValueConverterRegistry { get; private set; }
         public IFluxConfigurationManager ConfigurationManager { get; private set; }
         public IFluxPersistenceManager PersistenceManager { get; private set; }
@@ -44,6 +46,7 @@ namespace FluxFramework.Testing
             EventBus = new EventBus(Threading);
             Registry = new FluxComponentRegistry(this);
             BindingSystem = new ReactiveBindingSystem(this);
+            BindingFactory = new BindingFactory();
             ValueConverterRegistry = new ValueConverterRegistry();
             ConfigurationManager = new MockConfigurationManager();
 

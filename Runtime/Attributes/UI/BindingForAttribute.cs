@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace FluxFramework.Binding.Attributes
+namespace FluxFramework.Attributes
 {
     /// <summary>
     /// Associates a UI Binding class with a specific Unity Component type.

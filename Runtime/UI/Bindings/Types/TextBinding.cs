@@ -1,5 +1,6 @@
 using TMPro;
 using FluxFramework.Core;
+using FluxFramework.Attributes;
 
 namespace FluxFramework.Binding
 {

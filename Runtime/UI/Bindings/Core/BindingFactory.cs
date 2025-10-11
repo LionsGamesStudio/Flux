@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using FluxFramework.Binding.Attributes;
+using FluxFramework.Attributes;
 using UnityEngine;
 
 namespace FluxFramework.Binding
