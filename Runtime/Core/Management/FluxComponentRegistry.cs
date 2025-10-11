@@ -115,7 +115,7 @@ namespace FluxFramework.Core
             // This decouples the registry from the property factory.
             if (component is IFluxReactiveObject reactiveObject)
             {
-                reactiveObject.InitializeReactiveProperties();
+                reactiveObject.InitializeReactiveProperties(_manager);
             }
 
             // 2. Register event and property change handlers.

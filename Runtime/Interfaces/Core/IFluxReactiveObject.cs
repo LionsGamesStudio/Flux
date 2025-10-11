@@ -5,6 +5,6 @@ namespace FluxFramework.Core
     /// </summary>
     public interface IFluxReactiveObject
     {
-        void InitializeReactiveProperties();
+        void InitializeReactiveProperties(IFluxManager manager);
     }
 }

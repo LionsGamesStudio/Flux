@@ -25,10 +25,17 @@ namespace FluxFramework.Testing
         {
             // Before each test, create a brand new, clean instance of our mock manager.
             // This single line replaces all the complex GameObject creation and reflection.
-            Manager = new MockFluxManager();
-
-            Flux.Manager = Manager;
-            _createdGameObjects = new List<GameObject>();
+           try
+            {
+                Manager = new MockFluxManager();
+                Flux.Manager = Manager;
+                _createdGameObjects = new List<GameObject>();
+            }
+            catch (System.Exception e)
+            {
+                UnityEngine.Debug.LogException(e);
+                throw;
+            }
         }
 
         [FluxTearDown]

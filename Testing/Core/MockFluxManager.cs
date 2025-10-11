@@ -53,11 +53,10 @@ namespace FluxFramework.Testing
             // Initialize services
             EventBus.Initialize();
             Registry.Initialize();
+            (BindingFactory as BindingFactory).Initialize();
             BindingSystem.Initialize();
             ValueConverterRegistry.Initialize();
             ConfigurationManager.Initialize();
-
-            FluxFramework.Core.Flux.Manager = this;
             
             IsInitialized = true;
         }

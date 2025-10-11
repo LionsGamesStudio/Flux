@@ -145,7 +145,7 @@ namespace FluxFramework.Core
                 JsonUtility.FromJsonOverwrite(json, this);
                 
                 // Re-register reactive properties after loading to sync with the framework.
-                InitializeReactiveProperties();
+                InitializeReactiveProperties(Flux.Manager);
                 
                 OnDataLoaded?.Invoke(this);
             }

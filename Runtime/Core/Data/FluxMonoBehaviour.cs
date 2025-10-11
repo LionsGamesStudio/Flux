@@ -67,10 +67,10 @@ namespace FluxFramework.Core
         /// Discovers and registers all reactive properties on this component.
         /// This method is called by the FluxComponentRegistry at the correct time.
         /// </summary>
-        public void InitializeReactiveProperties()
+        public void InitializeReactiveProperties(IFluxManager manager)
         {
             if (_registeredProperties.Count > 0) return;
-            var registeredKeys = Flux.Manager.PropertyFactory.RegisterPropertiesFor(this);
+            var registeredKeys = manager.PropertyFactory.RegisterPropertiesFor(this);
             _registeredProperties = new List<string>(registeredKeys);
             OnFluxPropertiesInitialized();
         }

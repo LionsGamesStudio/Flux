@@ -27,7 +27,6 @@ namespace FluxFramework.Core
             // Only run initialization logic when the application is actually playing.
             if (Application.isPlaying && !_isInitialized)
             {
-                InitializeReactiveProperties();
                 _isInitialized = true;
                 
                 // Call the overridable hook for child classes.
@@ -60,10 +59,10 @@ namespace FluxFramework.Core
         /// <summary>
         /// Automatically discovers and registers all reactive properties using the central factory.
         /// </summary>
-        public void InitializeReactiveProperties()
+        public void InitializeReactiveProperties(IFluxManager manager)
         {
             // CALL FACTORY TO REGISTER PROPERTIES
-            var registeredKeys = Flux.Manager.PropertyFactory.RegisterPropertiesFor(this);
+            var registeredKeys = manager.PropertyFactory.RegisterPropertiesFor(this);
             _registeredProperties = new List<string>(registeredKeys);
 
             // Call custom initialization hooks for child classes.
@@ -144,7 +143,7 @@ namespace FluxFramework.Core
         {
             if (!_isInitialized)
             {
-                InitializeReactiveProperties();
+                InitializeReactiveProperties(Flux.Manager);
                 _isInitialized = true;
             }
         }
