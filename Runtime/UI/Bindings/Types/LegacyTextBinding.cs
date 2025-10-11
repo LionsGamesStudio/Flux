@@ -7,6 +7,7 @@ namespace FluxFramework.Binding
     /// Binds a property to a legacy UnityEngine.UI.Text component's text field.
     /// Follows the passive/activable pattern for architectural consistency.
     /// </summary>
+    [BindingFor(typeof(Text))]
     public class LegacyTextBinding : UIBinding<string>
     {
         private readonly Text _textComponent;

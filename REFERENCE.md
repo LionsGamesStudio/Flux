@@ -95,7 +95,7 @@ These attributes are used to integrate your C# classes with the framework's core
 
 ## 3. UI Binding Attributes
 
-These attributes are used to connect your UI to the framework's state.
+These attributes are used to connect your UI to the framework's state, both for using and for creating new bindings.
 
 ### `[FluxBinding(string propertyKey, ...)]`
 -   **Target:** Field (of a type that inherits from `UnityEngine.Component`, e.g., `Slider`, `TextMeshProUGUI`)
@@ -104,6 +104,21 @@ These attributes are used to connect your UI to the framework's state.
     -   `propertyKey`: The key of the property to bind to (e.g., `FluxKeys.PlayerHealth`).
     -   `Mode` (optional): The `BindingMode` (`OneWay`, `TwoWay`). Defaults to `OneWay`.
     -   `ConverterType` (optional): The `Type` of a class that implements `IValueConverter` to handle type mismatches (e.g., `typeof(IntToStringConverter)`).
+
+### `[BindingFor(Type componentType)]`
+-   **Target:** Class (that implements `IUIBinding`)
+-   **Purpose:** Tells the framework that this class is the designated `IUIBinding` implementation for a specific Unity `Component` type. This attribute is what enables the **BindingFactory** to automatically discover and register new bindings, making the system extensible.
+-   **Parameters:**
+    -   `componentType`: The `Type` of the Unity component this binding is responsible for (e.g., `typeof(UnityEngine.UI.Slider)`).
+-   **Example:**
+    ```csharp
+    // This attribute tells the BindingFactory that SliderBinding should be used for all Sliders.
+    [BindingFor(typeof(UnityEngine.UI.Slider))]
+    public class SliderBinding : UIBinding<float>
+    {
+        // ... implementation ...
+    }
+    ```
 
 ---
 

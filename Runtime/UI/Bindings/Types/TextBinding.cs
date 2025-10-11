@@ -7,6 +7,7 @@ namespace FluxFramework.Binding
     /// Binds a property to a TextMeshProUGUI component's text field.
     /// Follows the passive/activable pattern for architectural consistency.
     /// </summary>
+    [BindingFor(typeof(TextMeshProUGUI))]
     public class TextBinding : UIBinding<string>
     {
         private readonly TextMeshProUGUI _textComponent;

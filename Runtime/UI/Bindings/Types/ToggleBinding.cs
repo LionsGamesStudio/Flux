@@ -7,6 +7,7 @@ namespace FluxFramework.Binding
     /// Binds a boolean reactive property to a Unity Toggle component.
     /// Follows the passive/activable pattern for architectural consistency and robustness.
     /// </summary>
+    [BindingFor(typeof(Toggle))]
     public class ToggleBinding : UIBinding<bool>
     {
         private readonly Toggle _toggle;

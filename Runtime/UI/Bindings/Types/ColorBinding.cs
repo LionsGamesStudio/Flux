@@ -7,6 +7,7 @@ namespace FluxFramework.Binding
     /// <summary>
     /// Binding for Image color.
     /// </summary>
+    [BindingFor(typeof(Image))]
     public class ColorBinding : UIBinding<Color>
     {
         private readonly Image _imageComponent;

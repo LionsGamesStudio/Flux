@@ -7,6 +7,7 @@ namespace FluxFramework.Binding
     /// <summary>
     /// Binding for Image sprite.
     /// </summary>
+    [BindingFor(typeof(Image))]
     public class SpriteBinding : UIBinding<Sprite>
     {
         private readonly Image _imageComponent;

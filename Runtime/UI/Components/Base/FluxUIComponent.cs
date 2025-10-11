@@ -149,21 +149,14 @@ namespace FluxFramework.UI
         
         private IUIBinding CreateBindingForComponent(Component uiComponent, FluxBindingAttribute bindingAttr)
         {
-            var options = bindingAttr.CreateOptions();
+            var newBinding = Flux.Manager.BindingFactory.Create(bindingAttr.PropertyKey, uiComponent);
 
-            if (uiComponent is TextMeshProUGUI tmpText) return new TextBinding(bindingAttr.PropertyKey, tmpText);
-            if (uiComponent is Text legacyText) return new LegacyTextBinding(bindingAttr.PropertyKey, legacyText);
-            if (uiComponent is Slider slider) return new SliderBinding(bindingAttr.PropertyKey, slider);
-            if (uiComponent is Toggle toggle) return new ToggleBinding(bindingAttr.PropertyKey, toggle);
-            if (uiComponent is Image image)
+            if (newBinding == null)
             {
-                return bindingAttr.PropertyKey.ToLower().Contains("sprite") 
-                    ? new SpriteBinding(bindingAttr.PropertyKey, image) 
-                    : new ColorBinding(bindingAttr.PropertyKey, image);
+                Flux.Manager.Logger.Warning($"No binding creator found for component type '{uiComponent.GetType().Name}'. Did you forget to add the [BindingFor(typeof(...))] attribute to your binding class?", this);
             }
-            
-            Debug.LogWarning($"[FluxFramework] No automatic binding found for component type '{uiComponent.GetType().Name}'. Register it manually in RegisterCustomBindings().", this);
-            return null;
+
+            return newBinding;
         }
 
         private void UnregisterAllBindings()

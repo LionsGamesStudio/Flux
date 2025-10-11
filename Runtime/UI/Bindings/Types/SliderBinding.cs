@@ -4,13 +4,14 @@ using FluxFramework.Core;
 
 namespace FluxFramework.Binding
 {
+    [BindingFor(typeof(Slider))]
     public class SliderBinding : UIBinding<float>
     {
         private readonly Slider _slider;
         private IReactiveProperty<float> _property; // This will be set by the system
         private bool _isInitialized = false; // Flag for the initial setup
 
-        public SliderBinding(string propertyKey, Slider slider) 
+        public SliderBinding(string propertyKey, Slider slider)
             : base(propertyKey, slider)
         {
             _slider = slider;

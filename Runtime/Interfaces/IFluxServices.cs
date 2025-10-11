@@ -147,6 +147,11 @@ namespace FluxFramework.Core
         IReactiveBindingSystem BindingSystem { get; }
 
         /// <summary>
+        /// Provides access to the binding factory service for creating UI bindings.
+        /// </summary>
+        IBindingFactory BindingFactory { get; }
+
+        /// <summary>
         /// Provides access to the value converter registry.
         /// </summary>
         IValueConverterRegistry ValueConverterRegistry { get; }

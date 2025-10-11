@@ -29,6 +29,7 @@ namespace FluxFramework.Core
         private readonly FluxPropertyFactory _propertyFactory;
         private readonly FluxComponentRegistry _registry;
         private readonly ReactiveBindingSystem _bindingSystem;
+        private readonly BindingFactory _bindingFactory;
         private readonly ValueConverterRegistry _valueConverterRegistry;
         private readonly FluxConfigurationManager _configurationManager;
         private readonly FluxLogger _logger;
@@ -98,6 +99,11 @@ namespace FluxFramework.Core
         public IReactiveBindingSystem BindingSystem => _bindingSystem;
 
         /// <summary>
+        /// Binding factory for creating UI bindings
+        /// </summary>
+        public IBindingFactory BindingFactory => _bindingFactory;
+
+        /// <summary>
         /// Value converter registry for type conversions in bindings
         /// </summary>
         public IValueConverterRegistry ValueConverterRegistry => _valueConverterRegistry;
@@ -123,6 +129,7 @@ namespace FluxFramework.Core
             _propertyFactory = new FluxPropertyFactory(_propertyManager, _persistenceManager);
             _registry = new FluxComponentRegistry(this);
             _bindingSystem = new ReactiveBindingSystem(this);
+            _bindingFactory = new BindingFactory();
             _valueConverterRegistry = new ValueConverterRegistry();
             _configurationManager = new FluxConfigurationManager();
         }
@@ -172,6 +179,7 @@ namespace FluxFramework.Core
             _registry.Initialize();
 
             // Initialize the reactive binding system
+            _bindingFactory.Initialize();
             _bindingSystem.Initialize();
 
             SceneManager.sceneLoaded += OnSceneLoaded;
