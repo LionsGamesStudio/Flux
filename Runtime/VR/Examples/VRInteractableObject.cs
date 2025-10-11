@@ -35,8 +35,6 @@ namespace FluxFramework.VR.Examples
         private Transform _originalParent;
         private bool _wasKinematic;
         private FluxVRController _currentGrabbingController;
-        private IDisposable _hoverEnterSub;
-        private IDisposable _hoverExitSub;
 
         protected override void OnFluxAwake()
         {
@@ -59,17 +57,11 @@ namespace FluxFramework.VR.Examples
         
         protected override void OnFluxStart()
         {
-            // Subscribe to VR hover events. Store the subscriptions for later disposal.
-            _hoverEnterSub = Flux.Manager.EventBus.Subscribe<VRUIHoverEnterEvent>(OnHoverEnter);
-            _hoverExitSub = Flux.Manager.EventBus.Subscribe<VRUIHoverExitEvent>(OnHoverExit);
         }
         
         protected override void OnFluxDestroy()
         {
             // --- Crucial Cleanup ---
-            // Dispose of the event subscriptions to prevent memory leaks.
-            _hoverEnterSub?.Dispose();
-            _hoverExitSub?.Dispose();
 
             // Ensure the object is released if it's destroyed while being held.
             if (_isGrabbedProp.Value)
@@ -79,9 +71,10 @@ namespace FluxFramework.VR.Examples
             base.OnFluxDestroy();
         }
 
+        #region Interface Implementations
+
         /// <summary>
-        /// This method is called by an interaction system (like the one in FluxVRPlayer)
-        /// when a controller's raycast hits this object and the trigger is pressed.
+        /// Implementation of IVRInteractable. Called by an interactor when this object is clicked.
         /// </summary>
         public void OnVRInteract(FluxVRController controller)
         {
@@ -96,6 +89,26 @@ namespace FluxFramework.VR.Examples
                 ReleaseObject();
             }
         }
+        
+        /// <summary>
+        /// Implementation of IVRHoverable. Called by an interactor when its pointer enters this object.
+        /// </summary>
+        public void OnHoverEnter(FluxVRController controller)
+        {
+            _isHoveredProp.Value = true;
+            if(showOutlineOnHover) ShowOutline(true);
+        }
+
+        /// <summary>
+        /// Implementation of IVRHoverable. Called by an interactor when its pointer exits this object.
+        /// </summary>
+        public void OnHoverExit(FluxVRController controller)
+        {
+            _isHoveredProp.Value = false;
+            if(showOutlineOnHover) ShowOutline(false);
+        }
+        
+        #endregion
         
         private void GrabObject(FluxVRController controller)
         {

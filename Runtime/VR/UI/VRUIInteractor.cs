@@ -93,25 +93,40 @@ namespace FluxFramework.VR.UI
             return new RaycastResult(); // Return an empty result
         }
 
+        /// <summary>
+        /// This method is now responsible for both handling Unity UI events AND directly notifying IVRHoverable objects.
+        /// </summary>
         private void ProcessHover()
         {
-            GameObject newHitObject = _pointerEventData.pointerCurrentRaycast.gameObject;
+            GameObject newHoveredObject = _pointerEventData.pointerCurrentRaycast.gameObject;
 
-            if (_currentHitObject != newHitObject)
+            if (_currentHitObject != newHoveredObject)
             {
-                // Exit the old object if it exists
+                // --- Notify the OLD object that hover has ended ---
                 if (_currentHitObject != null)
                 {
+                    // 1. Send standard Unity UI event
                     ExecuteEvents.Execute(_currentHitObject, _pointerEventData, ExecuteEvents.pointerExitHandler);
+
+                    // 2. Directly notify our custom IVRHoverable interface
+                    _currentHitObject.GetComponent<IVRHoverable>()?.OnHoverExit(_controller);
+                    
+                    // 3. Publish a global event (optional, but can be useful for audio systems, etc.)
                     this.PublishEvent(new VRUIHoverExitEvent(_controller.ControllerNode, _currentHitObject));
                 }
 
-                _currentHitObject = newHitObject;
+                _currentHitObject = newHoveredObject;
 
-                // Enter the new object if it exists
+                // --- Notify the NEW object that hover has started ---
                 if (_currentHitObject != null)
                 {
+                    // 1. Send standard Unity UI event
                     ExecuteEvents.Execute(_currentHitObject, _pointerEventData, ExecuteEvents.pointerEnterHandler);
+
+                    // 2. Directly notify our custom IVRHoverable interface
+                    _currentHitObject.GetComponent<IVRHoverable>()?.OnHoverEnter(_controller);
+
+                    // 3. Publish a global event
                     this.PublishEvent(new VRUIHoverEnterEvent(_controller.ControllerNode, _currentHitObject));
                 }
             }
