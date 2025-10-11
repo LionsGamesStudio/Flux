@@ -15,6 +15,17 @@ namespace FluxFramework.Binding
         private readonly string _formatString;
         private IReactiveProperty<string> _property;
 
+        /// <summary>
+        /// This constructor is called by the BindingFactory.
+        /// It provides a default format string and chains to the main constructor.
+        /// </summary>
+        public TextBinding(string propertyKey, TextMeshProUGUI textComponent) 
+            : this(propertyKey, textComponent, "{0}")
+        {
+            // This constructor's body is empty because all the work is done
+            // by the main constructor it calls.
+        }
+
         public TextBinding(string propertyKey, TextMeshProUGUI textComponent, string formatString = "{0}") 
             : base(propertyKey, textComponent)
         {

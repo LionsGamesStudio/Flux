@@ -135,7 +135,11 @@ namespace FluxFramework.VR.Examples
             if (_rigidbody != null)
             {
                 _rigidbody.isKinematic = _wasKinematic;
-                _rigidbody.linearVelocity = releaseVelocity;
+                #if UNITY_6000_0_OR_NEWER
+                    _rigidbody.linearVelocity = releaseVelocity;
+                #else
+                    _rigidbody.velocity = releaseVelocity;
+                #endif
                 _rigidbody.angularVelocity = releaseAngularVelocity;
             }
             
