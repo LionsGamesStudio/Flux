@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Reflection;
 using System;
 using FluxFramework.Attributes;
-using FluxFramework.Extensions;
 
 namespace FluxFramework.Core
 {
@@ -24,16 +23,35 @@ namespace FluxFramework.Core
         /// </summary>
         private void OnEnable()
         {
-            // Only run initialization logic when the application is actually playing.
             if (Application.isPlaying && !_isInitialized)
             {
-                _isInitialized = true;
-                
-                // Call the overridable hook for child classes.
-                OnFluxEnabled();
+                if (Flux.Manager != null && Flux.Manager.IsInitialized)
+                {
+                    InitializeNow();
+                }
+                else
+                {
+                    // If the framework is not ready yet, subscribe to its initialization event.
+                    Flux.OnFrameworkInitialized += InitializeOnce;
+                }
             }
         }
         
+        private void InitializeOnce()
+        {
+            Flux.OnFrameworkInitialized -= InitializeOnce;
+            InitializeNow();
+        }
+
+        private void InitializeNow()
+        {
+            if (_isInitialized) return;
+
+            InitializeReactiveProperties(Flux.Manager);
+            _isInitialized = true;
+            OnFluxEnabled();
+        }
+
         /// <summary>
         /// Override this method instead of OnEnable() for your initialization logic.
         /// </summary>
@@ -44,6 +62,9 @@ namespace FluxFramework.Core
         /// </summary>
         private void OnDestroy()
         {
+            // Unsubscribe from the event in case this object is destroyed before the framework initializes.
+            Flux.OnFrameworkInitialized -= InitializeOnce;
+            
             if (Application.isPlaying)
             {
                 OnFluxDestroy();
@@ -57,15 +78,18 @@ namespace FluxFramework.Core
         protected virtual void OnFluxDestroy() { }
 
         /// <summary>
-        /// Automatically discovers and registers all reactive properties using the central factory.
+        /// Automatically discovers and registers all reactive properties using the provided manager.
         /// </summary>
         public void InitializeReactiveProperties(IFluxManager manager)
         {
-            // CALL FACTORY TO REGISTER PROPERTIES
+            if (manager == null)
+            {
+                Debug.LogError($"[FluxFramework] Cannot initialize properties for '{this.name}' because the provided manager is null.", this);
+                return;
+            }
+
             var registeredKeys = manager.PropertyFactory.RegisterPropertiesFor(this);
             _registeredProperties = new List<string>(registeredKeys);
-
-            // Call custom initialization hooks for child classes.
             OnFluxPropertiesInitialized();
         }
 
@@ -87,47 +111,19 @@ namespace FluxFramework.Core
         }
 
         /// <summary>
-        /// Unregisters all reactive properties associated with this ScriptableObject from the central manager.
+        /// Unregisters all reactive properties associated with this ScriptableObject.
         /// </summary>
         private void CleanupReactiveProperties()
         {
+            // Safety check for shutdown order.
+            if (Flux.Manager == null || Flux.Manager.Properties == null) return;
+            
             foreach (var propertyKey in _registeredProperties)
             {
-                // We only unregister. The property manager handles the actual disposal/cleanup.
                 Flux.Manager.Properties.UnregisterProperty(propertyKey);
             }
             _registeredProperties.Clear();
             OnFluxPropertiesCleanup();
-        }
-
-        /// <summary>
-        /// Helper method to update a reactive property's value.
-        /// </summary>
-        protected void UpdateReactiveProperty<T>(string propertyKey, T newValue)
-        {
-            var property = Flux.Manager.Properties.GetProperty<T>(propertyKey);
-            if (property != null)
-            {
-                property.Value = newValue;
-            }
-        }
-
-        /// <summary>
-        /// Helper method to get a reactive property's current value.
-        /// </summary>
-        protected T GetReactivePropertyValue<T>(string propertyKey)
-        {
-            var property = Flux.Manager.Properties.GetProperty<T>(propertyKey);
-            return property != null ? property.Value : default(T);
-        }
-
-        /// <summary>
-        /// Helper method to subscribe to changes of a reactive property.
-        /// </summary>
-        protected IDisposable SubscribeToProperty<T>(string propertyKey, Action<T> onChanged)
-        {
-            var property = Flux.Manager.Properties.GetProperty<T>(propertyKey);
-            return property?.Subscribe(onChanged);
         }
         
         #region Lifecycle Hooks & Editor Tools
