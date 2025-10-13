@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using System.Collections.Generic;
 using FluxFramework.Attributes.VisualScripting;
 
 namespace FluxFramework.VisualScripting.Node
