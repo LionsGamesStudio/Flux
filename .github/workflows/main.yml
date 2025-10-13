@@ -97,7 +97,7 @@ jobs:
 
           echo "Copying project settings from .ci folder..."
           # Copy predefined project settings to ensure a consistent test environment.
-          cp .ci/ProjectSettings.asset TempProject/ProjectSettings/ProjectSettings.asset
+          # cp .ci/ProjectSettings.asset TempProject/ProjectSettings/ProjectSettings.asset
           cp .ci/ProjectVersion.txt TempProject/ProjectSettings/ProjectVersion.txt
 
           echo "Setting project version to ${{ matrix.unity-version }}"
