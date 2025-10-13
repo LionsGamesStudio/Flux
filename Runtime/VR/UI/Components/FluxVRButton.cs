@@ -73,9 +73,9 @@ namespace FluxFramework.VR.UI
         }
 
         /// <summary>
-        /// Subscribes to the Flux EventBus. This is done in Start to ensure the EventBus is initialized.
+        /// Subscribes to the Flux EventBus. This is done in OnFluxStart to ensure the EventBus is initialized.
         /// </summary>
-        protected virtual void Start()
+        protected override void OnFluxStart()
         {
             _hoverEnterSub = Flux.Manager.EventBus.Subscribe<VRUIHoverEnterEvent>(OnHoverEnter);
             _hoverExitSub = Flux.Manager.EventBus.Subscribe<VRUIHoverExitEvent>(OnHoverExit);

@@ -4,7 +4,9 @@
     "references": [
         "Unity.TextMeshPro",
         "Newtonsoft.Json",
-        "Unity.mathematics"
+        "Unity.mathematics",
+        "Unity.InputSystem",
+        "Unity.XR.Management"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -15,9 +17,9 @@
     "defineConstraints": [],
     "versionDefines": [
         {
-        "name": "com.unity.xr.management",
-        "expression": "",
-        "define": "FLUX_VR_SUPPORT"
+            "name": "com.unity.xr.management",
+            "expression": "",
+            "define": "FLUX_VR_SUPPORT"
         }
     ],
     "noEngineReferences": false

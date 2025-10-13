@@ -1,8 +1,8 @@
+    
 #if FLUX_VR_SUPPORT
 using UnityEngine;
 using UnityEngine.XR;
 using FluxFramework.Core;
-using FluxFramework.Attributes;
 using FluxFramework.VR.Locomotion;
 using FluxFramework.VR.Events;
 using System;
@@ -10,17 +10,13 @@ using System;
 namespace FluxFramework.VR
 {
     /// <summary>
-    /// The main logic component for the VR player. It coordinates between other VR systems
-    /// (Manager, Locomotion, Interaction), exposes high-level player state via reactive properties,
-    //  and handles basic interactions like pointing and clicking on objects.
+    /// The main logic component for the VR player rig. Its primary role is now to coordinate
+    /// the CharacterController with the HMD's physical location and to expose high-level player state.
+    /// All direct world interaction logic has been moved to controller-specific components like VRSmartInteractor.
     /// </summary>
     [RequireComponent(typeof(FluxVRManager), typeof(FluxVRLocomotion), typeof(CharacterController))]
     public class FluxVRPlayer : FluxMonoBehaviour
-    {
-        [Header("Interaction Settings")]
-        [SerializeField] private float interactionDistance = 10f;
-        [SerializeField] private LayerMask interactionLayerMask = -1;
-        
+    {        
         // --- Reactive Property References ---
         private IReactiveProperty<Vector3> _hmdPositionProp;
         private IReactiveProperty<Quaternion> _hmdRotationProp;
@@ -31,55 +27,50 @@ namespace FluxFramework.VR
         private FluxVRManager _vrManager;
         private CharacterController _characterController;
         private Camera _hmdCamera;
+        private InputDevice _hmdDevice;
         
         // --- Event Subscription Handles ---
         private IDisposable _controllerConnectedSub;
         private IDisposable _controllerDisconnectedSub;
-        private IDisposable _triggerPressedSub;
         
         protected override void OnFluxAwake()
         {
             base.OnFluxAwake();
 
-            // Get component dependencies
             _vrManager = GetComponent<FluxVRManager>();
             _characterController = GetComponent<CharacterController>();
             _hmdCamera = GetComponentInChildren<Camera>();
+            _hmdDevice = InputDevices.GetDeviceAtXRNode(XRNode.Head);
 
-            // Initialize reactive properties
-            _hmdPositionProp = Flux.Manager.Properties.GetOrCreateProperty<Vector3>("vr.player.hmd.position");
-            _hmdRotationProp = Flux.Manager.Properties.GetOrCreateProperty<Quaternion>("vr.player.hmd.rotation");
-            _activeControllersProp = Flux.Manager.Properties.GetOrCreateProperty<int>("vr.player.controllers.active");
-            _isGroundedProp = Flux.Manager.Properties.GetOrCreateProperty<bool>("vr.player.isGrounded", true);
+            _hmdPositionProp = Flux.Manager.Properties.GetOrCreateProperty<Vector3>(VRPropertyKeys.PlayerHMDPosition);
+            _hmdRotationProp = Flux.Manager.Properties.GetOrCreateProperty<Quaternion>(VRPropertyKeys.PlayerHMDRotation);
+            _activeControllersProp = Flux.Manager.Properties.GetOrCreateProperty<int>(VRPropertyKeys.PlayerActiveControllers);
+            _isGroundedProp = Flux.Manager.Properties.GetOrCreateProperty<bool>(VRPropertyKeys.PlayerIsGrounded, true);
         }
 
         protected override void OnFluxStart()
         {
-            // Subscribe to VR events. Storing the IDisposable handle is crucial for cleanup.
             _controllerConnectedSub = Flux.Manager.EventBus.Subscribe<VRControllerConnectedEvent>(OnControllerConnected);
             _controllerDisconnectedSub = Flux.Manager.EventBus.Subscribe<VRControllerDisconnectedEvent>(OnControllerDisconnected);
-            _triggerPressedSub = Flux.Manager.EventBus.Subscribe<VRTriggerPressedEvent>(OnTriggerPressed);
 
-            FluxFramework.Core.Flux.Manager.Logger.Info("[FluxFramework] FluxVRPlayer initialized!", this);
+            Flux.Manager.Logger.Info("[FluxFramework] FluxVRPlayer initialized!", this);
         }
         
         protected override void OnFluxDestroy()
         {
-            // Unsubscribe from all events to prevent memory leaks.
             _controllerConnectedSub?.Dispose();
             _controllerDisconnectedSub?.Dispose();
-            _triggerPressedSub?.Dispose();
             base.OnFluxDestroy();
         }
 
         protected virtual void Update()
         {
             UpdatePlayerTracking();
+            CenterCharacterControllerToHMD();
         }
 
         private void FixedUpdate()
         {
-            // Use FixedUpdate for physics-based checks like grounding.
             UpdateGroundCheck();
         }
 
@@ -92,8 +83,10 @@ namespace FluxFramework.VR
             }
             if (_vrManager != null)
             {
-                _activeControllersProp.Value = _vrManager.GetController(XRNode.LeftHand) != null && _vrManager.GetController(XRNode.RightHand) != null ? 2 : 
-                                               _vrManager.GetController(XRNode.LeftHand) != null || _vrManager.GetController(XRNode.RightHand) != null ? 1 : 0;
+                int count = 0;
+                if (_vrManager.GetController(XRNode.LeftHand) != null) count++;
+                if (_vrManager.GetController(XRNode.RightHand) != null) count++;
+                _activeControllersProp.Value = count;
             }
         }
         
@@ -108,46 +101,42 @@ namespace FluxFramework.VR
         // --- Event Handlers ---
         private void OnControllerConnected(VRControllerConnectedEvent evt)
         {
-            FluxFramework.Core.Flux.Manager.Logger.Info($"Player detected controller connection: {evt.ControllerNode}", this);
+            Flux.Manager.Logger.Info($"Player detected controller connection: {evt.ControllerNode}", this);
         }
         
         private void OnControllerDisconnected(VRControllerDisconnectedEvent evt)
         {
-            FluxFramework.Core.Flux.Manager.Logger.Info($"Player detected controller disconnection: {evt.ControllerNode}", this);
+            Flux.Manager.Logger.Info($"Player detected controller disconnection: {evt.ControllerNode}", this);
         }
-        
-        private void OnTriggerPressed(VRTriggerPressedEvent evt)
-        {
-            // When a trigger is pressed, perform a raycast to interact with the world.
-            PerformInteraction(evt.ControllerNode);
-        }
-        
+
         /// <summary>
-        /// Performs a raycast from the specified controller to find and interact with IVRInteractable objects.
+        /// This crucial method adjusts the CharacterController's position and height
+        /// to match the HMD's position within the local rig space. This ensures the player's
+        /// collision capsule always follows their head.
         /// </summary>
-        private void PerformInteraction(XRNode controllerNode)
+        private void CenterCharacterControllerToHMD()
         {
-            var controller = _vrManager?.GetController(controllerNode);
-            if (controller != null)
+            if (!_hmdDevice.isValid)
             {
-                Ray ray = controller.GetPointingRay();
-                if (Physics.Raycast(ray, out RaycastHit hit, interactionDistance, interactionLayerMask))
-                {
-                    // Check if the hit object implements the interactable interface.
-                    var interactable = hit.collider.GetComponent<IVRInteractable>();
-                    if (interactable != null)
-                    {
-                        // Call the interaction method on the object.
-                        interactable.OnVRInteract(controller);
-                        controller.TriggerHapticFeedback(0.5f, 0.1f);
-                    }
-                }
+                _hmdDevice = InputDevices.GetDeviceAtXRNode(XRNode.Head);
+                if (!_hmdDevice.isValid) return;
+            }
+
+            if (_hmdDevice.TryGetFeatureValue(CommonUsages.centerEyePosition, out Vector3 centerEyePos))
+            {
+                // We update the CharacterController height to match the player's height.
+                _characterController.height = centerEyePos.y;
+                
+                // We center the collision capsule (X, Z) directly under the HMD.
+                // The center height (Y) is at half the height of the capsule.
+                _characterController.center = new Vector3(centerEyePos.x, centerEyePos.y / 2.0f, centerEyePos.z);
             }
         }
     }
     
     /// <summary>
     /// A generic interface for any object that can be interacted with by the VR player's controller.
+    /// This is still used by VRSmartInteractor.
     /// </summary>
     public interface IVRInteractable
     {
@@ -157,5 +146,18 @@ namespace FluxFramework.VR
         /// <param name="controller">The controller that initiated the interaction.</param>
         void OnVRInteract(FluxVRController controller);
     }
+
+    /// <summary>
+    /// Central repository for reactive property keys. We will add the player-specific keys here.
+    /// </summary>
+    public static partial class VRPropertyKeys // Using partial to conceptually merge with the other keys
+    {
+        public const string PlayerHMDPosition = "vr.player.hmd.position";
+        public const string PlayerHMDRotation = "vr.player.hmd.rotation";
+        public const string PlayerActiveControllers = "vr.player.controllers.active";
+        public const string PlayerIsGrounded = "vr.player.isGrounded";
+    }
 }
 #endif
+
+  

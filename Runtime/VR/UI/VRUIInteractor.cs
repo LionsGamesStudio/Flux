@@ -17,7 +17,7 @@ namespace FluxFramework.VR.UI
     public class VRUIInteractor : FluxMonoBehaviour
     {
         [Header("Interaction Configuration")]
-        [SerializeField] private LineRenderer laserRenderer;
+        [SerializeField] public LineRenderer laserRenderer;
         [SerializeField] private float maxRayDistance = 10f;
 
         // --- Reactive Property References ---

@@ -3,7 +3,9 @@
     "rootNamespace": "FluxFramework.VR",
     "references": [
         "GUID:8b83f5678b926564d8b319116a890644",
-        "Unity.TextMeshPro"
+        "GUID:6055be8ebefd69e48b49212b09b47b2f",
+        "GUID:75469ad4d38634e559750d17036d5f7c",
+        "GUID:e40ba710768534012815d3193fa296cb"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

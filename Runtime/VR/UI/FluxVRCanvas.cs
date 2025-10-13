@@ -51,9 +51,9 @@ namespace FluxFramework.VR.UI
             SetupVRCanvas();
         }
 
-        protected virtual void Start()
+        protected override void OnFluxStart()
         {
-            // We set up interactors in Start to ensure the FluxVRManager and controllers are ready.
+            // We set up interactors in OnFluxStart to ensure the FluxVRManager and controllers are ready.
             var vrManager = FindObjectOfType<FluxVRManager>(); // This is one of the few acceptable uses of FindObjectOfType at initialization.
             if (vrManager != null)
             {

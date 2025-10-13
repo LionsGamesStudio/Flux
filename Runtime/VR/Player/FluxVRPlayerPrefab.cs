@@ -1,15 +1,17 @@
-    
 #if FLUX_VR_SUPPORT
 using UnityEngine;
 using FluxFramework.Core;
 using FluxFramework.Attributes;
 using FluxFramework.VR.Locomotion;
+using UnityEngine.InputSystem.XR;
+using UnityEngine.InputSystem;
 
 namespace FluxFramework.VR
 {
     /// <summary>
-    /// A factory/builder component that can programmatically create a complete,
-    /// fully-functional VR Player Rig with all necessary FluxVR components and visuals.
+    /// A factory/builder component that programmatically creates a complete,
+    /// fully-functional VR Player Rig with all necessary FluxVR components,
+    /// camera setup, and controller visuals.
     /// </summary>
     public class FluxVRPlayerPrefab : FluxMonoBehaviour
     {
@@ -23,10 +25,6 @@ namespace FluxFramework.VR
 
         private GameObject _createdPlayer;
 
-        /// <summary>
-        /// OnFluxAwake is called after the framework is initialized.
-        /// It triggers the automatic creation of the VR rig if configured to do so.
-        /// </summary>
         protected override void OnFluxAwake()
         {
             base.OnFluxAwake();
@@ -38,9 +36,9 @@ namespace FluxFramework.VR
         
         /// <summary>
         /// Creates or instantiates a complete and visually functional VR Player rig.
-        /// This method can be called at runtime or from the editor via a [FluxButton].
+        /// This is the main factory method.
         /// </summary>
-        [FluxButton("Create VR Player")]
+        [FluxButton("Create Complete VR Player")]
         public void CreateVRPlayerPrefab()
         {
             if (_createdPlayer != null)
@@ -49,7 +47,6 @@ namespace FluxFramework.VR
                 DestroyPlayerInstance();
             }
 
-            // If a full prefab is assigned, instantiate it and exit.
             if (vrPlayerPrefab != null)
             {
                 _createdPlayer = Instantiate(vrPlayerPrefab, transform.position, transform.rotation);
@@ -57,86 +54,86 @@ namespace FluxFramework.VR
                 return;
             }
 
-            // --- Otherwise, build the rig programmatically from scratch ---
-
-            // 1. Create the main player Rig GameObject
-            GameObject vrRig = new GameObject("FluxVR Player");
+            // --- 1. Create the root VR Rig GameObject ---
+            GameObject vrRig = new GameObject("FluxVR Player (Generated)");
             vrRig.transform.position = Vector3.zero;
-            vrRig.AddComponent<CharacterController>();
-            
-            // 2. HMD Camera Setup
-            // The Camera is placed directly under the Rig. The CustomTrackedPoseDriver handles its local position.
+
+            // --- 2. Add and configure the CharacterController for physics and movement ---
+            var characterController = vrRig.AddComponent<CharacterController>();
+            characterController.height = 1.8f;
+            characterController.radius = 0.3f;
+            characterController.skinWidth = 0.01f;
+            characterController.center = new Vector3(0, 0.9f, 0);
+
+            // --- 3. Create the Camera Rig Hierarchy ([Rig] -> [Camera Offset] -> [Main Camera]) ---
+            GameObject cameraOffset = new GameObject("Camera Offset");
+            cameraOffset.transform.SetParent(vrRig.transform);
+            cameraOffset.transform.localPosition = Vector3.zero;
+
             GameObject cameraGO = new GameObject("Main Camera");
-            cameraGO.transform.SetParent(vrRig.transform);
-            cameraGO.transform.localPosition = new Vector3(0, 1.7f, 0); // Set an average eye height as a starting point.
+            cameraGO.transform.SetParent(cameraOffset.transform);
+            cameraGO.transform.localPosition = new Vector3(0, 1.6f, 0); // Average eye height
             cameraGO.tag = "MainCamera";
             cameraGO.AddComponent<Camera>();
             cameraGO.AddComponent<AudioListener>();
-
-            var poseDriver = cameraGO.AddComponent<CustomTrackedPoseDriver>();
-            poseDriver.poseToTrack = CustomTrackedPoseDriver.TrackedPose.Center;
-            poseDriver.trackingType = CustomTrackedPoseDriver.TrackingType.RotationAndPosition;
-            // It's best practice to update camera tracking just before rendering to minimize perceived latency.
-            poseDriver.updateInUpdate = false;
-            poseDriver.updateInBeforeRender = true;
             
-            // 3. Add Core Flux VR Logic Components
+            // Add and configure the TrackedPoseDriver for HMD tracking
+            var hmdPoseDriver = cameraGO.AddComponent<TrackedPoseDriver>();
+            var hmdPositionAction = new InputAction("HMD Position", binding: "<XRHMD>/centerEyePosition");
+            var hmdRotationAction = new InputAction("HMD Rotation", binding: "<XRHMD>/centerEyeRotation");
+            hmdPoseDriver.positionAction = hmdPositionAction;
+            hmdPoseDriver.rotationAction = hmdRotationAction;
+            hmdPositionAction.Enable();
+            hmdRotationAction.Enable();
+
+            // --- 4. Add the core FluxVR logic components to the rig ---
             var vrManager = vrRig.AddComponent<FluxVRManager>();
             var locomotion = vrRig.AddComponent<FluxVRLocomotion>();
             vrRig.AddComponent<FluxVRPlayer>();
 
-            // 4. Create and connect the visual elements needed by the locomotion system.
-            CreateLocomotionVisuals(vrRig.transform, locomotion);
+            // --- 5. Link necessary references between components ---
+            vrManager.CameraOffset = cameraOffset.transform;
+
+            // --- 6. Create default teleportation visuals and assign them ---
+            var teleportMarker = CreateDefaultTeleportMarker();
+            teleportMarker.transform.SetParent(vrRig.transform); // Keep it organized
+            locomotion.teleportMarkerPrefab = teleportMarker;
+
+            // We will let the manager create the controllers and the locomotion system will find them
+            // to attach its line renderer. We don't need to pre-assign it.
             
             _createdPlayer = vrRig;
-            Debug.Log("A new FluxVR Player Rig has been created programmatically.");
         }
 
         /// <summary>
-        /// Creates the visual GameObjects for teleportation (line and marker)
-        /// and connects them to the locomotion system.
+        /// Creates a default, visible teleport marker prefab.
         /// </summary>
-        private void CreateLocomotionVisuals(Transform rigParent, FluxVRLocomotion locomotion)
-        {            
-            // Create Line Renderer for Teleportation
-            GameObject teleportLineGO = new GameObject("Teleport Line");
-            teleportLineGO.transform.SetParent(rigParent, false);
-            var lineRenderer = teleportLineGO.AddComponent<LineRenderer>();
-            
-            lineRenderer.material = new Material(Shader.Find("Legacy Shaders/Particles/Alpha Blended Premultiply"));
-            lineRenderer.startColor = Color.cyan;
-            lineRenderer.endColor = new Color(0.8f, 1f, 1f, 0f); // Fade to transparent
-            lineRenderer.startWidth = 0.01f;
-            lineRenderer.endWidth = 0.002f;
-            lineRenderer.positionCount = 2;
-            lineRenderer.useWorldSpace = true;
-            lineRenderer.enabled = false;
-            
-            locomotion.teleportLineRenderer = lineRenderer;
-            
-            // Create a simple Teleport Marker
-            GameObject teleportMarkerGO = new GameObject("Teleport Marker");
-            teleportMarkerGO.transform.SetParent(rigParent, true); // Parented with world position staying the same.
-            
+        private GameObject CreateDefaultTeleportMarker()
+        {
+            var markerInstance = new GameObject("Teleport Marker (Prefab)");
             GameObject markerVisual = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            markerVisual.transform.SetParent(teleportMarkerGO.transform, false);
+            markerVisual.name = "Visual";
+            markerVisual.transform.SetParent(markerInstance.transform, false);
             markerVisual.transform.localScale = new Vector3(0.5f, 0.01f, 0.5f);
-            
-            // --- Use the appropriate Destroy method based on the context ---
-            var collider = markerVisual.GetComponent<Collider>();
-            if (Application.isPlaying)
-            {
-                // In Play Mode, use Destroy()
-                Destroy(collider);
-            }
-            else
-            {
-                // In Edit Mode (e.g., when clicking the [FluxButton]), we must use DestroyImmediate()
-                DestroyImmediate(collider);
-            }
-            
-            locomotion.teleportMarkerPrefab = teleportMarkerGO;
-            teleportMarkerGO.SetActive(false);
+            DestroyImmediate(markerVisual.GetComponent<Collider>()); // No collider needed on the visual
+
+            var renderer = markerVisual.GetComponent<Renderer>();
+            var mat = new Material(Shader.Find("Standard"));
+            mat.color = Color.green;
+            // Make it slightly transparent
+            mat.SetOverrideTag("RenderType", "Transparent");
+            mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            mat.SetInt("_ZWrite", 0);
+            mat.DisableKeyword("_ALPHATEST_ON");
+            mat.EnableKeyword("_ALPHABLEND_ON");
+            mat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+            mat.renderQueue = 3000;
+            mat.color = new Color(0, 1, 0, 0.5f);
+            renderer.material = mat;
+
+            markerInstance.SetActive(false);
+            return markerInstance;
         }
 
         /// <summary>
@@ -146,20 +143,12 @@ namespace FluxFramework.VR
         {
             if (_createdPlayer == null) return;
             
-            if (Application.isPlaying)
-            {
-                Destroy(_createdPlayer);
-            }
-            else
-            {
-                DestroyImmediate(_createdPlayer);
-            }
+            if (Application.isPlaying) Destroy(_createdPlayer);
+            else DestroyImmediate(_createdPlayer);
+            
             _createdPlayer = null;
         }
 
-        /// <summary>
-        /// When this prefab builder is destroyed, ensure the player rig it created is also destroyed.
-        /// </summary>
         protected override void OnFluxDestroy()
         {
             base.OnFluxDestroy();
@@ -168,5 +157,3 @@ namespace FluxFramework.VR
     }
 }
 #endif
-
-  
