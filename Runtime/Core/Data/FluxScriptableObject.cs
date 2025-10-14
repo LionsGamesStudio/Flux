@@ -18,8 +18,16 @@ namespace FluxFramework.Core
         [NonSerialized]
         private bool _isInitialized = false;
 
+#if !UNITY_EDITOR
+        // --- RUNTIME-ONLY LOGIC ---
+        // This OnEnable block is the primary initialization method in a final build.
+        // It is explicitly excluded from editor compilation to prevent any conflicts or
+        // race conditions with the FluxScriptableObjectRegistry, which is the sole
+        // authority for initialization within the editor.
+
         /// <summary>
         /// Called when the ScriptableObject is enabled by Unity.
+        /// This ensures initialization in builds or for runtime-instantiated objects.
         /// </summary>
         private void OnEnable()
         {
@@ -27,7 +35,7 @@ namespace FluxFramework.Core
             {
                 if (Flux.Manager != null && Flux.Manager.IsInitialized)
                 {
-                    InitializeNow();
+                    InitializeNow(Flux.Manager);
                 }
                 else
                 {
@@ -36,113 +44,105 @@ namespace FluxFramework.Core
                 }
             }
         }
-        
+
         private void InitializeOnce()
         {
             Flux.OnFrameworkInitialized -= InitializeOnce;
-            InitializeNow();
+            InitializeNow(Flux.Manager);
         }
+#endif
 
-        private void InitializeNow()
+        /// <summary>
+        /// The central initialization method. It is called by the OnEnable flow (in builds)
+        /// or directly by the FluxScriptableObjectRegistry (in the editor).
+        /// </summary>
+        private void InitializeNow(IFluxManager manager)
         {
             if (_isInitialized) return;
 
-            InitializeReactiveProperties(Flux.Manager);
+            if (manager == null)
+            {
+                Debug.LogError($"[FluxFramework] Manager is null. Cannot initialize properties for '{this.name}'.", this);
+                return;
+            }
+
+            var registeredKeys = manager.PropertyFactory.RegisterPropertiesFor(this);
+            _registeredProperties = new List<string>(registeredKeys);
+            
+            // Mark as initialized only after a successful registration.
             _isInitialized = true;
+
+            // Call user-overridable lifecycle hooks.
+            OnFluxPropertiesInitialized();
             OnFluxEnabled();
         }
 
         /// <summary>
-        /// Override this method instead of OnEnable() for your initialization logic.
+        /// Public entry point for the IFluxReactiveObject interface.
+        /// This is called by the FluxScriptableObjectRegistry in the editor.
         /// </summary>
-        protected virtual void OnFluxEnabled() { }
-
-        /// <summary>
-        /// Called when the ScriptableObject is about to be destroyed.
-        /// </summary>
+        public void InitializeReactiveProperties(IFluxManager manager)
+        {
+            InitializeNow(manager);
+        }
+        
         private void OnDestroy()
         {
-            // Unsubscribe from the event in case this object is destroyed before the framework initializes.
-            Flux.OnFrameworkInitialized -= InitializeOnce;
-            
             if (Application.isPlaying)
             {
+#if !UNITY_EDITOR
+                // Unsubscribe from the event in case this object is destroyed before the framework initializes.
+                Flux.OnFrameworkInitialized -= InitializeOnce;
+#endif
                 OnFluxDestroy();
                 CleanupReactiveProperties();
             }
         }
         
         /// <summary>
-        /// Override this method instead of OnDestroy() for your cleanup logic.
-        /// </summary>
-        protected virtual void OnFluxDestroy() { }
-
-        /// <summary>
-        /// Automatically discovers and registers all reactive properties using the provided manager.
-        /// </summary>
-        public void InitializeReactiveProperties(IFluxManager manager)
-        {
-            if (manager == null)
-            {
-                Debug.LogError($"[FluxFramework] Cannot initialize properties for '{this.name}' because the provided manager is null.", this);
-                return;
-            }
-
-            var registeredKeys = manager.PropertyFactory.RegisterPropertiesFor(this);
-            _registeredProperties = new List<string>(registeredKeys);
-            OnFluxPropertiesInitialized();
-        }
-
-        /// <summary>
-        // Caches the keys of all properties registered for this object, so they can be cleaned up OnDestroy.
-        /// </summary>
-        private void CacheRegisteredPropertyKeys()
-        {
-            _registeredProperties.Clear();
-            var fields = GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-            foreach (var field in fields)
-            {
-                var reactiveAttr = field.GetCustomAttribute<ReactivePropertyAttribute>();
-                if (reactiveAttr != null)
-                {
-                    _registeredProperties.Add(reactiveAttr.Key);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Unregisters all reactive properties associated with this ScriptableObject.
+        /// Unregisters all reactive properties associated with this ScriptableObject to prevent memory leaks.
         /// </summary>
         private void CleanupReactiveProperties()
         {
             // Safety check for shutdown order.
-            if (Flux.Manager == null || Flux.Manager.Properties == null) return;
+            if (Flux.Manager == null || Flux.Manager.Properties == null || _registeredProperties.Count == 0) return;
             
             foreach (var propertyKey in _registeredProperties)
             {
                 Flux.Manager.Properties.UnregisterProperty(propertyKey);
             }
             _registeredProperties.Clear();
+            _isInitialized = false; // Reset the flag
+            
             OnFluxPropertiesCleanup();
         }
         
-        #region Lifecycle Hooks & Editor Tools
+        #region User Lifecycle Hooks
         
-        protected virtual void OnFluxPropertiesInitialized() { }
-        protected virtual void OnFluxPropertiesCleanup() { }
+        /// <summary>
+        /// Override this method instead of OnEnable() for your initialization logic.
+        /// Guaranteed to be called AFTER reactive properties are registered.
+        /// </summary>
+        protected virtual void OnFluxEnabled() { }
 
         /// <summary>
-        /// Editor-only method to force initialization of reactive properties.
+        /// Override this method instead of OnDestroy() for your cleanup logic.
         /// </summary>
-        [ContextMenu("Initialize Reactive Properties")]
-        public void ForceInitializeReactiveProperties()
-        {
-            if (!_isInitialized)
-            {
-                InitializeReactiveProperties(Flux.Manager);
-                _isInitialized = true;
-            }
-        }
+        protected virtual void OnFluxDestroy() { }
+
+        /// <summary>
+        /// A lifecycle hook called immediately after all reactive properties for this component have been initialized.
+        /// </summary>
+        protected virtual void OnFluxPropertiesInitialized() { }
+
+        /// <summary>
+        /// A lifecycle hook called immediately after all reactive properties for this component have been cleaned up.
+        /// </summary>
+        protected virtual void OnFluxPropertiesCleanup() { }
+
+        #endregion
+
+        #region Editor Tools
 
         /// <summary>
         /// Editor-only method to reset all reactive properties to their default values as defined in their attributes.
@@ -154,11 +154,12 @@ namespace FluxFramework.Core
             foreach (var field in fields)
             {
                 var reactiveAttr = field.GetCustomAttribute<ReactivePropertyAttribute>();
-                if (reactiveAttr != null)
+                if (reactiveAttr != null && Flux.Manager != null)
                 {
                     var propertyKey = reactiveAttr.Key;
                     var defaultValue = reactiveAttr.DefaultValue ?? GetDefaultValue(field.FieldType);
                     field.SetValue(this, defaultValue);
+
                     var property = Flux.Manager.Properties.GetProperty(propertyKey);
                     property?.SetValue(defaultValue);
                 }
