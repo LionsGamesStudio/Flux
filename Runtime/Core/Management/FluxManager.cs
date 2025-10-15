@@ -217,20 +217,67 @@ namespace FluxFramework.Core
         }
 
         /// <summary>
-        /// This method is called by Unity's SceneManager every time a scene finishes loading.
+        /// Method called by Unity when a scene has finished loading.
+        /// It performs the immediate cleanup and then starts a coroutine to finalize initialization.
         /// </summary>
         private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
-            // We only clear properties if it's a single scene load, not additive.
             if (mode == LoadSceneMode.Single)
             {
+                // Cleaning up properties and caches can be done immediately.
                 _bindingSystem.ClearAll();
                 _propertyManager.ClearNonPersistentProperties();
                 _registry.ClearInstanceCache();
+                
+                // Start the coroutine to handle re-initialization and the new registration.
+                StartCoroutine(OnSceneLoadedFinalize());
             }
+            else // For Additive mode, we just scan for new components.
+            {
+                StartCoroutine(RegisterAdditiveSceneComponents());
+            }
+        }
 
-            // After cleaning, re-register any components that are in the newly loaded scene.
+        /// <summary>
+        /// Coroutine that waits for the end of the current frame to ensure all objects
+        /// in the new scene are initialized before resetting state and registering them.
+        /// </summary>
+        private IEnumerator OnSceneLoadedFinalize()
+        {
+            // Wait for the next frame. This is the most important step.
+            // At this point, all Awake() and OnEnable() methods in the new scene will have been called.
+            yield return null;
+
+            // 1. Now that the scene is "stable", reset the state of ScriptableObjects
+            //    to their default values.
+            ReinitializeAllScriptableObjects();
+
+            // 2. Finally, scan the scene to register all FluxComponents.
+            //    They are now ready and will be found correctly.
             _registry.RegisterAllComponentsInScene();
+        }
+        
+        /// <summary>
+        /// Coroutine to handle additive loading, which simply waits one frame before scanning.
+        /// </summary>
+        private IEnumerator RegisterAdditiveSceneComponents()
+        {
+            yield return null;
+            _registry.RegisterAllComponentsInScene();
+        }
+        
+        private void ReinitializeAllScriptableObjects()
+        {
+            var allScriptableObjects = Resources.FindObjectsOfTypeAll<FluxScriptableObject>();
+            if (allScriptableObjects.Length > 0)
+            {
+                _logger.Info($"[FluxFramework] Re-initializing {allScriptableObjects.Length} ScriptableObjects on scene load.");
+            }
+            
+            foreach (var so in allScriptableObjects)
+            {
+                _propertyFactory.RegisterPropertiesFor(so);
+            }
         }
 
         private void OnApplicationPause(bool pauseStatus)
