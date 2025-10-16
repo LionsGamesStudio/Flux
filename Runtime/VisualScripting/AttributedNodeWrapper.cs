@@ -42,8 +42,8 @@ namespace FluxFramework.VisualScripting
 
             return _parentGraph.Nodes.FirstOrDefault(n => n.NodeId == connection.ToNodeId);
         }
-        
-        
+
+
         /// <summary>
         /// Finds ALL nodes connected to a specific output port of this wrapper.
         /// This is essential for nodes with PortCapacity.Multi execution outputs.
@@ -148,8 +148,7 @@ namespace FluxFramework.VisualScripting
                 }
             }
         }
-
-#if UNITY_EDITOR
+        
         /// <summary>
         /// (Editor-only) Completely rebuilds the node's ports based on its current logic and configuration.
         /// This is essential for dynamic nodes like GraphInput/Output.
@@ -184,7 +183,6 @@ namespace FluxFramework.VisualScripting
             // This is a more robust way to "nicify" camelCase and PascalCase names.
             return Regex.Replace(fieldName, "(\\B[A-Z])", " $1");
         }
-#endif
     }
     
     /// <summary>
